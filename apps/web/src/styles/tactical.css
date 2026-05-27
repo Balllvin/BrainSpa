@@ -507,7 +507,6 @@ select:focus {
 }
 
 .loop-cell span,
-.loop-strip span,
 .loop-page-header span,
 .loop-card span {
   font-family: var(--font-micro);
@@ -611,28 +610,6 @@ select:focus {
 .loop-center strong {
   color: var(--accent);
   font-size: 0.62rem;
-}
-
-.loop-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  border: 1px solid var(--grid);
-  background: var(--grid);
-}
-
-.loop-strip > div {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  padding: 14px;
-  background: #0c0c0c;
-}
-
-.loop-strip strong {
-  font-family: var(--font-micro);
-  font-size: 0.82rem;
-  overflow-wrap: anywhere;
 }
 
 .loop-page {
@@ -1158,7 +1135,6 @@ select:focus {
   }
 
   .loop-stage,
-  .loop-strip,
   .loop-card-grid,
   .telemetry-strip,
   .tool-grid,

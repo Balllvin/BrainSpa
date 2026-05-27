@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchBrainSpaOverview } from "@/lib/backend";
@@ -64,9 +64,7 @@ export function HomePage() {
     };
   }, []);
 
-  const activeModel = overview?.models.find((model) => model.state === "active") ?? overview?.models[0];
-  const activeDataset = overview?.datasets.find((dataset) => dataset.state === "active") ?? overview?.datasets[0];
-  const status = useMemo(() => (online === null ? "checking" : online ? "online" : "offline"), [online]);
+  const status = online === null ? "checking" : online ? "online" : "offline";
 
   return (
     <div className="loop-home">
@@ -88,20 +86,6 @@ export function HomePage() {
         ))}
       </section>
 
-      <section className="loop-strip" aria-label="Current run">
-        <div>
-          <span>Model</span>
-          <strong>{activeModel?.base_model ?? "none"}</strong>
-        </div>
-        <div>
-          <span>Dataset</span>
-          <strong>{activeDataset ? `${activeDataset.label} / ${activeDataset.row_count}` : "none"}</strong>
-        </div>
-        <div>
-          <span>Memory</span>
-          <strong>{overview?.runtime_root ?? "local"}</strong>
-        </div>
-      </section>
     </div>
   );
 }
