@@ -58,7 +58,7 @@ Do not put one-off demos in the top navigation. A chess harness can exist inside
 
 The home page is the loop map.
 
-Use a central reactive Chipmunk arc-reactor core with four equal loop parts around it. The reactor should read like a Tony Stark/JARVIS-style operating core translated into Brain Spa colors: graphite, red heat, amber energy, sharp telemetry. The active energy should not be perfectly even; it should have uneven ring fragments and a drifting off-center target layer that moves horizontally, vertically, diagonally, and in depth. Each loop part shows:
+Use a central reactive Chipmunk arc-reactor core with four equal loop parts around it. The reactor should read like a Tony Stark/JARVIS-style operating core translated into Brain Spa colors: graphite, red heat, amber energy, sharp telemetry. It should use layered block machinery, centered depth, active energy that fills the reactor, and no drawn outer ring. Each loop part shows:
 
 - the part name
 - the freshest useful state
