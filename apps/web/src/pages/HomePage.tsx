@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchBrainSpaOverview } from "@/lib/backend";
@@ -48,6 +48,10 @@ const LOOP_PARTS: LoopPart[] = [
   },
 ];
 
+const ChipmunkReactor = lazy(() =>
+  import("@/components/ChipmunkReactor").then((module) => ({ default: module.ChipmunkReactor })),
+);
+
 export function HomePage() {
   const [overview, setOverview] = useState<BrainSpaOverview | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
@@ -71,14 +75,9 @@ export function HomePage() {
       <h1 className="visually-hidden">Brain Spa loop</h1>
       <section className="loop-stage" aria-label="Brain Spa loop">
         <div className={`loop-center loop-center-${status}`} aria-label="Chipmunk reactor core">
-          <div className="reactor-shell reactor-shell-back" />
-          <div className="reactor-blocks reactor-blocks-back" />
-          <div className="reactor-field" />
-          <div className="reactor-blocks reactor-blocks-front" />
-          <div className="reactor-ring reactor-ring-middle" />
-          <div className="reactor-ring reactor-ring-inner" />
-          <div className="reactor-target" />
-          <div className="reactor-core" />
+          <Suspense fallback={<div className="reactor-3d reactor-3d-loading" />}>
+            <ChipmunkReactor status={status} />
+          </Suspense>
           <span>Chipmunk</span>
           <strong>{status}</strong>
         </div>

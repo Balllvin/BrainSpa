@@ -4,6 +4,9 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 650,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "apps/web/src"),
