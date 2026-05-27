@@ -70,9 +70,13 @@ export function HomePage() {
     <div className="loop-home">
       <h1 className="visually-hidden">Brain Spa loop</h1>
       <section className="loop-stage" aria-label="Brain Spa loop">
-        <div className="loop-center" aria-label="Brain Spa core">
+        <div className={`loop-center loop-center-${status}`} aria-label="Chipmunk reactor core">
+          <div className="reactor-field" />
+          <div className="reactor-ring reactor-ring-outer" />
+          <div className="reactor-ring reactor-ring-middle" />
+          <div className="reactor-ring reactor-ring-inner" />
           <div className="reactor-core" />
-          <span>Brain Spa</span>
+          <span>Chipmunk</span>
           <strong>{status}</strong>
         </div>
 

@@ -9,6 +9,8 @@ Brain Spa is a local app for changing model behavior. The model gets worked on i
 
 Everything in the interface must support that loop.
 
+Chipmunk is the JARVIS-like operator inside Brain Spa. It is the visible intelligence that helps run the loop for training and tuning user-owned models. Do not present Chipmunk as a mascot or chat gimmick; present it as the operating core.
+
 ## Product Shape
 
 Brain Spa has four resident model workers:
@@ -56,7 +58,7 @@ Do not put one-off demos in the top navigation. A chess harness can exist inside
 
 The home page is the loop map.
 
-Use a central red reactor core with four equal loop parts around it. Each loop part shows:
+Use a central reactive Chipmunk arc-reactor core with four equal loop parts around it. The reactor should read like a Tony Stark/JARVIS-style operating core translated into Brain Spa colors: graphite, red heat, amber energy, sharp telemetry. Each loop part shows:
 
 - the part name
 - the freshest useful state
@@ -64,6 +66,8 @@ Use a central red reactor core with four equal loop parts around it. Each loop p
 - one short line about what happens there
 
 Use little text. Prefer strong labels and live state over explanation.
+
+The reactor is allowed to use radial and conic energy gradients because it is the product signal. Do not spread that effect across the rest of the UI.
 
 ## Page Requirements
 
@@ -139,7 +143,7 @@ Use the tactical telemetry mode:
 - large structural headings
 - no decorative blobs
 - no generic SaaS cards
-- no gradients as the main visual idea
+- no gradients as the main visual idea outside the Chipmunk reactor
 - no heavy shadows
 
 Use minimalism as restraint:

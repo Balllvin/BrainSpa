@@ -2,6 +2,8 @@
 
 Local Brain Spa app for changing model behavior. The app uses a TypeScript UI and a Python FastAPI backend for evidence, datasets, fine-tuning, test harnesses, worker models, and runtime setup.
 
+Chipmunk is the JARVIS-like operator for Brain Spa. It routes and operates the evidence, dataset, tuning, and test loop for training and tuning user-owned models.
+
 ## This folder
 
 ```

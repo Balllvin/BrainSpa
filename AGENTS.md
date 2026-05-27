@@ -11,6 +11,8 @@ Brain Spa is a local app for changing model behavior through a four-part loop:
 
 Settings is only for runtime configuration, tokens, tools, engines, and worker backends.
 
+Chipmunk is the JARVIS-like operator inside Brain Spa. It helps route and operate the Evidence, Datasets, Tune, and Test loop for training and tuning user-owned models. Treat Chipmunk as the visible operating intelligence of the app, not as a mascot, one-off bot, or generic chat box.
+
 The app has four resident model workers:
 
 - Source Model owns Evidence.
@@ -26,6 +28,7 @@ UI rules:
 
 - Put the four loop parts in the header.
 - Put the four loop parts on the home page.
+- Use a reactive Chipmunk arc-reactor core on the home page. It should feel like a red/amber JARVIS-style operator interface in Brain Spa colors.
 - Do not make the app about a single adapter, bot, chess harness, or demo.
 - Do not use corporate copy or vague product language.
 - Keep the interface sparse, mechanical, direct, and artifact-driven.
