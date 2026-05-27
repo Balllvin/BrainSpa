@@ -75,6 +75,7 @@ export function HomePage() {
           <div className="reactor-ring reactor-ring-outer" />
           <div className="reactor-ring reactor-ring-middle" />
           <div className="reactor-ring reactor-ring-inner" />
+          <div className="reactor-target" />
           <div className="reactor-core" />
           <span>Chipmunk</span>
           <strong>{status}</strong>

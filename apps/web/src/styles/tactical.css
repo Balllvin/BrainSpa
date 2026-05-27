@@ -569,14 +569,16 @@ select:focus {
   border: 1px solid rgba(255, 42, 42, 0.72);
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, rgba(255, 42, 42, 0.28) 0 9%, transparent 10% 100%),
-    radial-gradient(circle at center, #0a0a0a 0 46%, rgba(255, 42, 42, 0.1) 47% 48%, #050505 50% 100%);
+    radial-gradient(circle at 52% 47%, rgba(255, 190, 90, 0.3) 0 10%, rgba(255, 42, 42, 0.18) 11% 42%, transparent 63%),
+    radial-gradient(circle at 45% 56%, rgba(255, 42, 42, 0.2) 0 34%, rgba(255, 120, 42, 0.11) 35% 58%, #080808 76% 100%);
   box-shadow:
     0 0 0 1px rgba(255, 42, 42, 0.16),
-    0 0 42px rgba(255, 42, 42, 0.24);
+    0 0 42px rgba(255, 42, 42, 0.28),
+    inset 0 0 38px rgba(255, 42, 42, 0.22);
   text-align: center;
   isolation: isolate;
   overflow: hidden;
+  perspective: 700px;
   --reactor-speed: 9s;
   --reactor-pulse: 2.4s;
   --reactor-brightness: 1;
@@ -609,6 +611,9 @@ select:focus {
 
 .reactor-field,
 .reactor-ring,
+.reactor-target,
+.reactor-target::before,
+.reactor-target::after,
 .reactor-core,
 .reactor-core::before,
 .reactor-core::after {
@@ -618,20 +623,37 @@ select:focus {
 }
 
 .reactor-field {
-  inset: 10px;
+  inset: 5px;
   border-radius: 50%;
   background:
-    repeating-conic-gradient(
+    conic-gradient(
       from 18deg,
-      rgba(255, 156, 54, 0.86) 0deg 1.4deg,
-      transparent 1.4deg 7deg,
-      rgba(255, 42, 42, 0.72) 7deg 8deg,
-      transparent 8deg 18deg
-    );
+      rgba(255, 156, 54, 0.86) 0deg 3deg,
+      transparent 5deg 13deg,
+      rgba(255, 42, 42, 0.76) 17deg 21deg,
+      transparent 26deg 42deg,
+      rgba(255, 124, 42, 0.92) 50deg 53deg,
+      transparent 57deg 71deg,
+      rgba(255, 42, 42, 0.64) 78deg 82deg,
+      transparent 86deg 112deg,
+      rgba(255, 190, 90, 0.82) 119deg 121deg,
+      transparent 126deg 150deg,
+      rgba(255, 42, 42, 0.7) 158deg 164deg,
+      transparent 169deg 207deg,
+      rgba(255, 156, 54, 0.8) 218deg 223deg,
+      transparent 227deg 261deg,
+      rgba(255, 42, 42, 0.74) 272deg 276deg,
+      transparent 281deg 319deg,
+      rgba(255, 156, 54, 0.68) 332deg 336deg,
+      transparent 341deg 360deg
+    ),
+    repeating-conic-gradient(from 7deg, rgba(255, 42, 42, 0.32) 0deg 0.8deg, transparent 1deg 9deg);
   filter: brightness(var(--reactor-brightness)) drop-shadow(0 0 10px rgba(255, 74, 42, 0.42));
-  mask: radial-gradient(circle at center, transparent 0 29%, #000 31% 46%, transparent 48% 100%);
-  animation: reactor-spin var(--reactor-speed) linear infinite;
-  opacity: 0.82;
+  mask: radial-gradient(circle at center, transparent 0 11%, #000 13% 58%, transparent 61% 100%);
+  animation:
+    reactor-spin var(--reactor-speed) linear infinite,
+    reactor-orbit calc(var(--reactor-speed) * 1.6) ease-in-out infinite alternate;
+  opacity: 0.92;
 }
 
 .reactor-ring {
@@ -640,34 +662,69 @@ select:focus {
 }
 
 .reactor-ring-outer {
-  inset: 16px;
+  inset: 8px;
   border: 1px solid rgba(255, 42, 42, 0.62);
   background:
-    conic-gradient(from 90deg, transparent 0 18deg, rgba(255, 128, 42, 0.88) 20deg 24deg, transparent 26deg 84deg, rgba(255, 42, 42, 0.8) 88deg 91deg, transparent 94deg 360deg);
-  mask: radial-gradient(circle at center, transparent 0 42%, #000 43% 47%, transparent 48% 100%);
-  animation: reactor-spin calc(var(--reactor-speed) * 1.35) linear infinite reverse;
+    conic-gradient(from 90deg, transparent 0 18deg, rgba(255, 128, 42, 0.88) 20deg 24deg, transparent 26deg 84deg, rgba(255, 42, 42, 0.8) 88deg 91deg, transparent 94deg 176deg, rgba(255, 156, 54, 0.62) 181deg 184deg, transparent 187deg 271deg, rgba(255, 42, 42, 0.54) 282deg 286deg, transparent 290deg 360deg);
+  mask: radial-gradient(circle at center, transparent 0 53%, #000 55% 59%, transparent 61% 100%);
+  animation:
+    reactor-spin calc(var(--reactor-speed) * 1.35) linear infinite reverse,
+    reactor-depth calc(var(--reactor-speed) * 0.9) ease-in-out infinite alternate;
 }
 
 .reactor-ring-middle {
-  inset: 40px;
+  inset: 30px;
   border: 1px solid rgba(255, 156, 54, 0.7);
   background:
-    repeating-conic-gradient(from 0deg, rgba(255, 42, 42, 0.8) 0deg 3deg, transparent 3deg 17deg);
-  mask: radial-gradient(circle at center, transparent 0 39%, #000 40% 45%, transparent 46% 100%);
-  animation: reactor-spin calc(var(--reactor-speed) * 0.7) linear infinite;
+    conic-gradient(from 0deg, rgba(255, 42, 42, 0.8) 0deg 3deg, transparent 6deg 28deg, rgba(255, 156, 54, 0.8) 39deg 45deg, transparent 51deg 104deg, rgba(255, 42, 42, 0.8) 116deg 120deg, transparent 127deg 199deg, rgba(255, 156, 54, 0.7) 212deg 218deg, transparent 224deg 302deg, rgba(255, 42, 42, 0.74) 316deg 320deg, transparent 326deg 360deg);
+  mask: radial-gradient(circle at center, transparent 0 42%, #000 43% 51%, transparent 53% 100%);
+  animation:
+    reactor-spin calc(var(--reactor-speed) * 0.7) linear infinite,
+    reactor-wobble calc(var(--reactor-speed) * 0.82) ease-in-out infinite;
 }
 
 .reactor-ring-inner {
-  inset: 62px;
+  inset: 54px;
   border: 1px solid rgba(255, 42, 42, 0.78);
   background:
     conic-gradient(from 270deg, rgba(255, 42, 42, 0.92), rgba(255, 156, 54, 0.36), transparent 38%, rgba(255, 42, 42, 0.82), transparent 72%);
-  mask: radial-gradient(circle at center, transparent 0 36%, #000 38% 50%, transparent 52% 100%);
-  animation: reactor-spin calc(var(--reactor-speed) * 0.42) linear infinite reverse;
+  mask: radial-gradient(circle at center, transparent 0 25%, #000 29% 56%, transparent 60% 100%);
+  animation:
+    reactor-spin calc(var(--reactor-speed) * 0.42) linear infinite reverse,
+    reactor-depth calc(var(--reactor-speed) * 0.72) ease-in-out infinite alternate-reverse;
+}
+
+.reactor-target {
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: 98px;
+  height: 98px;
+  border-radius: 50%;
+  transform-origin: 57% 43%;
+  background:
+    linear-gradient(45deg, transparent 0 47%, rgba(255, 156, 54, 0.54) 48% 50%, transparent 51% 100%),
+    linear-gradient(-45deg, transparent 0 47%, rgba(255, 42, 42, 0.58) 48% 50%, transparent 51% 100%),
+    radial-gradient(circle at 56% 44%, transparent 0 16%, rgba(255, 42, 42, 0.55) 17% 19%, transparent 20% 100%);
+  animation: reactor-target-drift calc(var(--reactor-speed) * 0.95) ease-in-out infinite alternate;
+  opacity: 0.88;
+}
+
+.reactor-target::before {
+  inset: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 156, 54, 0.52);
+}
+
+.reactor-target::after {
+  inset: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 42, 42, 0.68);
+  background: radial-gradient(circle, rgba(255, 156, 54, 0.42), transparent 58%);
 }
 
 .reactor-core {
-  inset: 76px;
+  inset: 72px;
   border-radius: 50%;
   background:
     radial-gradient(circle, #fff1d0 0 8%, #ff9c36 10% 24%, var(--accent) 26% 54%, rgba(255, 42, 42, 0.12) 58% 100%);
@@ -678,19 +735,18 @@ select:focus {
 }
 
 .reactor-core::before {
-  inset: -18px;
+  inset: -22px;
   border-radius: 50%;
   border: 1px dashed rgba(255, 156, 54, 0.64);
   animation: reactor-spin calc(var(--reactor-speed) * 0.55) steps(24) infinite;
 }
 
 .reactor-core::after {
-  inset: -42px;
+  inset: -52px;
   border-radius: 50%;
   background:
-    linear-gradient(90deg, transparent 0 44%, rgba(255, 156, 54, 0.58) 45% 46%, transparent 47% 100%),
-    linear-gradient(0deg, transparent 0 44%, rgba(255, 42, 42, 0.5) 45% 46%, transparent 47% 100%);
-  opacity: 0.72;
+    radial-gradient(circle, rgba(255, 42, 42, 0.16), transparent 64%);
+  opacity: 0.56;
   animation: reactor-pulse calc(var(--reactor-pulse) * 1.4) ease-in-out infinite reverse;
 }
 
@@ -718,7 +774,7 @@ select:focus {
 
 @keyframes reactor-spin {
   to {
-    transform: rotate(360deg);
+    rotate: 360deg;
   }
 }
 
@@ -732,6 +788,67 @@ select:focus {
   50% {
     opacity: 1;
     transform: scale(1.08);
+  }
+}
+
+@keyframes reactor-orbit {
+  0% {
+    transform: translate3d(-2px, 3px, -24px) rotateX(8deg) rotateY(-10deg) scale(0.96);
+  }
+
+  45% {
+    transform: translate3d(4px, -5px, 18px) rotateX(-6deg) rotateY(8deg) scale(1.04);
+  }
+
+  100% {
+    transform: translate3d(-5px, -2px, 8px) rotateX(5deg) rotateY(12deg) scale(1.02);
+  }
+}
+
+@keyframes reactor-depth {
+  0% {
+    transform: translate3d(-3px, 2px, -18px) rotateX(7deg) rotateY(-11deg) scale(0.98);
+  }
+
+  100% {
+    transform: translate3d(4px, -3px, 22px) rotateX(-9deg) rotateY(10deg) scale(1.04);
+  }
+}
+
+@keyframes reactor-wobble {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotateZ(0deg) rotateX(0deg);
+  }
+
+  34% {
+    transform: translate3d(3px, 4px, 16px) rotateZ(3deg) rotateX(7deg);
+  }
+
+  68% {
+    transform: translate3d(-4px, -2px, -14px) rotateZ(-4deg) rotateY(-8deg);
+  }
+}
+
+@keyframes reactor-target-drift {
+  0% {
+    transform: translate3d(-54%, -49%, -26px) rotateX(12deg) rotateY(-16deg) rotateZ(-4deg) scale(0.94);
+  }
+
+  22% {
+    transform: translate3d(-47%, -56%, 18px) rotateX(-9deg) rotateY(11deg) rotateZ(5deg) scale(1.02);
+  }
+
+  49% {
+    transform: translate3d(-58%, -44%, 34px) rotateX(8deg) rotateY(17deg) rotateZ(-8deg) scale(1.08);
+  }
+
+  74% {
+    transform: translate3d(-45%, -47%, -12px) rotateX(-14deg) rotateY(-9deg) rotateZ(7deg) scale(0.97);
+  }
+
+  100% {
+    transform: translate3d(-51%, -55%, 24px) rotateX(10deg) rotateY(-13deg) rotateZ(3deg) scale(1.04);
   }
 }
 
@@ -1316,6 +1433,9 @@ select:focus {
 @media (prefers-reduced-motion: reduce) {
   .reactor-field,
   .reactor-ring,
+  .reactor-target,
+  .reactor-target::before,
+  .reactor-target::after,
   .reactor-core,
   .reactor-core::before,
   .reactor-core::after {

@@ -28,7 +28,7 @@ UI rules:
 
 - Put the four loop parts in the header.
 - Put the four loop parts on the home page.
-- Use a reactive Chipmunk arc-reactor core on the home page. It should feel like a red/amber JARVIS-style operator interface in Brain Spa colors.
+- Use a reactive Chipmunk arc-reactor core on the home page. It should feel like a red/amber JARVIS-style operator interface in Brain Spa colors, with uneven active energy and a drifting off-center target layer.
 - Do not make the app about a single adapter, bot, chess harness, or demo.
 - Do not use corporate copy or vague product language.
 - Keep the interface sparse, mechanical, direct, and artifact-driven.
