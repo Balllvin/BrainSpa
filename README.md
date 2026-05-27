@@ -1,6 +1,6 @@
 # Brain Spa
 
-Local Brain Spa app for making a small AI from your own data. The app uses a TypeScript UI and a Python FastAPI backend for datasets, training, eval harnesses, agents, and Telegram setup.
+Local Brain Spa app for changing model behavior. The app uses a TypeScript UI and a Python FastAPI backend for evidence, datasets, fine-tuning, test harnesses, worker models, and runtime setup.
 
 ## This folder
 
@@ -44,14 +44,14 @@ Useful endpoints:
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /api/overview` | Dashboard state, tools, agents, models, datasets, environments, Telegram links |
-| `POST /api/datasets/generate` | Generate the Believer seed dataset and SFT handoff |
+| `GET /api/overview` | Local state, tools, workers, models, datasets, environments, Telegram links |
+| `POST /api/datasets/generate` | Generate the active seed dataset and SFT handoff |
 | `POST /api/training/dry-run` | Resolve trainer recipes and report missing runtime modules |
-| `POST /api/training/build-adapter` | Train a local Believer LoRA adapter |
-| `POST /api/training/test-adapter` | Generate from the adapter and score it in the Believer harness |
-| `POST /api/evals/run` | Run chat or chess harness scoring with fine-grained comments |
+| `POST /api/training/build-adapter` | Train a local LoRA adapter |
+| `POST /api/training/test-adapter` | Generate from the adapter and score it in the active harness |
+| `POST /api/evals/run` | Run environment harness scoring with fine-grained comments |
 | `POST /api/telegram/bots` | Store a bot token in the local backend secret file |
-| `POST /api/telegram/authorize` | Verify allowed-chat routing before Telegram messages reach Chipmunk |
+| `POST /api/telegram/authorize` | Verify allowed-chat routing before Telegram messages reach the worker router |
 | `POST /api/workers/run` | Preview a controlled agent-backend job |
 
 ## Telegram And Chipmunk
@@ -73,14 +73,21 @@ Datasets use `draft`, `validated`, `active`, `retired`, and `archived`.
 
 Lifecycle changes are explicit API calls and invalid jumps are rejected. State remains local under `~/.brain-spa/state`, with a SQLite event log for lifecycle and dataset events.
 
-## Training And Environments
+## Brain Spa Loop
 
-The current validation project generates 100 Believer rows for `HuggingFaceTB/SmolLM2-360M-Instruct`, writes SFT and preference files, writes trainer recipes, trains a local LoRA adapter, and tests the adapter in the Believer harness.
+Brain Spa works in four parts:
 
-The environment harnesses include:
+1. Evidence: find proof of the behavior the user wants.
+2. Datasets: turn evidence into rows and preference pairs.
+3. Tune: dry-run, fine-tune, and write adapter artifacts.
+4. Test: put the model in environments and score behavior.
 
-- Believer chat scoring: conviction, generic phrasing, directness.
-- Chess scoring: Stockfish availability, legal FEN validation through `python-chess`, image-to-FEN stage note, explanation quality.
+The current validation project generates 100 rows for `HuggingFaceTB/SmolLM2-360M-Instruct`, writes SFT and preference files, writes trainer recipes, trains a local LoRA adapter, and tests the adapter in an active harness.
+
+The environment builder defines state, allowed actions, and scoring rules before training data is generated. Built-in harnesses include:
+
+- Persona chat scoring: conviction, generic phrasing, directness.
+- Chess position scoring: Stockfish availability, legal FEN validation through `python-chess`, image-to-FEN stage note, explanation quality.
 
 External setup that requires Alvin's credentials or installs is tracked in `docs/local-blockers.md`.
 
@@ -88,10 +95,11 @@ External setup that requires Alvin's credentials or installs is tracked in `docs
 
 | Route | Purpose |
 |-------|---------|
-| `/` | Model workbench |
-| `/data` | Dataset, training, adapter testing, and Believer harness |
-| `/chess` | Chess environment harness |
-| `/registry` | Projects, models, datasets, and environments |
+| `/` | Four-part loop map |
+| `/evidence` | Sources and behavior evidence |
+| `/datasets` | Dataset generation and handoff |
+| `/tune` | Dry-run, adapter build, and adapter test |
+| `/test` | Environment and harness checks |
 | `/settings` | Telegram, Hermes readiness, worker backends, and engines |
 
 Optional: `VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev`

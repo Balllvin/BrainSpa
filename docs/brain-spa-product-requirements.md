@@ -1,10 +1,10 @@
 # Brain Spa Product Requirements
 
-Brain Spa is one local app for making a small AI from your own data.
+Brain Spa is one local app for changing model behavior.
 
 The app must help the user:
 
-- write the model goal
+- find evidence for the behavior the user wants
 - generate a dataset
 - train a small adapter locally
 - test the model in a real harness
@@ -27,23 +27,19 @@ No Railway. No hosted deployment. Local macOS first.
 
 ## Main Flow
 
-1. User opens Brain Spa.
-2. User describes the model they want.
-3. Chipmunk routes the work to dataset, training, eval, environment, or settings.
-4. Brain Spa generates at least 100 dataset rows for the validation project.
-5. Brain Spa runs quality checks and writes SFT and preference files.
-6. Brain Spa resolves trainer recipes.
-7. Brain Spa builds a local LoRA adapter when trainer modules are installed.
-8. Brain Spa tests the adapter in the matching harness.
-9. Brain Spa shows the failure comments.
-10. User fixes the dataset, harness, or goal and repeats.
+1. Evidence model finds behavior proof.
+2. Data model turns evidence into dataset rows and preference pairs.
+3. Training model dry-runs and fine-tunes the adapter.
+4. Harness model builds environments and scores behavior.
+5. User fixes evidence, data, tuning, or harness rules and repeats.
 
 ## Screens
 
-- `/` is the workbench. It starts the main actions.
-- `/data` is the build area. It generates data, dry-runs training, builds the adapter, tests the adapter, and tests Believer answers.
-- `/chess` is the chess harness. It tests FEN, role, move, and explanation quality.
-- `/registry` shows projects, sources, models, datasets, and environments with lifecycle controls.
+- `/` is the loop map.
+- `/evidence` shows sources and behavior evidence.
+- `/datasets` generates datasets and shows handoff files.
+- `/tune` dry-runs training, builds adapters, and tests adapters.
+- `/test` defines environments and runs harness checks.
 - `/settings` handles Telegram, Hermes readiness, worker backends, and engines.
 
 Every visible button must run a real backend call or be removed.
@@ -91,11 +87,11 @@ Brain Spa must support:
 
 The app must never silently switch training backend. If a backend is missing, it must say what is missing.
 
-The local validation build must train `HuggingFaceTB/SmolLM2-360M-Instruct` with a generated Believer dataset and save an adapter artifact.
+The local validation build must train `HuggingFaceTB/SmolLM2-360M-Instruct` with a generated dataset and save an adapter artifact.
 
-## Believer Harness
+## Example Validation Harness
 
-Believer is the first full validation model.
+The first full validation target is a persona adapter.
 
 The goal is a small model that answers from explicit Christian conviction instead of generic self-help.
 
@@ -206,10 +202,10 @@ Brain Spa is complete only when:
 
 - local app starts
 - TypeScript UI talks to Python backend
-- 100-row Believer dataset is generated
-- Believer adapter is trained locally
+- 100-row dataset is generated
+- local adapter is trained
 - trained adapter is tested by the harness
-- chess harness works
+- environment harnesses work
 - Telegram blocks without a live verified token
 - worker backends show real detection state
 - model and dataset lifecycle buttons work

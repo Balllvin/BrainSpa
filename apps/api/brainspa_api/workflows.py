@@ -127,7 +127,7 @@ def generate_believer_dataset(request: DatasetGenerateRequest) -> DatasetGenerat
     updated = state.upsert_dataset(
         {
             "key": "believer_seed",
-            "label": "Believer Seed Dataset",
+            "label": "Seed Dataset",
             "goal": request.goal,
             "state": "validated" if not warnings else "draft",
             "quality_notes": quality,
@@ -280,7 +280,7 @@ def build_training_adapter(request: TrainingDryRunRequest) -> TrainingAdapterBui
         loss=loss,
         output_dir=str(output_dir),
         missing_requirements=[],
-        notes=["Loaded the base model locally.", "Trained LoRA adapter on generated Believer rows.", "Saved adapter artifacts."],
+        notes=["Loaded the base model locally.", "Trained LoRA adapter on generated rows.", "Saved adapter artifacts."],
     )
     (output_dir / "adapter_build_result.json").write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return result
@@ -326,7 +326,7 @@ def test_training_adapter(request: AdapterTestRequest) -> AdapterTestResult:
         answer=answer,
         eval=eval_result,
         missing_requirements=[],
-        notes=["Generated with the local LoRA adapter.", "Scored by the Believer harness."],
+        notes=["Generated with the local LoRA adapter.", "Scored by the active harness."],
     )
 
 
@@ -382,7 +382,7 @@ def chipmunk_reply(message: str) -> ChipmunkChatResult:
         return ChipmunkChatResult(
             reply="Dataset Builder should inspect source coverage, generate a split-safe draft, and label exact failure modes before training.",
             routed_to="dataset_builder",
-            suggested_actions=["Generate Believer dataset", "Run dataset quality check"],
+            suggested_actions=["Generate dataset", "Run dataset quality check"],
         )
     if "train" in lowered or "model" in lowered:
         return ChipmunkChatResult(
@@ -394,12 +394,12 @@ def chipmunk_reply(message: str) -> ChipmunkChatResult:
         return ChipmunkChatResult(
             reply="Environment Builder should define the harness, world state, allowed actions, and scoring comments before data generation.",
             routed_to="environment_builder",
-            suggested_actions=["Run chess eval", "Open environment registry"],
+            suggested_actions=["Open environment builder", "Draft state, actions, and scoring"],
         )
     return ChipmunkChatResult(
-        reply="I can route this through Brain Spa, but I need the target: dataset, training, model registry, environment, Telegram, or worker.",
+        reply="I can route this through Brain Spa, but I need the target: evidence, datasets, tune, test, Telegram, or worker.",
         routed_to="chipmunk",
-        suggested_actions=["Check dashboard", "Run validation"],
+        suggested_actions=["Open the loop map", "Run a harness check"],
     )
 
 

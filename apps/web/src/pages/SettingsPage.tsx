@@ -81,7 +81,7 @@ export function SettingsPage() {
         <div className="settings-strip">
           <StatusBlock label="Hermes" value={hermesBinary?.available && telegramReady ? "live" : "blocked"} good={Boolean(hermesBinary?.available && telegramReady)} />
           <StatusBlock label="Workers" value={`${WORKER_BACKENDS.filter((key) => toolMap.get(key)?.available).length}/4`} good={Boolean(toolMap.get("codex")?.available)} />
-          <StatusBlock label="Chess" value={stockfish?.available ? "engine ready" : "missing"} good={Boolean(stockfish?.available)} />
+          <StatusBlock label="Engines" value={stockfish?.available ? "ready" : "missing"} good={Boolean(stockfish?.available)} />
         </div>
       </section>
 

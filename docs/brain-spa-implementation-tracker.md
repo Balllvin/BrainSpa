@@ -20,10 +20,10 @@ This file tracks what is real, what was tested, and what still needs external in
 - [x] Runtime-local state and artifacts.
 - [x] Retired code moved under `Retired/`.
 - [x] Old product names removed from active UI.
-- [x] Home workbench simplified.
-- [x] Data page builds and tests the Believer model path.
-- [x] Dedicated chess page added.
-- [x] Registry shows projects, sources, models, datasets, and environments.
+- [x] Home page rebuilt as the Evidence, Datasets, Tune, Test loop map.
+- [x] Datasets and Tune pages build and test the validation model path.
+- [x] Test page exposes environment and harness checks.
+- [x] Evidence page shows sources and behavior proof.
 - [x] Settings handles Telegram, Hermes, workers, and engines.
 - [x] Stockfish is shown as a chess engine, not an agent.
 - [x] Hermes stays blocked unless Telegram is live-verified.
@@ -33,9 +33,9 @@ This file tracks what is real, what was tested, and what still needs external in
 - [x] Dataset lifecycle transitions are explicit.
 - [x] Invalid lifecycle transitions fail through the API.
 
-## Believer Build Evidence
+## Validation Build Evidence
 
-- [x] Generated 100 Believer dataset rows.
+- [x] Generated 100 dataset rows.
 - [x] Dataset warnings: none.
 - [x] SFT JSONL written.
 - [x] Preference pairs written.
@@ -48,7 +48,7 @@ This file tracks what is real, what was tested, and what still needs external in
 - [x] Adapter final loss: `0.15388262271881104`.
 - [x] Adapter saved at `~/.brain-spa/artifacts/training/believer_validation/believer_adapter`.
 - [x] Adapter generated an answer through the app backend.
-- [x] Believer harness scored the generated answer.
+- [x] Active harness scored the generated answer.
 - [x] First weak adapter test failed conviction grounding.
 - [x] Stronger adapter build fixed that failure.
 - [x] Final adapter test passed with score `1.0`.
@@ -61,13 +61,13 @@ Name the fear, name it as abstract and human, and return to God with the matter 
 
 ## Environment Evidence
 
-- [x] Believer chat harness scores conviction, generic phrasing, and directness.
-- [x] Believer manual answer test passes for a grounded direct answer.
-- [x] Believer adapter answer test passes after stronger training.
+- [x] Persona chat harness scores conviction, generic phrasing, and directness.
+- [x] Manual answer test passes for a grounded direct answer.
+- [x] Adapter answer test passes after stronger training.
 - [x] Chess harness validates FEN with `python-chess`.
 - [x] Chess harness checks Stockfish availability.
 - [x] Chess harness separates rules, board state, image stage, and explanation comments.
-- [x] Dedicated chess UI submits role, FEN, move, and explanation.
+- [x] Test page routes environment work through one general harness surface.
 
 ## Backend Evidence
 
