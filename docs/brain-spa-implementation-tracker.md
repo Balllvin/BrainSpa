@@ -116,5 +116,7 @@ These are not app blockers because the app handles them honestly:
 - [x] Run final browser QA and click every visible control.
 - [x] Clean generated caches from the repository.
 - [x] Add open-source license.
-- [ ] Commit the finished app.
-- [ ] Create the public GitHub repository.
+- [x] Commit the finished app.
+- [x] Create the public GitHub repository.
+
+Repository: `https://github.com/Balllvin/brain-spa-local-ai`
