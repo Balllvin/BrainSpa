@@ -58,7 +58,7 @@ Do not put one-off demos in the top navigation. A chess harness can exist inside
 
 The home page is the loop map.
 
-Use a central reactive Chipmunk arc-reactor core with four equal loop parts around it. The reactor should read like a Tony Stark/JARVIS-style operating core translated into Brain Spa colors: graphite, red heat, amber energy, sharp telemetry. Use real 3D/WebGL rather than flat CSS when rendering the core. It should have rotating particle pixels, varied block fragments, different sizes, changing density, multiple axes of rotation, centered depth, active energy that fills the reactor, and no drawn outer ring. Each loop part shows:
+Use a central reactive Chipmunk arc-reactor core with four equal loop parts around it. The reactor should read like a Tony Stark/JARVIS-style operating core translated into Brain Spa colors: graphite, red heat, amber energy, sharp telemetry. Use real 3D/WebGL rather than flat CSS when rendering the core. It should have rotating particle pixels, varied block fragments, different sizes, changing density, multiple axes of rotation, centered depth, active energy that fills the reactor, no drawn outer ring, and no visible text or status labels inside the reactor. Each loop part shows:
 
 - the part name
 - the freshest useful state

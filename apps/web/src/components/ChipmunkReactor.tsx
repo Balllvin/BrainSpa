@@ -43,18 +43,18 @@ function buildBlockLayer(count: number, seed: number, zBias: number) {
 
   for (let index = 0; index < count; index += 1) {
     const angle = random() * Math.PI * 2;
-    const radius = 0.75 + random() * 1.75;
-    const band = (random() - 0.5) * 1.6;
-    const depth = (random() - 0.5) * 1.45 + zBias;
-    const width = 0.025 + random() * 0.22;
-    const height = 0.008 + random() * 0.055;
+    const radius = 0.62 + random() * 1.95;
+    const band = (random() - 0.5) * 1.75;
+    const depth = (random() - 0.5) * 1.65 + zBias;
+    const width = 0.055 + random() * 0.34;
+    const height = 0.018 + random() * 0.105;
     const hot = random();
-    const color = new THREE.Color().setRGB(1, 0.07 + hot * 0.34, hot * 0.05);
+    const color = new THREE.Color().setRGB(1, 0.04 + hot * 0.28, hot * 0.04);
 
     position.set(Math.cos(angle) * radius, band, Math.sin(angle) * radius + depth);
     rotation.set((random() - 0.5) * 1.2, angle + Math.PI / 2, (random() - 0.5) * 1.6);
     quaternion.setFromEuler(rotation);
-    scale.set(width, height, 0.018 + random() * 0.05);
+    scale.set(width, height, 0.028 + random() * 0.09);
     matrix.compose(position, quaternion, scale);
     mesh.setMatrixAt(index, matrix);
     mesh.setColorAt(index, color);
@@ -73,7 +73,7 @@ function buildParticleCloud(count: number, seed: number) {
 
   for (let index = 0; index < count; index += 1) {
     const angle = random() * Math.PI * 2;
-    const radius = 0.38 + random() * 2.3;
+    const radius = 0.34 + random() * 2.34;
     const vertical = (random() - 0.5) * 1.9;
     const depth = (random() - 0.5) * 2.1;
     const offset = index * 3;
@@ -81,15 +81,15 @@ function buildParticleCloud(count: number, seed: number) {
     positions[offset + 1] = vertical;
     positions[offset + 2] = Math.sin(angle) * radius * 0.72 + depth;
     colors[offset] = 1;
-    colors[offset + 1] = 0.18 + random() * 0.54;
-    colors[offset + 2] = random() * 0.08;
+    colors[offset + 1] = 0.1 + random() * 0.42;
+    colors[offset + 2] = random() * 0.045;
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   const material = new THREE.PointsMaterial({
-    size: 0.025,
+    size: 0.062,
     transparent: true,
     opacity: 0.9,
     blending: THREE.AdditiveBlending,
@@ -107,7 +107,7 @@ function buildArcLayer(seed: number) {
   for (let arc = 0; arc < 28; arc += 1) {
     const radius = 0.58 + random() * 1.85;
     const start = random() * Math.PI * 2;
-    const length = 0.12 + random() * 0.86;
+    const length = 0.18 + random() * 1.1;
     const z = (random() - 0.5) * 1.35;
     const points: THREE.Vector3[] = [];
 
@@ -119,7 +119,7 @@ function buildArcLayer(seed: number) {
 
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
-      color: random() > 0.45 ? 0xff2a2a : 0xff9c36,
+      color: random() > 0.35 ? 0xff2a2a : 0xff7a24,
       transparent: true,
       opacity: 0.44 + random() * 0.46,
       blending: THREE.AdditiveBlending,
@@ -163,14 +163,14 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
     root.add(deepShell, midShell, frontShell);
     scene.add(root);
 
-    const backBlocks = buildBlockLayer(180, 11, -0.28);
-    const frontBlocks = buildBlockLayer(130, 29, 0.42);
+    const backBlocks = buildBlockLayer(260, 11, -0.28);
+    const frontBlocks = buildBlockLayer(220, 29, 0.42);
     deepShell.add(backBlocks.mesh);
     frontShell.add(frontBlocks.mesh);
 
-    const particlesFine = buildParticleCloud(780, 41);
-    const particlesHot = buildParticleCloud(260, 67);
-    particlesHot.material.size = 0.045;
+    const particlesFine = buildParticleCloud(420, 41);
+    const particlesHot = buildParticleCloud(240, 67);
+    particlesHot.material.size = 0.095;
     midShell.add(particlesFine, particlesHot);
 
     const arcs = buildArcLayer(83);
@@ -186,7 +186,7 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
     });
     const coreBall = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 16), coreMaterial);
     const haloMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff9c36,
+      color: 0xff5a24,
       transparent: true,
       opacity: 0.48,
       blending: THREE.AdditiveBlending,
@@ -218,24 +218,24 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
       const elapsed = clock.getElapsedTime();
       const target = activeRef.current && !reduceMotion ? 1 : 0;
       activeAmount += (target - activeAmount) * 0.045;
-      const statusBoost = statusRef.current === "online" ? 1.12 : statusRef.current === "checking" ? 1.28 : 0.72;
-      const speed = reduceMotion ? 0.08 : statusBoost * (1 + activeAmount * 1.35);
-      const spread = 1 + activeAmount * 0.18;
+      const statusBoost = statusRef.current === "offline" ? 0.82 : 1;
+      const speed = reduceMotion ? 0.08 : statusBoost * (1 + activeAmount * 0.08);
+      const spread = 1 + activeAmount * 0.28;
 
       root.scale.setScalar(spread);
-      root.rotation.x = Math.sin(elapsed * 0.54 * speed) * 0.62 + Math.cos(elapsed * 0.21) * 0.18;
-      root.rotation.y = elapsed * 0.34 * speed + Math.sin(elapsed * 0.39) * 0.38;
-      root.rotation.z = Math.sin(elapsed * 0.31 * speed) * 0.32;
+      root.rotation.x = Math.sin(elapsed * 0.42 * speed) * 0.72 + Math.cos(elapsed * 0.19) * 0.2;
+      root.rotation.y = elapsed * 0.28 * speed + Math.sin(elapsed * 0.31) * 0.42;
+      root.rotation.z = Math.sin(elapsed * 0.24 * speed) * 0.34;
 
       deepShell.rotation.y = -elapsed * 0.5 * speed;
       deepShell.rotation.x = Math.sin(elapsed * 0.8) * 0.24;
-      midShell.rotation.y = elapsed * 0.78 * speed;
+      midShell.rotation.y = elapsed * 0.56 * speed;
       midShell.rotation.z = Math.cos(elapsed * 0.5) * 0.38;
       frontShell.rotation.x = Math.sin(elapsed * 0.72) * 0.42;
-      frontShell.rotation.y = -elapsed * 0.96 * speed;
+      frontShell.rotation.y = -elapsed * 0.64 * speed;
 
-      particlesFine.rotation.y = elapsed * 0.22 * speed;
-      particlesHot.rotation.x = -elapsed * 0.35 * speed;
+      particlesFine.rotation.y = elapsed * 0.18 * speed;
+      particlesHot.rotation.x = -elapsed * 0.22 * speed;
       arcs.rotation.z = elapsed * 0.18 * speed;
       arcs.rotation.y = Math.sin(elapsed * 0.47) * 0.8;
 
@@ -246,8 +246,8 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
       const flicker = 0.72 + Math.sin(elapsed * 17.0) * 0.08 + Math.sin(elapsed * 29.0) * 0.045 + activeAmount * 0.16;
       (particlesFine.material as THREE.PointsMaterial).opacity = flicker;
       (particlesHot.material as THREE.PointsMaterial).opacity = Math.min(1, flicker + 0.18);
-      (frontBlocks.mesh.material as THREE.MeshBasicMaterial).opacity = 0.72 + activeAmount * 0.22 + Math.sin(elapsed * 6.1) * 0.05;
-      (backBlocks.mesh.material as THREE.MeshBasicMaterial).opacity = 0.58 + activeAmount * 0.2 + Math.cos(elapsed * 4.7) * 0.06;
+      (frontBlocks.mesh.material as THREE.MeshBasicMaterial).opacity = 0.78 + activeAmount * 0.12 + Math.sin(elapsed * 4.6) * 0.04;
+      (backBlocks.mesh.material as THREE.MeshBasicMaterial).opacity = 0.64 + activeAmount * 0.1 + Math.cos(elapsed * 3.9) * 0.05;
 
       renderer.render(scene, camera);
     };

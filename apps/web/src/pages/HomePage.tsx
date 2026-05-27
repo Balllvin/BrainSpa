@@ -78,8 +78,6 @@ export function HomePage() {
           <Suspense fallback={<div className="reactor-3d reactor-3d-loading" />}>
             <ChipmunkReactor status={status} />
           </Suspense>
-          <span>Chipmunk</span>
-          <strong>{status}</strong>
         </div>
 
         {LOOP_PARTS.map((part) => (
