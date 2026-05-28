@@ -498,12 +498,14 @@ select:focus {
   position: relative;
   z-index: 2;
   display: grid;
-  align-content: space-between;
+  grid-template-rows: auto 1fr auto auto;
+  align-content: stretch;
+  gap: 14px;
   min-height: 260px;
   padding: 24px;
-  background: rgba(12, 12, 12, 0.7);
+  background: rgba(12, 12, 12, 0.62);
   backdrop-filter: blur(1px);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .loop-cell-evidence {
@@ -527,7 +529,8 @@ select:focus {
 }
 
 .loop-cell:hover {
-  background: rgba(18, 18, 18, 0.82);
+  background: rgba(18, 18, 18, 0.76);
+  box-shadow: inset 0 0 0 1px rgba(230, 25, 25, 0.38);
 }
 
 .loop-cell span,
@@ -542,40 +545,72 @@ select:focus {
 }
 
 .loop-cell strong {
-  align-self: start;
-  margin-top: 48px;
+  align-self: end;
   font-family: var(--font-macro);
-  font-size: clamp(2.1rem, 5vw, 5.75rem);
-  line-height: 0.92;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.45rem, 2.8vw, 3.25rem);
+  line-height: 0.96;
+  letter-spacing: -0.035em;
   overflow-wrap: anywhere;
 }
 
 .loop-cell-tune strong,
 .loop-cell-test strong {
-  margin-top: 48px;
+  align-self: end;
 }
 
 .loop-cell p {
-  max-width: 28ch;
+  max-width: 34ch;
   margin: 0;
   color: var(--muted);
+  font-size: clamp(0.9rem, 1.3vw, 1.08rem);
 }
 
 .loop-cell small {
-  position: absolute;
-  top: 24px;
-  right: 24px;
   font-family: var(--font-micro);
   font-size: 0.7rem;
   color: var(--muted);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
-.loop-cell-tune small {
+.loop-cell em {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  max-width: 18ch;
+  color: var(--muted);
+  font-family: var(--font-micro);
+  font-size: 0.66rem;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.loop-cell-tune em {
   right: auto;
   left: 24px;
+  text-align: left;
+}
+
+.reactor-operator-hotspot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  width: min(34vw, 370px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: crosshair;
+}
+
+.reactor-operator-hotspot:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 8px;
 }
 
 .reactor-3d {

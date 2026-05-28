@@ -58,14 +58,15 @@ Do not put one-off demos in the top navigation. A chess harness can exist inside
 
 The home page is the loop map.
 
-Use a full-surface reactive Chipmunk arc-reactor field with four equal loop parts placed over it. The reactor should read like a Tony Stark/JARVIS-style operating core translated into Brain Spa colors: graphite, red heat, amber energy, sharp telemetry. Use real 3D/WebGL rather than flat CSS when rendering the core. It should have rotating particle pixels, varied block fragments, different sizes, changing density, multiple axes of rotation, centered depth, active energy that fills the reactor, no drawn outer ring, and no visible text or status labels inside the reactor. It must not look like a square widget or a flat folded cylinder. Each loop part shows:
+Use a full-surface reactive Chipmunk arc-reactor field with four equal loop parts placed over it. The reactor should read like a Tony Stark/JARVIS-style operating core translated into Brain Spa colors: graphite, red heat, amber energy, sharp telemetry. Use real 3D/WebGL rather than flat CSS when rendering the core. It should have rotating particle pixels, varied block fragments, different sizes, changing density, multiple axes of rotation, centered depth, active energy that fills the reactor, no drawn outer ring, and no visible text or status labels inside the reactor. It must not look like a square widget or a flat folded cylinder. Each loop part is clickable and shows:
 
 - the part name
-- the freshest useful state
+- the freshest useful artifact or work item
+- one short line describing that artifact or work item
+- compact state metadata
 - the worker responsible
-- one short line about what happens there
 
-Use little text. Prefer strong labels and live state over explanation.
+Use little text. Prefer artifact names and live state over explanation. Do not fill the home page with generic counts when a concrete source, dataset, model, or harness exists.
 
 The reactor is allowed to use WebGL, additive glow, particles, and block fragments because it is the product signal. Do not spread that effect across the rest of the UI.
 

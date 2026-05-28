@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 import { askChipmunk, fetchBrainSpaOverview } from "@/lib/backend";
 import type { BrainSpaOverview, ChipmunkChatResult } from "@/lib/types";
@@ -7,39 +8,66 @@ import type { BrainSpaOverview, ChipmunkChatResult } from "@/lib/types";
 type LoopPart = {
   key: string;
   label: string;
+  route: string;
   operator: string;
-  value: (overview: BrainSpaOverview | null) => string;
-  detail: (overview: BrainSpaOverview | null) => string;
+  headline: (overview: BrainSpaOverview | null) => string;
+  description: (overview: BrainSpaOverview | null) => string;
+  meta: (overview: BrainSpaOverview | null) => string;
 };
+
+function lastItem<T>(items: T[] | undefined): T | null {
+  if (!items || items.length === 0) return null;
+  return items[items.length - 1];
+}
 
 const LOOP_PARTS: LoopPart[] = [
   {
     key: "evidence",
     label: "Evidence",
+    route: "/evidence",
     operator: "Source Model",
-    value: (overview) => `${overview?.sources.filter((source) => source.active).length ?? 0} active`,
-    detail: () => "Find the behavior proof before data exists.",
+    headline: (overview) => lastItem(overview?.sources)?.label ?? "No source yet",
+    description: (overview) => lastItem(overview?.sources)?.summary ?? "Add proof before generating rows.",
+    meta: (overview) => {
+      const source = lastItem(overview?.sources);
+      return source ? `${source.kind} / ${source.active ? "active" : "inactive"}` : "waiting";
+    },
   },
   {
     key: "datasets",
     label: "Datasets",
+    route: "/datasets",
     operator: "Data Model",
-    value: (overview) => `${overview?.datasets.find((dataset) => dataset.state === "active")?.row_count ?? 0} rows`,
-    detail: () => "Turn evidence into examples and preference pairs.",
+    headline: (overview) => lastItem(overview?.datasets)?.label ?? "No dataset yet",
+    description: (overview) => lastItem(overview?.datasets)?.goal ?? "Turn evidence into examples and preference pairs.",
+    meta: (overview) => {
+      const dataset = lastItem(overview?.datasets);
+      return dataset ? `${dataset.row_count} rows / ${dataset.state}` : "waiting";
+    },
   },
   {
     key: "tune",
     label: "Tune",
+    route: "/tune",
     operator: "Training Model",
-    value: (overview) => overview?.models.find((model) => model.key === "persona_small")?.parameter_count ?? "model",
-    detail: () => "Dry-run, train, and keep the artifact trail.",
+    headline: (overview) => overview?.models.find((model) => model.state === "active")?.label ?? lastItem(overview?.models)?.label ?? "No model yet",
+    description: (overview) =>
+      overview?.models.find((model) => model.state === "active")?.role ??
+      lastItem(overview?.models)?.role ??
+      "Dry-run, train, and keep the artifact trail.",
+    meta: (overview) => {
+      const model = overview?.models.find((item) => item.state === "active") ?? lastItem(overview?.models);
+      return model ? `${model.parameter_count} / ${model.state}` : "waiting";
+    },
   },
   {
     key: "test",
     label: "Test",
+    route: "/test",
     operator: "Harness Model",
-    value: (overview) => `${overview?.environments.length ?? 0} harnesses`,
-    detail: () => "Put the model in an environment and score behavior.",
+    headline: (overview) => lastItem(overview?.environments)?.label ?? "No harness yet",
+    description: (overview) => lastItem(overview?.environments)?.goal ?? "Put the model in an environment and score behavior.",
+    meta: (overview) => lastItem(overview?.environments)?.harness ?? "waiting",
   },
 ];
 
@@ -112,13 +140,21 @@ export function HomePage() {
         </button>
 
         {LOOP_PARTS.map((part) => (
-          <article className={`loop-cell loop-cell-${part.key}`} key={part.key}>
+          <Link className={`loop-cell loop-cell-${part.key}`} key={part.key} to={part.route}>
             <span>{part.label}</span>
-            <strong>{part.value(overview)}</strong>
-            <p>{part.detail(overview)}</p>
-            <small>{part.operator}</small>
-          </article>
+            <strong>{part.headline(overview)}</strong>
+            <p>{part.description(overview)}</p>
+            <small>{part.meta(overview)}</small>
+            <em>{part.operator}</em>
+          </Link>
         ))}
+
+        <button
+          className="reactor-operator-hotspot"
+          type="button"
+          aria-label="Talk to Chipmunk"
+          onClick={() => setOperatorOpen(true)}
+        />
 
         <aside className={`operator-panel ${showOperator ? "operator-panel-open" : ""}`} aria-hidden={!showOperator}>
           <div className="operator-panel-header">
