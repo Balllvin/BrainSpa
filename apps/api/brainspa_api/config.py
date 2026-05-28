@@ -22,6 +22,22 @@ def telegram_config_path() -> Path:
     return runtime_root() / "secrets" / "telegram-bots.json"
 
 
+def legacy_telegram_config_paths() -> list[Path]:
+    candidates = [
+        Path.home() / ".brain-spa-runtime" / "brain-spa-telegram-bots.json",
+        runtime_root() / "secrets" / "brain-spa-telegram-bots.json",
+    ]
+    return [path for path in candidates if path.exists()]
+
+
+def xai_api_key_path() -> Path:
+    return runtime_root() / "secrets" / "xai-api-key"
+
+
+def settings_path() -> Path:
+    return runtime_root() / "state" / "app-settings.json"
+
+
 def ensure_runtime_dirs() -> None:
     for path in (state_path().parent, event_log_path().parent, telegram_config_path().parent, runtime_root() / "artifacts"):
         path.mkdir(parents=True, exist_ok=True)

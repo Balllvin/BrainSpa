@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 import {
   buildTrainingAdapter,
@@ -9,34 +9,67 @@ import {
   runTrainingDryRun,
   testTrainingAdapter,
 } from "@/lib/backend";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import type {
   AdapterTestResult,
   BrainSpaOverview,
   DatasetGenerateResult,
   EvalRunResult,
+  ModelProfile,
   TrainingAdapterBuildResult,
   TrainingDryRunResult,
 } from "@/lib/types";
+
+function LoopShell({
+  title,
+  stageKey,
+  note,
+  children,
+}: {
+  title: string;
+  stageKey: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="panel stack loop-page">
+      <header className="panel-header compact-header">
+        <h2>{title}</h2>
+        <Link className="secondary" to="/settings/agents">
+          Hermes agent
+        </Link>
+      </header>
+      <p className="field-hint">{note}</p>
+      <p className="field-hint">
+        Stage <code>{stageKey}</code> — CLI and Telegram are configured in{" "}
+        <Link to="/settings/agents">Settings → Hermes agents</Link>.
+      </p>
+      {children}
+    </section>
+  );
+}
 
 export function EvidencePage() {
   const [overview, setOverview] = useState<BrainSpaOverview | null>(null);
 
   useEffect(() => {
-    void fetchBrainSpaOverview().then((result) => setOverview(result.overview));
+    void fetchBrainSpaOverview().then((r) => setOverview(r.overview));
   }, []);
 
   return (
-    <LoopShell title="Evidence" operator="Source Model" note="Find proof of the behavior before generating rows.">
-      <div className="loop-card-grid">
+    <LoopShell
+      title="Evidence"
+      stageKey="evidence"
+      note="Source material and proof before dataset rows. Hermes Evidence agent runs on the CLI you assigned."
+    >
+      <ul className="settings-registry-list">
         {(overview?.sources ?? []).map((source) => (
-          <article className="loop-card" key={source.key}>
-            <span>{source.kind}</span>
-            <strong>{source.label}</strong>
-            <p>{source.summary}</p>
-            <code>{source.provenance}</code>
-          </article>
+          <li key={source.key}>
+            <strong>{source.label}</strong> — {source.kind}: {source.summary}
+          </li>
         ))}
-      </div>
+      </ul>
+      {!overview?.sources?.length ? <p className="settings-empty-row">No sources registered in state yet.</p> : null}
     </LoopShell>
   );
 }
@@ -47,62 +80,79 @@ export function DatasetsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function refresh() {
-    const response = await fetchBrainSpaOverview();
-    setOverview(response.overview);
-  }
-
   useEffect(() => {
-    void refresh();
+    void fetchBrainSpaOverview().then((r) => setOverview(r.overview));
   }, []);
 
   async function generateRows() {
     setBusy(true);
     setError(null);
-    const response = await generateDataset(100);
+    const response = await generateDataset(24);
     setBusy(false);
     if (!response.ok || !response.data) {
-      setError(response.error ?? "Dataset generation failed.");
+      setError(response.error ?? "Generation failed.");
       return;
     }
     setResult(response.data);
-    await refresh();
+    const refreshed = await fetchBrainSpaOverview();
+    setOverview(refreshed.overview);
   }
 
   return (
-    <LoopShell title="Datasets" operator="Data Model" note="Turn evidence into training rows and preference pairs.">
-      <div className="loop-action-row">
-        <button className="primary" type="button" onClick={generateRows} disabled={busy}>
-          {busy ? "Generating" : "Generate rows"}
-        </button>
-        {error ? <span className="error">{error}</span> : null}
-      </div>
-      <div className="loop-card-grid">
-        {(overview?.datasets ?? []).map((dataset) => (
-          <article className="loop-card" key={dataset.key}>
-            <span>{dataset.state}</span>
-            <strong>{dataset.label}</strong>
-            <p>{dataset.goal}</p>
-            <code>{dataset.row_count} rows / {dataset.warnings.length} warnings</code>
-          </article>
+    <LoopShell
+      title="Datasets"
+      stageKey="datasets"
+      note="Turn evidence into training rows. Generation writes local JSONL under ~/.brain-spa/artifacts."
+    >
+      <button className="primary" disabled={busy} type="button" onClick={generateRows}>
+        {busy ? "Generating…" : "Generate sample rows (24)"}
+      </button>
+      {error ? <p className="error">{error}</p> : null}
+      <ul className="settings-registry-list">
+        {(overview?.datasets ?? []).map((d) => (
+          <li key={d.key}>
+            {d.label} — {d.state}, {d.row_count} rows
+          </li>
         ))}
-      </div>
-      {result ? <ResultCard title="Latest handoff" detail={`${result.dataset.row_count} rows`} path={result.manifest_path} /> : null}
+      </ul>
+      {result ? <p className="settings-note">Wrote {result.dataset.row_count} rows → {result.manifest_path}</p> : null}
     </LoopShell>
   );
 }
 
 export function TunePage() {
+  const [overview, setOverview] = useState<BrainSpaOverview | null>(null);
+  const [modelKey, setModelKey] = useState("persona_small");
+  const [datasetKey, setDatasetKey] = useState("believer_seed");
   const [dryRun, setDryRun] = useState<TrainingDryRunResult | null>(null);
   const [adapter, setAdapter] = useState<TrainingAdapterBuildResult | null>(null);
   const [adapterTest, setAdapterTest] = useState<AdapterTestResult | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    void fetchBrainSpaOverview().then((r) => {
+      setOverview(r.overview);
+      const nextModels = r.overview?.models ?? [];
+      if (nextModels.length) {
+        setModelKey((current) => (nextModels.some((m) => m.key === current) ? current : nextModels[0].key));
+      }
+      const nextDatasets = r.overview?.datasets ?? [];
+      if (nextDatasets.length) {
+        setDatasetKey((current) =>
+          nextDatasets.some((d) => d.key === current) ? current : nextDatasets[0].key,
+        );
+      }
+    });
+  }, []);
+
+  const models: ModelProfile[] = overview?.models ?? [];
+  const datasets = overview?.datasets ?? [];
+
   async function runDryRun() {
     setBusy("dry-run");
     setError(null);
-    const response = await runTrainingDryRun();
+    const response = await runTrainingDryRun(modelKey, datasetKey);
     setBusy(null);
     if (!response.ok || !response.data) {
       setError(response.error ?? "Dry-run failed.");
@@ -114,10 +164,10 @@ export function TunePage() {
   async function buildAdapter() {
     setBusy("adapter");
     setError(null);
-    const response = await buildTrainingAdapter();
+    const response = await buildTrainingAdapter(modelKey, datasetKey);
     setBusy(null);
     if (!response.ok || !response.data) {
-      setError(response.error ?? "Adapter build failed.");
+      setError(response.error ?? "Build failed.");
       return;
     }
     setAdapter(response.data);
@@ -128,34 +178,69 @@ export function TunePage() {
     const form = new FormData(event.currentTarget);
     setBusy("test");
     setError(null);
-    const response = await testTrainingAdapter(String(form.get("prompt") || ""));
+    const response = await testTrainingAdapter(String(form.get("prompt") || ""), modelKey);
     setBusy(null);
     if (!response.ok || !response.data) {
-      setError(response.error ?? "Adapter test failed.");
+      setError(response.error ?? "Test failed.");
       return;
     }
     setAdapterTest(response.data);
   }
 
   return (
-    <LoopShell title="Tune" operator="Training Model" note="Dry-run first. Train only when the local runtime can do it.">
-      <div className="loop-action-row">
-        <button className="primary" type="button" onClick={runDryRun} disabled={Boolean(busy)}>Dry-run</button>
-        <button className="secondary" type="button" onClick={buildAdapter} disabled={Boolean(busy)}>Build adapter</button>
-        {error ? <span className="error">{error}</span> : null}
+    <LoopShell
+      title="Tune"
+      stageKey="tune"
+      note="Pick a registry model and dataset. Dry-run is fast; build adapter downloads weights and can take several minutes."
+    >
+      <div className="loop-form">
+        <label className="field">
+          <span>Model</span>
+          <select value={modelKey} onChange={(e) => setModelKey(e.target.value)} disabled={!models.length}>
+            {models.length === 0 ? <option value="">Loading models…</option> : null}
+            {models.map((m) => (
+              <option key={m.key} value={m.key}>
+                {m.label} ({m.state}) — {m.base_model}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Dataset</span>
+          <select value={datasetKey} onChange={(e) => setDatasetKey(e.target.value)}>
+            {datasets.map((d) => (
+              <option key={d.key} value={d.key}>
+                {d.label} ({d.state})
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+      <div className="loop-action-row">
+        <button className="primary" disabled={Boolean(busy)} type="button" onClick={runDryRun}>
+          Dry-run
+        </button>
+        <button className="secondary" disabled={Boolean(busy)} type="button" onClick={buildAdapter}>
+          Build adapter (slow)
+        </button>
+      </div>
+      {error ? <p className="error">{error}</p> : null}
       <form className="loop-form" onSubmit={testAdapter}>
         <label className="field">
           <span>Prompt</span>
           <input name="prompt" defaultValue="What should I do when fear starts steering my choices?" />
         </label>
-        <button className="secondary" type="submit" disabled={Boolean(busy)}>Test adapter</button>
+        <button className="secondary" disabled={Boolean(busy)} type="submit">
+          Test adapter (slow)
+        </button>
       </form>
-      <div className="loop-card-grid">
-        {dryRun ? <ResultCard title="Dry-run" detail={dryRun.missing_requirements.length ? `Missing ${dryRun.missing_requirements.join(", ")}` : `${dryRun.backend} ready`} path={dryRun.output_dir} /> : null}
-        {adapter ? <ResultCard title="Adapter" detail={adapter.loss === null ? adapter.state : `loss ${adapter.loss.toFixed(3)}`} path={adapter.output_dir} /> : null}
-        {adapterTest ? <ResultCard title="Adapter answer" detail={adapterTest.answer} path={adapterTest.adapter_path} /> : null}
-      </div>
+      {dryRun ? (
+        <p className="settings-note">
+          Dry-run: {dryRun.backend} — {dryRun.missing_requirements.length ? dryRun.missing_requirements.join(", ") : "ready"}
+        </p>
+      ) : null}
+      {adapter ? <p className="settings-note">Adapter: {adapter.state} → {adapter.output_dir}</p> : null}
+      {adapterTest ? <p className="settings-note">Answer: {adapterTest.answer}</p> : null}
     </LoopShell>
   );
 }
@@ -170,16 +255,25 @@ export function TestPage() {
   useEffect(() => {
     void fetchBrainSpaOverview().then((response) => {
       setOverview(response.overview);
-      setEnvironmentKey(response.overview?.environments[0]?.key ?? "chat_believer");
+      const first = response.overview?.environments[0]?.key ?? "chat_believer";
+      setEnvironmentKey(first);
     });
   }, []);
+
+  const isChess = environmentKey === "chess";
+  const env = overview?.environments.find((e) => e.key === environmentKey);
 
   async function runHarness(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setBusy(true);
     setError(null);
-    const response = await runEval(environmentKey, String(form.get("answer") || ""), undefined, String(form.get("prompt") || ""));
+    const response = await runEval(
+      environmentKey,
+      String(form.get("answer") || ""),
+      isChess ? String(form.get("fen") || "") : undefined,
+      String(form.get("prompt") || ""),
+    );
     setBusy(false);
     if (!response.ok || !response.data) {
       setError(response.error ?? "Harness check failed.");
@@ -189,62 +283,59 @@ export function TestPage() {
   }
 
   return (
-    <LoopShell title="Test" operator="Harness Model" note="Design the world, tools, allowed moves, and scoring.">
+    <LoopShell
+      title="Test"
+      stageKey="test"
+      note="Harness scoring is heuristic (not Stockfish). Believer chat checks conviction; chess checks FEN legality."
+    >
       <form className="loop-form" onSubmit={runHarness}>
         <label className="field">
-          <span>Environment</span>
-          <select value={environmentKey} onChange={(event) => setEnvironmentKey(event.target.value)}>
+          <span>Harness</span>
+          <select value={environmentKey} onChange={(e) => setEnvironmentKey(e.target.value)}>
             {(overview?.environments ?? []).map((environment) => (
-              <option key={environment.key} value={environment.key}>{environment.label}</option>
+              <option key={environment.key} value={environment.key}>
+                {environment.label}
+              </option>
             ))}
           </select>
+          {env ? <small className="field-hint">{env.harness} — scores: {env.scoring.join(", ")}</small> : null}
         </label>
         <label className="field">
           <span>Prompt</span>
-          <input name="prompt" defaultValue="User asks for the next concrete step." />
+          <input name="prompt" defaultValue="What should I do when I feel spiritually weak?" />
         </label>
+        {isChess ? (
+          <label className="field">
+            <span>FEN (optional)</span>
+            <input
+              name="fen"
+              placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+            />
+          </label>
+        ) : null}
         <label className="field">
-          <span>Answer</span>
-          <textarea name="answer" rows={4} defaultValue="Pray, read Scripture, ask God for grace, and take the next obedient step." />
+          <span>Model answer</span>
+          <textarea name="answer" rows={4} defaultValue="Pray, read Scripture, and ask your church for help." />
         </label>
-        <button className="primary" type="submit" disabled={busy}>{busy ? "Running" : "Run harness"}</button>
+        <button className="primary" disabled={busy} type="submit">
+          {busy ? "Scoring…" : "Run harness"}
+        </button>
       </form>
       {error ? <p className="error">{error}</p> : null}
-      {result ? <ResultCard title={result.passed ? "Passed" : "Needs work"} detail={`score ${result.score}`} path={result.artifact_path} /> : null}
-      <div className="loop-card-grid">
-        {(overview?.environments ?? []).map((environment) => (
-          <article className="loop-card" key={environment.key}>
-            <span>{environment.key}</span>
-            <strong>{environment.label}</strong>
-            <p>{environment.goal}</p>
-            <code>{environment.scoring.slice(0, 3).join(" / ")}</code>
-          </article>
-        ))}
-      </div>
+      {result ? (
+        <div className="settings-status-card">
+          <strong>
+            Score {Math.round(result.score * 100)}% — {result.passed ? "pass" : "fail"}
+          </strong>
+          <ul className="settings-registry-list">
+            {result.comments.map((c) => (
+              <li key={c.dimension}>
+                {c.dimension}: {c.verdict} — {c.comment}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </LoopShell>
-  );
-}
-
-function LoopShell({ children, note, operator, title }: { children: ReactNode; note: string; operator: string; title: string }) {
-  return (
-    <div className="loop-page">
-      <header className="loop-page-header">
-        <span>{operator}</span>
-        <h1>{title}</h1>
-        <p>{note}</p>
-      </header>
-      {children}
-    </div>
-  );
-}
-
-function ResultCard({ detail, path, title }: { detail: string; path?: string; title: string }) {
-  return (
-    <article className="loop-card loop-card-result">
-      <span>Result</span>
-      <strong>{title}</strong>
-      <p>{detail}</p>
-      {path ? <code>{path}</code> : null}
-    </article>
   );
 }

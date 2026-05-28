@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 DatasetState = Literal["draft", "validated", "active", "retired", "archived"]
 ModelState = Literal["candidate", "active", "failed", "retired", "archived"]
 AgentBackend = Literal["codex", "opencode", "grok", "cursor", "hermes"]
+LoopStageKey = Literal["evidence", "datasets", "tune", "test"]
 JobState = Literal["queued", "running", "complete", "failed", "blocked"]
 
 
@@ -220,6 +221,12 @@ class ChipmunkChatResult(BaseModel):
     suggested_actions: list[str]
 
 
+class ChipmunkTranscribeResult(BaseModel):
+    text: str
+    engine: str
+    notes: list[str] = Field(default_factory=list)
+
+
 class TelegramBotCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     bot_token: str = Field(min_length=20)
@@ -234,6 +241,62 @@ class TelegramBotPublic(BaseModel):
     allowed_chat_id_configured: bool
     enabled: bool
     live_verified: bool = False
+
+
+class LoopAgentSettings(BaseModel):
+    key: LoopStageKey
+    label: str
+    backend: AgentBackend
+    telegram_bot_name: str | None = None
+    connected: bool = False
+
+
+class BackendStatus(BaseModel):
+    key: str
+    label: str
+    installed: bool
+    connected: bool
+    version: str | None = None
+    command_path: str | None = None
+
+
+class ModelTelegramLink(BaseModel):
+    model_key: str
+    model_label: str
+    model_state: str
+    telegram_bot_name: str | None = None
+
+
+class LoopAgentUpdate(BaseModel):
+    backend: AgentBackend | None = None
+    telegram_bot_name: str | None = None
+
+
+class ModelTelegramUpdate(BaseModel):
+    telegram_bot_name: str | None = None
+
+
+class ChipmunkSettings(BaseModel):
+    default_model_key: str = "persona_small"
+    default_telegram_bot_name: str | None = None
+    voice_model: str = "grok-voice-think-fast-1.0"
+    xai_configured: bool = False
+
+
+class ChipmunkSettingsUpdate(BaseModel):
+    default_model_key: str | None = None
+    default_telegram_bot_name: str | None = None
+    voice_model: str | None = None
+    xai_api_key: str | None = None
+    clear_xai_api_key: bool = False
+
+
+class AppSettings(BaseModel):
+    loop_agents: list[LoopAgentSettings]
+    backends: list[BackendStatus]
+    model_links: list[ModelTelegramLink]
+    telegram_bots: list[TelegramBotPublic]
+    chipmunk: ChipmunkSettings = Field(default_factory=ChipmunkSettings)
 
 
 class Overview(BaseModel):

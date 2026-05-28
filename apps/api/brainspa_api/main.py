@@ -3,16 +3,22 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from .config import ensure_runtime_dirs, runtime_root
 from .models import (
     AdapterTestRequest,
     AdapterTestResult,
+    AppSettings,
     ChipmunkChatRequest,
     ChipmunkChatResult,
+    ChipmunkSettings,
+    ChipmunkSettingsUpdate,
+    ChipmunkTranscribeResult,
     DatasetGenerateRequest,
     DatasetGenerateResult,
     DatasetProfile,
@@ -21,7 +27,11 @@ from .models import (
     HardwareProfile,
     HermesSetup,
     LifecycleUpdate,
+    LoopAgentSettings,
+    LoopAgentUpdate,
     ModelProfile,
+    ModelTelegramLink,
+    ModelTelegramUpdate,
     Overview,
     TelegramBotCreate,
     TelegramAuthorizationRequest,
@@ -33,8 +43,29 @@ from .models import (
     WorkerRunRequest,
     WorkerRunResult,
 )
-from .state import BrainSpaState, add_telegram_bot, authorize_telegram_message, event_log_exists, read_telegram_bots
+from .backend_connect import connect_backend_stream
+from .chipmunk_voice import create_voice_client_secret
+from .settings_store import (
+    CONNECTABLE_BACKENDS,
+    backend_is_connected,
+    build_app_settings,
+    mark_backend_authenticated,
+    update_chipmunk_settings,
+    update_loop_agent,
+    update_model_telegram,
+)
+from .state import (
+    BrainSpaState,
+    add_telegram_bot,
+    authorize_telegram_message,
+    event_log_exists,
+    migrate_legacy_telegram_bots,
+    read_telegram_bots,
+    set_xai_api_key,
+    clear_xai_api_key,
+)
 from .tools import detect_tools
+from .transcribe import transcribe_audio_bytes
 from .workflows import (
     chipmunk_reply,
     generate_believer_dataset,
@@ -118,6 +149,96 @@ def create_app() -> FastAPI:
     def create_telegram_bot(bot: TelegramBotCreate) -> TelegramBotPublic:
         return add_telegram_bot(bot)
 
+    @app.post("/api/telegram/import-legacy")
+    def import_legacy_telegram() -> dict[str, int]:
+        count = migrate_legacy_telegram_bots()
+        return {"imported": count}
+
+    @app.get("/api/settings", response_model=AppSettings)
+    def read_settings() -> AppSettings:
+        models = [model.model_dump() for model in state.models()]
+        bots = [bot.model_dump() for bot in read_telegram_bots()]
+        payload = build_app_settings(models, bots)
+        return AppSettings(**payload)
+
+    @app.patch("/api/settings/loop/{stage_key}", response_model=LoopAgentSettings)
+    def patch_loop_agent(stage_key: str, update: LoopAgentUpdate) -> LoopAgentSettings:
+        fields = update.model_dump(exclude_unset=True)
+        try:
+            agent = update_loop_agent(
+                stage_key,
+                update.backend,
+                update.telegram_bot_name,
+                clear_telegram="telegram_bot_name" in fields,
+            )
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        data = agent.model_dump()
+        data.pop("connected", None)
+        return LoopAgentSettings(**data, connected=backend_is_connected(agent.backend))
+
+    @app.patch("/api/settings/models/{model_key}/telegram", response_model=ModelTelegramLink)
+    def patch_model_telegram(model_key: str, update: ModelTelegramUpdate) -> ModelTelegramLink:
+        label = model_key
+        model_state = "candidate"
+        for model in state.models():
+            if model.key == model_key:
+                label = model.label
+                model_state = model.state
+                break
+        return update_model_telegram(model_key, update.telegram_bot_name, label, model_state)
+
+    @app.patch("/api/settings/chipmunk", response_model=ChipmunkSettings)
+    def patch_chipmunk_settings(update: ChipmunkSettingsUpdate) -> ChipmunkSettings:
+        if update.clear_xai_api_key:
+            clear_xai_api_key()
+        if update.xai_api_key:
+            set_xai_api_key(update.xai_api_key)
+        patch = update.model_dump(exclude_unset=True, exclude={"xai_api_key", "clear_xai_api_key"})
+        data = update_chipmunk_settings(patch)
+        return ChipmunkSettings(**data)
+
+    @app.post("/api/chipmunk/voice/client-secret")
+    def chipmunk_voice_client_secret() -> dict[str, object]:
+        return create_voice_client_secret()
+
+    @app.post("/api/backends/{backend_key}/connect")
+    def backend_connect(backend_key: str) -> dict[str, object]:
+        from .settings_store import probe_backend_ready
+
+        if backend_key not in CONNECTABLE_BACKENDS:
+            raise HTTPException(status_code=404, detail=f"Unknown backend: {backend_key}")
+        if backend_key == "hermes":
+            mark_backend_authenticated("hermes", probe_backend_ready("hermes"))
+            return {"ok": True, "connected": probe_backend_ready("hermes"), "installed": probe_backend_ready("hermes")}
+        if probe_backend_ready(backend_key):
+            mark_backend_authenticated(backend_key, True)
+            return {"ok": True, "connected": True, "installed": True, "needs_stream": False}
+        if backend_key == "cursor":
+            return {
+                "ok": True,
+                "connected": False,
+                "installed": False,
+                "needs_stream": False,
+                "manual": True,
+            }
+        return {"ok": True, "connected": False, "installed": False, "needs_stream": True}
+
+    @app.get("/api/backends/{backend_key}/connect/stream")
+    def backend_connect_stream(backend_key: str) -> StreamingResponse:
+        if backend_key not in CONNECTABLE_BACKENDS:
+            raise HTTPException(status_code=404, detail=f"Unknown backend: {backend_key}")
+        if backend_key == "hermes":
+            raise HTTPException(status_code=400, detail="Hermes does not use the install stream.")
+        return StreamingResponse(connect_backend_stream(backend_key), media_type="text/event-stream")
+
+    @app.post("/api/backends/{backend_key}/auth/complete")
+    def backend_auth_complete(backend_key: str) -> dict[str, bool]:
+        if backend_key not in CONNECTABLE_BACKENDS:
+            raise HTTPException(status_code=404, detail=f"Unknown backend: {backend_key}")
+        mark_backend_authenticated(backend_key, True)
+        return {"ok": True}
+
     @app.post("/api/telegram/authorize", response_model=TelegramAuthorizationResult)
     def authorize_telegram(request: TelegramAuthorizationRequest) -> TelegramAuthorizationResult:
         authorized, reason = authorize_telegram_message(request.bot_name, request.chat_id)
@@ -175,6 +296,23 @@ def create_app() -> FastAPI:
     @app.post("/api/chipmunk/chat", response_model=ChipmunkChatResult)
     def chat_with_chipmunk(request: ChipmunkChatRequest) -> ChipmunkChatResult:
         return chipmunk_reply(request.message)
+
+    @app.post("/api/chipmunk/transcribe", response_model=ChipmunkTranscribeResult)
+    async def transcribe_for_chipmunk(audio: UploadFile = File(...)) -> ChipmunkTranscribeResult:
+        payload = await audio.read()
+        if not payload:
+            raise HTTPException(status_code=400, detail="Empty audio upload")
+        if len(payload) > 25 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Audio file too large (max 25MB)")
+
+        suffix = Path(audio.filename or "note.webm").suffix or ".webm"
+        try:
+            text, notes = transcribe_audio_bytes(payload, suffix=suffix)
+        except RuntimeError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+
+        engine = "faster-whisper" if any("faster-whisper" in note for note in notes) else "local-stt"
+        return ChipmunkTranscribeResult(text=text, engine=engine, notes=notes)
 
     return app
 

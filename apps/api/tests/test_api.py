@@ -232,6 +232,32 @@ def test_hermes_setup_and_hardware_are_visible(monkeypatch, tmp_path):
     assert "HuggingFaceTB/SmolLM2-360M-Instruct" in hardware.json()["recommended_models"]
 
 
+def test_settings_loop_and_model_routing(monkeypatch, tmp_path):
+    monkeypatch.setenv("BRAIN_SPA_HOME", str(tmp_path))
+    client = TestClient(create_app())
+
+    settings = client.get("/api/settings")
+    assert settings.status_code == 200
+    payload = settings.json()
+    assert len(payload["loop_agents"]) == 4
+    assert {agent["key"] for agent in payload["loop_agents"]} == {"evidence", "datasets", "tune", "test"}
+
+    patch = client.patch(
+        "/api/settings/loop/evidence",
+        json={"backend": "opencode", "telegram_bot_name": "notify-evidence"},
+    )
+    assert patch.status_code == 200
+    assert patch.json()["backend"] == "opencode"
+    assert patch.json()["telegram_bot_name"] == "notify-evidence"
+
+    model_patch = client.patch(
+        "/api/settings/models/persona_small/telegram",
+        json={"telegram_bot_name": "chipmunk"},
+    )
+    assert model_patch.status_code == 200
+    assert model_patch.json()["telegram_bot_name"] == "chipmunk"
+
+
 def test_worker_preview_and_chipmunk_routing(monkeypatch, tmp_path):
     monkeypatch.setenv("BRAIN_SPA_HOME", str(tmp_path))
     client = TestClient(create_app())

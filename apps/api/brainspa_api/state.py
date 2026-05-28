@@ -9,7 +9,18 @@ from typing import Any
 
 from packages.brainspa_core.lifecycle import DATASET_STATES, MODEL_STATES
 
-from .config import ensure_runtime_dirs, event_log_path, state_path, telegram_config_path, write_private_json
+import os
+import re
+
+from .config import (
+    ensure_runtime_dirs,
+    event_log_path,
+    legacy_telegram_config_paths,
+    state_path,
+    telegram_config_path,
+    write_private_json,
+    xai_api_key_path,
+)
 from .models import (
     AgentProfile,
     DatasetProfile,
@@ -285,23 +296,112 @@ def event_log_exists() -> bool:
     return event_log_path().exists()
 
 
+def _slug_bot_name(label: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+    return slug or "telegram-bot"
+
+
+def migrate_legacy_telegram_bots() -> int:
+    """Import bots from ~/.brain-spa-runtime format into canonical secrets file."""
+    path = telegram_config_path()
+    existing: list[dict[str, Any]] = []
+    if path.exists():
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        bots_field = raw.get("bots", [])
+        if isinstance(bots_field, list) and bots_field:
+            return 0
+        if isinstance(bots_field, list):
+            existing = bots_field
+
+    imported: list[dict[str, Any]] = []
+    for legacy_path in legacy_telegram_config_paths():
+        legacy = json.loads(legacy_path.read_text(encoding="utf-8"))
+        legacy_bots = legacy.get("bots", {})
+        if isinstance(legacy_bots, dict):
+            for _id, item in legacy_bots.items():
+                if not isinstance(item, dict):
+                    continue
+                token = item.get("bot_token") or item.get("token")
+                if not token:
+                    continue
+                label = str(item.get("project_name") or item.get("name") or f"bot-{_id}")
+                name = _slug_bot_name(label)
+                model_key = "persona_small"
+                if "coding" in label.lower():
+                    model_key = "coding_small"
+                imported.append(
+                    {
+                        "name": name,
+                        "bot_token": token,
+                        "model_key": model_key,
+                        "allowed_chat_id": str(item.get("allowed_chat_id") or ""),
+                        "enabled": bool(item.get("enabled", True)),
+                        "live_verified": validate_telegram_token(str(token)),
+                        "legacy_label": label,
+                    }
+                )
+
+    if not imported:
+        return 0
+
+    names = {item["name"] for item in existing}
+    merged = list(existing)
+    for item in imported:
+        if item["name"] in names:
+            continue
+        merged.append(item)
+        names.add(item["name"])
+    write_private_json(path, {"bots": merged})
+    return len(merged) - len(existing)
+
+
 def read_telegram_bots() -> list[TelegramBotPublic]:
+    migrate_legacy_telegram_bots()
     path = telegram_config_path()
     if not path.exists():
         return []
     data = json.loads(path.read_text(encoding="utf-8"))
+    bots_field = data.get("bots", [])
+    if isinstance(bots_field, dict):
+        bots_field = list(bots_field.values())
     bots = []
-    for item in data.get("bots", []):
+    for item in bots_field:
+        if not isinstance(item, dict):
+            continue
         bots.append(
             TelegramBotPublic(
                 name=item["name"],
-                model_key=item["model_key"],
+                model_key=item.get("model_key", "persona_small"),
                 allowed_chat_id_configured=bool(item.get("allowed_chat_id")),
-                enabled=bool(item.get("enabled")),
+                enabled=bool(item.get("enabled", True)),
                 live_verified=bool(item.get("live_verified")),
             )
         )
     return bots
+
+
+def get_xai_api_key() -> str | None:
+    path = xai_api_key_path()
+    if path.exists():
+        value = path.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+    env = os.environ.get("XAI_API_KEY", "").strip()
+    return env or None
+
+
+def set_xai_api_key(api_key: str) -> None:
+    ensure_runtime_dirs()
+    path = xai_api_key_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(api_key.strip() + "\n", encoding="utf-8")
+    os.chmod(path, 0o600)
+
+
+def clear_xai_api_key() -> None:
+    path = xai_api_key_path()
+    if path.exists():
+        path.unlink()
 
 
 def add_telegram_bot(bot: TelegramBotCreate) -> TelegramBotPublic:

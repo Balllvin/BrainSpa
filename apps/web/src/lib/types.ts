@@ -73,6 +73,53 @@ export interface TelegramBotPublic {
   live_verified: boolean;
 }
 
+export type LoopStageKey = "evidence" | "datasets" | "tune" | "test";
+export type AgentBackendKey = "codex" | "opencode" | "grok" | "cursor" | "hermes";
+
+export interface LoopAgentSettings {
+  key: LoopStageKey;
+  label: string;
+  backend: AgentBackendKey;
+  telegram_bot_name: string | null;
+  connected: boolean;
+}
+
+export interface BackendStatus {
+  key: AgentBackendKey;
+  label: string;
+  installed: boolean;
+  connected: boolean;
+  version: string | null;
+  command_path: string | null;
+}
+
+export interface ModelTelegramLink {
+  model_key: string;
+  model_label: string;
+  model_state: string;
+  telegram_bot_name: string | null;
+}
+
+export interface ChipmunkSettings {
+  default_model_key: string;
+  default_telegram_bot_name: string | null;
+  voice_model: string;
+  xai_configured: boolean;
+}
+
+export interface AppSettings {
+  loop_agents: LoopAgentSettings[];
+  backends: BackendStatus[];
+  model_links: ModelTelegramLink[];
+  telegram_bots: TelegramBotPublic[];
+  chipmunk: ChipmunkSettings;
+}
+
+export interface ConnectStreamEvent {
+  type: "log" | "auth" | "done" | "error";
+  message: string;
+}
+
 export interface TelegramBotCreate {
   name: string;
   bot_token: string;
@@ -165,6 +212,12 @@ export interface WorkerRunResult {
   command_preview: string[];
   artifacts: string[];
   logs: string[];
+}
+
+export interface ChipmunkTranscribeResult {
+  text: string;
+  engine: string;
+  notes: string[];
 }
 
 export interface ChipmunkChatResult {

@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 const NAV = [
-  { to: "/", label: "CHIPMUNK", end: true },
+  { to: "/chipmunk", label: "CHIPMUNK", end: true },
+  { to: "/workspace", label: "WORKSPACE", end: true },
   { to: "/evidence", label: "EVIDENCE", end: false },
   { to: "/datasets", label: "DATASETS", end: false },
   { to: "/tune", label: "TUNE", end: false },
@@ -11,11 +12,14 @@ const NAV = [
 ] as const;
 
 export function Shell({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const immersive = pathname === "/chipmunk";
+
   return (
-    <div className="shell">
+    <div className={`shell${immersive ? " shell-immersive" : ""}`}>
       <header className="topbar">
         <div className="brand">
-          <NavLink className="brand-ascii" to="/">[ BRAIN SPA ]</NavLink>
+          <NavLink className="brand-ascii" to="/chipmunk">[ BRAIN SPA ]</NavLink>
         </div>
         <nav className="topnav" aria-label="Primary">
           {NAV.map((item) => (

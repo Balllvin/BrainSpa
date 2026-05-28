@@ -1,0 +1,6 @@
+[     162ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=545ffa71:20102
+[     338ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:5173/settings:0
+[    4143ms] [ERROR] Access to fetch at 'http://127.0.0.1:8000/api/settings' from origin 'http://127.0.0.1:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5173/settings:0
+[    4144ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8000/api/settings:0
+[    4146ms] [ERROR] Access to fetch at 'http://127.0.0.1:8000/api/settings' from origin 'http://127.0.0.1:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5173/settings:0
+[    4146ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8000/api/settings:0

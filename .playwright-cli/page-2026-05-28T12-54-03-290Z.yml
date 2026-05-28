@@ -1,0 +1,66 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "[ BRAIN SPA ]" [ref=e6] [cursor=pointer]:
+      - /url: /chipmunk
+    - navigation "Primary" [ref=e7]:
+      - link "CHIPMUNK" [ref=e8] [cursor=pointer]:
+        - /url: /chipmunk
+      - link "WORKSPACE" [ref=e9] [cursor=pointer]:
+        - /url: /workspace
+      - link "EVIDENCE" [ref=e10] [cursor=pointer]:
+        - /url: /evidence
+      - link "DATASETS" [ref=e11] [cursor=pointer]:
+        - /url: /datasets
+      - link "TUNE" [ref=e12] [cursor=pointer]:
+        - /url: /tune
+      - link "TEST" [ref=e13] [cursor=pointer]:
+        - /url: /test
+      - link "SETTINGS" [ref=e14] [cursor=pointer]:
+        - /url: /settings
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - heading "Settings" [level=1] [ref=e18]
+        - paragraph [ref=e19]: Loop stages use local CLIs (Codex, OpenCode, Grok, Cursor). Chipmunk uses Hermes when it is on your Mac.
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "Chipmunk" [level=2] [ref=e22]
+          - generic [ref=e23]: …
+        - paragraph [ref=e24]: Install Hermes on PATH (e.g. pip install hermes-agent) — Brain Spa picks it up automatically.
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - heading "Loop CLIs" [level=2] [ref=e27]
+          - generic [ref=e28]: Checking…
+        - paragraph [ref=e29]: If the CLI is already on your Mac and signed in locally, it shows as Ready. Connect only installs missing tools.
+        - list [ref=e30]
+      - generic [ref=e31]:
+        - heading "Loop routing" [level=2] [ref=e33]
+        - paragraph [ref=e34]: Which CLI runs each stage, and which Telegram bot sends notifications.
+        - generic [ref=e36]:
+          - generic [ref=e37]: Stage
+          - generic [ref=e38]: CLI
+          - generic [ref=e39]: Status
+          - generic [ref=e40]: Telegram
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - heading "Telegram" [level=2] [ref=e43]
+          - generic [ref=e44]: …
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - generic [ref=e47]: Bot token
+            - textbox "Bot token" [ref=e48]:
+              - /placeholder: 123456789:ABC…
+          - generic [ref=e49]:
+            - generic [ref=e50]: Your chat ID
+            - textbox "Your chat ID" [ref=e51]:
+              - /placeholder: "123456789"
+          - button "Save main bot" [ref=e53] [cursor=pointer]
+        - group [ref=e54]:
+          - generic "Add another Telegram bot (per-stage notifications)" [ref=e55] [cursor=pointer]
+      - generic [ref=e56]:
+        - heading "Trained models → Telegram" [level=2] [ref=e58]
+        - paragraph [ref=e59]: Route notifications from a finished model to a Telegram bot.
+        - generic [ref=e61]:
+          - generic [ref=e62]: Model
+          - generic [ref=e63]: State
+          - generic [ref=e64]: Telegram bot
