@@ -28,7 +28,8 @@ UI rules:
 
 - Put the four loop parts in the header.
 - Put the four loop parts on the home page.
-- Use a reactive Chipmunk arc-reactor core on the home page. It should be real 3D/WebGL, not a flat CSS circle. It should feel like a red/amber JARVIS-style operator interface in Brain Spa colors, with rotating particle pixels, varied block fragments, different sizes, changing density, multiple axes of rotation, centered depth, no drawn outer ring, and active energy filling the reactor. Do not put visible text or status labels inside the reactor.
+- Use a reactive Chipmunk arc-reactor field on the home page. It should fill the loop surface, not sit inside a square widget. It should be real 3D/WebGL, not a flat CSS circle. It should feel like a red/amber JARVIS-style operator interface in Brain Spa colors, with rotating particle pixels, varied block fragments, different sizes, changing density, multiple axes of rotation, centered depth, no drawn outer ring, and active energy filling the reactor. Do not put visible text or status labels inside the reactor.
+- Clicking the reactor field opens the Chipmunk operator sidebar. Keep that sidebar hidden when the user is not talking to Chipmunk and no request is running.
 - Do not make the app about a single adapter, bot, chess harness, or demo.
 - Do not use corporate copy or vague product language.
 - Keep the interface sparse, mechanical, direct, and artifact-driven.

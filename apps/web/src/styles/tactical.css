@@ -464,22 +464,46 @@ select:focus {
 
 .loop-stage {
   position: relative;
-  min-height: 660px;
+  min-height: calc(100dvh - 150px);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(260px, 1fr));
   gap: 1px;
   border: 1px solid var(--grid);
   background: var(--grid);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.loop-reactor-trigger {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: #070707;
+  cursor: crosshair;
+}
+
+.loop-reactor-trigger:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -8px;
 }
 
 .loop-cell {
   position: relative;
+  z-index: 2;
   display: grid;
   align-content: space-between;
   min-height: 260px;
   padding: 24px;
-  background: #0c0c0c;
+  background: rgba(12, 12, 12, 0.7);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
 }
 
 .loop-cell-evidence {
@@ -503,7 +527,7 @@ select:focus {
 }
 
 .loop-cell:hover {
-  background: #111;
+  background: rgba(18, 18, 18, 0.82);
 }
 
 .loop-cell span,
@@ -554,39 +578,20 @@ select:focus {
   left: 24px;
 }
 
-.loop-center {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 2;
-  width: 230px;
-  height: 230px;
-  transform: translate(-50%, -50%);
-  display: grid;
-  place-items: center;
-  align-content: center;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: none;
-  text-align: center;
-  isolation: isolate;
-  overflow: visible;
-}
-
 .reactor-3d {
   position: absolute;
   inset: 0;
   z-index: 0;
-  border-radius: 50%;
+  border-radius: 0;
   cursor: crosshair;
+  overflow: hidden;
 }
 
 .reactor-3d canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
-  filter: saturate(1.35) contrast(1.14) drop-shadow(0 0 24px rgba(255, 70, 42, 0.5));
+  filter: saturate(1.45) contrast(1.2) drop-shadow(0 0 28px rgba(255, 70, 42, 0.55));
 }
 
 .reactor-3d-loading {
@@ -594,6 +599,117 @@ select:focus {
     radial-gradient(circle, rgba(255, 156, 54, 0.55) 0 4%, rgba(255, 42, 42, 0.4) 5% 22%, transparent 24% 100%),
     repeating-conic-gradient(from 0deg, rgba(255, 42, 42, 0.28) 0deg 3deg, transparent 3deg 12deg);
   filter: drop-shadow(0 0 18px rgba(255, 80, 42, 0.42));
+}
+
+.operator-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 5;
+  width: min(390px, calc(100% - 32px));
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(230, 25, 25, 0.42);
+  background: rgba(8, 8, 8, 0.92);
+  box-shadow: -18px 0 44px rgba(0, 0, 0, 0.38);
+  transform: translateX(calc(100% + 32px));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.operator-panel-open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.operator-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--grid);
+}
+
+.operator-panel-header span,
+.operator-form label,
+.operator-log span {
+  font-family: var(--font-micro);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.operator-panel button {
+  min-height: 38px;
+  border: 1px solid var(--grid);
+  color: var(--fg);
+  background: transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-micro);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.operator-panel button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.operator-panel button:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+.operator-form {
+  display: grid;
+  gap: 10px;
+}
+
+.operator-form textarea {
+  min-height: 128px;
+  resize: vertical;
+  border: 1px solid var(--grid);
+  color: var(--fg);
+  background: rgba(0, 0, 0, 0.42);
+  padding: 12px;
+}
+
+.operator-form textarea:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.operator-log {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--grid);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.operator-log-error {
+  border-color: rgba(230, 25, 25, 0.48);
+}
+
+.operator-log p,
+.operator-log ul {
+  margin: 0;
+  color: var(--fg);
+}
+
+.operator-log ul {
+  padding-left: 18px;
+  color: var(--muted);
 }
 
 .loop-page {
@@ -1133,25 +1249,28 @@ select:focus {
   }
 
   .loop-stage {
-    min-height: auto;
+    min-height: calc(100dvh - 132px);
     grid-template-rows: none;
-  }
-
-  .loop-center {
-    position: relative;
-    left: auto;
-    top: auto;
-    order: -1;
-    width: 230px;
-    height: 230px;
-    transform: none;
-    grid-column: 1;
-    justify-self: center;
   }
 
   .loop-cell {
     min-height: 220px;
     padding: 24px;
+  }
+
+  .operator-panel {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: min(520px, calc(100% - 24px));
+    overflow: auto;
+    transform: translateY(calc(100% + 24px));
+  }
+
+  .operator-panel-open {
+    transform: translateY(0);
   }
 
   .status-row,

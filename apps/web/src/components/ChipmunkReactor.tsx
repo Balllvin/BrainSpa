@@ -3,16 +3,7 @@ import * as THREE from "three";
 
 type ChipmunkReactorProps = {
   status: "checking" | "online" | "offline";
-};
-
-type FragmentSeed = {
-  angle: number;
-  radius: number;
-  band: number;
-  depth: number;
-  width: number;
-  height: number;
-  color: THREE.Color;
+  intensity?: "idle" | "active";
 };
 
 function seededRandom(seed: number) {
@@ -25,7 +16,6 @@ function seededRandom(seed: number) {
 
 function buildBlockLayer(count: number, seed: number, zBias: number) {
   const random = seededRandom(seed);
-  const seeds: FragmentSeed[] = [];
   const geometry = new THREE.BoxGeometry(1, 1, 0.08);
   const material = new THREE.MeshBasicMaterial({
     transparent: true,
@@ -42,44 +32,45 @@ function buildBlockLayer(count: number, seed: number, zBias: number) {
   const scale = new THREE.Vector3();
 
   for (let index = 0; index < count; index += 1) {
-    const angle = random() * Math.PI * 2;
-    const radius = 0.62 + random() * 1.95;
-    const band = (random() - 0.5) * 1.75;
-    const depth = (random() - 0.5) * 1.65 + zBias;
-    const width = 0.055 + random() * 0.34;
-    const height = 0.018 + random() * 0.105;
+    const theta = random() * Math.PI * 2;
+    const phi = Math.acos(random() * 2 - 1);
+    const shell = 0.72 + random() * 2.15;
+    const width = 0.08 + random() * 0.52;
+    const height = 0.028 + random() * 0.14;
+    const depth = 0.04 + random() * 0.16;
     const hot = random();
     const color = new THREE.Color().setRGB(1, 0.04 + hot * 0.28, hot * 0.04);
+    const x = Math.sin(phi) * Math.cos(theta) * shell;
+    const y = Math.cos(phi) * shell * (0.88 + random() * 0.18);
+    const z = Math.sin(phi) * Math.sin(theta) * shell + (random() - 0.5) * 0.55 + zBias;
 
-    position.set(Math.cos(angle) * radius, band, Math.sin(angle) * radius + depth);
-    rotation.set((random() - 0.5) * 1.2, angle + Math.PI / 2, (random() - 0.5) * 1.6);
+    position.set(x, y, z);
+    rotation.set(theta + (random() - 0.5) * 1.4, phi + (random() - 0.5) * 1.1, (random() - 0.5) * Math.PI);
     quaternion.setFromEuler(rotation);
-    scale.set(width, height, 0.028 + random() * 0.09);
+    scale.set(width, height, depth);
     matrix.compose(position, quaternion, scale);
     mesh.setMatrixAt(index, matrix);
     mesh.setColorAt(index, color);
-    seeds.push({ angle, radius, band, depth, width, height, color });
   }
 
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  return { mesh, seeds };
+  return { mesh };
 }
 
-function buildParticleCloud(count: number, seed: number) {
+function buildParticleCloud(count: number, seed: number, radiusFloor = 0.3) {
   const random = seededRandom(seed);
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
 
   for (let index = 0; index < count; index += 1) {
-    const angle = random() * Math.PI * 2;
-    const radius = 0.34 + random() * 2.34;
-    const vertical = (random() - 0.5) * 1.9;
-    const depth = (random() - 0.5) * 2.1;
+    const theta = random() * Math.PI * 2;
+    const phi = Math.acos(random() * 2 - 1);
+    const shell = radiusFloor + random() * 2.65;
     const offset = index * 3;
-    positions[offset] = Math.cos(angle) * radius;
-    positions[offset + 1] = vertical;
-    positions[offset + 2] = Math.sin(angle) * radius * 0.72 + depth;
+    positions[offset] = Math.sin(phi) * Math.cos(theta) * shell;
+    positions[offset + 1] = Math.cos(phi) * shell * 0.95;
+    positions[offset + 2] = Math.sin(phi) * Math.sin(theta) * shell + (random() - 0.5) * 0.7;
     colors[offset] = 1;
     colors[offset + 1] = 0.1 + random() * 0.42;
     colors[offset + 2] = random() * 0.045;
@@ -89,7 +80,7 @@ function buildParticleCloud(count: number, seed: number) {
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   const material = new THREE.PointsMaterial({
-    size: 0.062,
+    size: 0.092,
     transparent: true,
     opacity: 0.9,
     blending: THREE.AdditiveBlending,
@@ -104,17 +95,23 @@ function buildArcLayer(seed: number) {
   const random = seededRandom(seed);
   const group = new THREE.Group();
 
-  for (let arc = 0; arc < 28; arc += 1) {
-    const radius = 0.58 + random() * 1.85;
+  for (let arc = 0; arc < 44; arc += 1) {
+    const radius = 0.38 + random() * 2.38;
     const start = random() * Math.PI * 2;
-    const length = 0.18 + random() * 1.1;
-    const z = (random() - 0.5) * 1.35;
+    const length = 0.14 + random() * 1.35;
+    const z = (random() - 0.5) * 1.9;
     const points: THREE.Vector3[] = [];
 
-    for (let step = 0; step < 18; step += 1) {
-      const amount = step / 17;
+    for (let step = 0; step < 22; step += 1) {
+      const amount = step / 21;
       const angle = start + length * amount;
-      points.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.72, z + Math.sin(amount * Math.PI) * 0.18));
+      points.push(
+        new THREE.Vector3(
+          Math.cos(angle) * radius,
+          Math.sin(angle) * radius * (0.68 + random() * 0.36),
+          z + Math.sin(amount * Math.PI) * (0.16 + random() * 0.34),
+        ),
+      );
     }
 
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -134,14 +131,19 @@ function buildArcLayer(seed: number) {
   return group;
 }
 
-export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
+export function ChipmunkReactor({ status, intensity = "idle" }: ChipmunkReactorProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef(false);
   const statusRef = useRef(status);
+  const intensityRef = useRef(intensity);
 
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+
+  useEffect(() => {
+    intensityRef.current = intensity;
+  }, [intensity]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -149,7 +151,7 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    camera.position.set(0, 0, 5.4);
+    camera.position.set(0, 0, 7.1);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -163,14 +165,14 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
     root.add(deepShell, midShell, frontShell);
     scene.add(root);
 
-    const backBlocks = buildBlockLayer(260, 11, -0.28);
-    const frontBlocks = buildBlockLayer(220, 29, 0.42);
+    const backBlocks = buildBlockLayer(340, 11, -0.35);
+    const frontBlocks = buildBlockLayer(300, 29, 0.48);
     deepShell.add(backBlocks.mesh);
     frontShell.add(frontBlocks.mesh);
 
-    const particlesFine = buildParticleCloud(420, 41);
-    const particlesHot = buildParticleCloud(240, 67);
-    particlesHot.material.size = 0.095;
+    const particlesFine = buildParticleCloud(620, 41, 0.24);
+    const particlesHot = buildParticleCloud(340, 67, 0.18);
+    particlesHot.material.size = 0.15;
     midShell.add(particlesFine, particlesHot);
 
     const arcs = buildArcLayer(83);
@@ -204,9 +206,10 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const resize = () => {
-      const size = Math.max(1, Math.min(mount.clientWidth, mount.clientHeight));
-      renderer.setSize(size, size);
-      camera.aspect = 1;
+      const width = Math.max(1, mount.clientWidth);
+      const height = Math.max(1, mount.clientHeight);
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
     };
     resize();
@@ -216,11 +219,11 @@ export function ChipmunkReactor({ status }: ChipmunkReactorProps) {
     const render = () => {
       frame = window.requestAnimationFrame(render);
       const elapsed = clock.getElapsedTime();
-      const target = activeRef.current && !reduceMotion ? 1 : 0;
+      const target = (activeRef.current || intensityRef.current === "active") && !reduceMotion ? 1 : 0;
       activeAmount += (target - activeAmount) * 0.045;
       const statusBoost = statusRef.current === "offline" ? 0.82 : 1;
       const speed = reduceMotion ? 0.08 : statusBoost * (1 + activeAmount * 0.08);
-      const spread = 1 + activeAmount * 0.28;
+      const spread = 1.08 + activeAmount * 0.24;
 
       root.scale.setScalar(spread);
       root.rotation.x = Math.sin(elapsed * 0.42 * speed) * 0.72 + Math.cos(elapsed * 0.19) * 0.2;
