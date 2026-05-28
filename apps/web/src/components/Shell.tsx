@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 const NAV = [
+  { to: "/", label: "CHIPMUNK", end: true },
   { to: "/evidence", label: "EVIDENCE", end: false },
   { to: "/datasets", label: "DATASETS", end: false },
   { to: "/tune", label: "TUNE", end: false },
