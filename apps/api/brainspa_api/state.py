@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import ssl
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -25,6 +26,7 @@ from .models import (
     AgentProfile,
     DatasetProfile,
     EnvironmentProfile,
+    HarnessProfile,
     ModelProfile,
     ProjectProfile,
     SourceProfile,
@@ -39,48 +41,118 @@ def seed_state() -> dict[str, Any]:
             {
                 "key": "chipmunk",
                 "label": "Chipmunk",
-                "goal": "Coordinate Brain Spa through Hermes, in-app chat, and Telegram while keeping the user in control.",
+                "goal": "Coordinate the Evidence, Datasets, Tune, and Test harnesses through Hermes, in-app chat, and Telegram while keeping the user in control.",
                 "default_backend": "hermes",
                 "allowed_backends": ["hermes", "codex", "opencode", "grok", "cursor"],
-                "validation": ["Check local state", "Route to the right sub-agent", "Report exact blockers"],
+                "validation": ["Read loop state", "Choose the right harness", "Report exact blockers", "Keep Telegram access locked to the configured chat"],
             },
+        ],
+        "harnesses": [
             {
-                "key": "dataset_builder",
-                "label": "Dataset Builder",
-                "goal": "Generate grounded, varied datasets that match the user's model goal without creating jagged behavior.",
-                "default_backend": "codex",
-                "allowed_backends": ["codex", "opencode", "grok", "cursor"],
-                "validation": ["Coverage", "Source-copy risk", "Split leakage", "Failure labels"],
-            },
-            {
-                "key": "environment_builder",
-                "label": "Environment Builder",
-                "goal": "Create realistic task harnesses with state, actions, scoring, and failure comments.",
-                "default_backend": "opencode",
-                "allowed_backends": ["codex", "opencode", "grok", "cursor"],
-                "validation": ["Harness realism", "Reward clarity", "Manual test UI"],
-            },
-            {
-                "key": "training_operator",
-                "label": "Training Operator",
-                "goal": "Resolve the safest local training plan for the selected model, data, and hardware.",
-                "default_backend": "codex",
-                "allowed_backends": ["codex", "opencode", "grok", "cursor"],
-                "validation": ["Runtime probe", "Dry-run", "Artifact registration"],
-            },
-            {
-                "key": "evaluation_analyst",
-                "label": "Evaluation Analyst",
-                "goal": "Explain exactly where model outputs succeed or fail and convert misses into dataset requirements.",
+                "key": "evidence",
+                "label": "Evidence Harness",
+                "owner": "Source Model",
+                "purpose": "Find reliable proof for the target behavior before any training rows are written.",
                 "default_backend": "grok",
-                "allowed_backends": ["codex", "opencode", "grok", "cursor"],
-                "validation": ["Fine-grained comments", "Actionable next dataset requirements"],
+                "world_state": [
+                    "source registry",
+                    "interview transcripts",
+                    "web and X search notes",
+                    "behavior claims",
+                    "citation and provenance ledger",
+                ],
+                "allowed_actions": [
+                    "search public web",
+                    "search X when Grok is connected",
+                    "extract transcript evidence",
+                    "write source notes",
+                    "flag weak or unsupported claims",
+                ],
+                "tools": ["grok", "web search", "X search", "transcript reader", "source ledger"],
+                "scoring_rules": ["provenance present", "claim supported", "source-copy risk low", "behavior signal specific"],
+                "failure_comments": ["missing citation", "vague behavior claim", "source says less than the row requires"],
+                "template_artifacts": ["evidence_notes.json", "source_claims.jsonl", "evidence_manifest.json"],
+            },
+            {
+                "key": "datasets",
+                "label": "Datasets Harness",
+                "owner": "Data Model",
+                "purpose": "Turn approved evidence into SFT rows and preference pairs without copying source text or creating jagged behavior.",
+                "default_backend": "opencode",
+                "world_state": [
+                    "approved evidence",
+                    "dataset state",
+                    "row schema",
+                    "preference pair schema",
+                    "train/eval split ledger",
+                ],
+                "allowed_actions": [
+                    "generate SFT rows",
+                    "generate rejected answers",
+                    "audit duplicates",
+                    "audit source-copy risk",
+                    "write handoff manifests",
+                ],
+                "tools": ["opencode", "JSONL writer", "dataset auditor", "handoff validator"],
+                "scoring_rules": ["row grounded", "answer varied", "split-safe", "failure label explicit"],
+                "failure_comments": ["template repetition", "generic answer", "copied source language", "missing failure label"],
+                "template_artifacts": ["dataset_sft_train.jsonl", "preference_pairs.jsonl", "sft_handoff.json"],
+            },
+            {
+                "key": "tune",
+                "label": "Tune Harness",
+                "owner": "Training Model",
+                "purpose": "Dry-run, fine-tune, and register adapter artifacts for the selected base model and dataset.",
+                "default_backend": "codex",
+                "world_state": [
+                    "model registry",
+                    "dataset manifest",
+                    "trainer recipes",
+                    "local hardware profile",
+                    "adapter artifact directory",
+                ],
+                "allowed_actions": [
+                    "probe runtime modules",
+                    "write trainer recipes",
+                    "run LoRA adapter training",
+                    "register adapter artifacts",
+                    "record missing requirements",
+                ],
+                "tools": ["codex", "transformers", "TRL", "PEFT", "MLX recipe writer", "artifact registry"],
+                "scoring_rules": ["dry-run complete", "requirements explicit", "adapter saved", "base model unchanged"],
+                "failure_comments": ["missing trainer module", "dataset handoff invalid", "adapter artifact missing", "loss unavailable"],
+                "template_artifacts": ["dry_run.json", "trainer_recipes", "adapter_build_result.json", "believer_adapter"],
+            },
+            {
+                "key": "test",
+                "label": "Test Harness",
+                "owner": "Harness Model",
+                "purpose": "Build task environments and score whether the tuned model behaves correctly inside each world.",
+                "default_backend": "codex",
+                "world_state": [
+                    "environment registry",
+                    "allowed tool list",
+                    "task prompts",
+                    "model outputs",
+                    "score artifacts",
+                ],
+                "allowed_actions": [
+                    "create chat environments",
+                    "create coding environments",
+                    "score model answers",
+                    "record eval comments",
+                    "convert misses into dataset requirements",
+                ],
+                "tools": ["codex", "browser harness", "CLI sandbox", "chat page", "scoring runner"],
+                "scoring_rules": ["world realistic", "allowed actions clear", "score reproducible", "failure comment actionable"],
+                "failure_comments": ["environment too vague", "tool boundary unclear", "score cannot be reproduced", "jagged answer"],
+                "template_artifacts": ["environment_spec.json", "eval_result.json", "acceptance_report.json"],
             },
         ],
         "models": [
             {
                 "key": "persona_small",
-                "label": "Persona Small",
+                "label": "Believer",
                 "base_model": "HuggingFaceTB/SmolLM2-360M-Instruct",
                 "role": "Small persona and chatbot fine-tunes",
                 "state": "candidate",
@@ -104,7 +176,7 @@ def seed_state() -> dict[str, Any]:
         "datasets": [
             {
                 "key": "believer_seed",
-                "label": "Believer Seed Dataset",
+                "label": "Believer training set",
                 "goal": "Validate the full Brain Spa loop with a small model that answers from explicit Christian conviction.",
                 "state": "draft",
                 "quality_notes": ["Needs source material", "Needs split-safe eval set", "Needs failure labels"],
@@ -121,15 +193,24 @@ def seed_state() -> dict[str, Any]:
                 "environment": "chat_believer",
             },
             {
-                "key": "chess_environment",
-                "label": "Chess Environment",
-                "goal": "Validate environment-specific evaluation with board state, legal moves, and explanation scoring.",
-                "active_model": "persona_small",
+                "key": "coding_environment",
+                "label": "Coding Environment",
+                "goal": "Validate CLI and file-editing behavior for models intended to operate in a coding harness.",
+                "active_model": "coding_small",
                 "active_dataset": None,
-                "environment": "chess",
+                "environment": "coding_cli",
             },
         ],
         "sources": [
+            {
+                "key": "believer_voice_refs",
+                "label": "Believer Voice References",
+                "kind": "web",
+                "provenance": "Faith-forward interviews, sermons, and blunt pastoral tone references",
+                "summary": "Ground Believer persona in cited faith voice—not generic assistant hedging.",
+                "active": True,
+                "feeds_models": ["persona_small", "believer"],
+            },
             {
                 "key": "composer_training_interview",
                 "label": "Composer Training Interview",
@@ -137,14 +218,16 @@ def seed_state() -> dict[str, Any]:
                 "provenance": "docs/Composer 2 and 2.5 training interview.docx",
                 "summary": "Guidance source for fine-grained training comments, environment loops, and reward design.",
                 "active": True,
+                "feeds_models": [],
             },
             {
                 "key": "recovery_commits",
                 "label": "Recovered Repository History",
                 "kind": "source_recovery",
                 "provenance": "GitHub commit history for Brain Spa source, data workflows, training source, and dataset forge.",
-                "summary": "Source map for transcript ingestion, training handoff validation, Telegram persona running, and chess harnesses.",
+                "summary": "Source map for transcript ingestion, training handoff validation, Telegram persona running, and custom harnesses.",
                 "active": True,
+                "feeds_models": [],
             },
         ],
         "environments": [
@@ -156,11 +239,11 @@ def seed_state() -> dict[str, Any]:
                 "scoring": ["Conviction fit", "Grounding", "Boundary clarity", "Non-generic wording"],
             },
             {
-                "key": "chess",
-                "label": "Chess Harness",
-                "goal": "Test board-state understanding, legal move selection, and explanation quality.",
-                "harness": "FEN first, image-to-FEN when the vision path is enabled",
-                "scoring": ["Legal move", "Board state", "Move explanation", "Confidence calibration"],
+                "key": "coding_cli",
+                "label": "Coding CLI Harness",
+                "goal": "Test whether a coder model can inspect files, edit safely, run commands, and explain failures.",
+                "harness": "Repository workspace with shell, file operations, tests, and strict allowed-action boundaries",
+                "scoring": ["Patch correctness", "Test evidence", "Command safety", "Failure explanation"],
             },
         ],
     }
@@ -177,6 +260,26 @@ class BrainSpaState:
         payload = json.loads(self.path.read_text(encoding="utf-8"))
         seed = seed_state()
         changed = False
+        if payload.get("agents") != seed["agents"]:
+            payload["agents"] = seed["agents"]
+            changed = True
+        if payload.get("harnesses") != seed["harnesses"]:
+            payload["harnesses"] = seed["harnesses"]
+            changed = True
+        if payload.get("environments") != seed["environments"]:
+            payload["environments"] = seed["environments"]
+            changed = True
+        seed_sources = {item["key"]: item for item in seed["sources"]}
+        existing_source_keys = {item["key"] for item in payload.get("sources", [])}
+        for key, source in seed_sources.items():
+            if key not in existing_source_keys:
+                payload.setdefault("sources", []).append(source)
+                changed = True
+        for item in payload.get("sources", []):
+            seed_item = seed_sources.get(item.get("key", ""))
+            if seed_item and "feeds_models" not in item:
+                item["feeds_models"] = list(seed_item.get("feeds_models", []))
+                changed = True
         for key, value in seed.items():
             if key not in payload:
                 payload[key] = value
@@ -191,6 +294,9 @@ class BrainSpaState:
 
     def agents(self) -> list[AgentProfile]:
         return [AgentProfile(**item) for item in self.load()["agents"]]
+
+    def harnesses(self) -> list[HarnessProfile]:
+        return [HarnessProfile(**item) for item in self.load()["harnesses"]]
 
     def projects(self) -> list[ProjectProfile]:
         return [ProjectProfile(**item) for item in self.load()["projects"]]
@@ -454,6 +560,17 @@ def authorize_telegram_message(bot_name: str, chat_id: str) -> tuple[bool, str]:
     return False, f"Unknown bot: {bot_name}"
 
 
+def telegram_bot_model_key(bot_name: str) -> str | None:
+    path = telegram_config_path()
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for item in data.get("bots", []):
+        if item.get("name") == bot_name:
+            return str(item.get("model_key") or "persona_small")
+    return None
+
+
 def validate_telegram_token(token: str) -> bool:
     if ":" not in token:
         return False
@@ -461,8 +578,21 @@ def validate_telegram_token(token: str) -> bool:
     if not prefix.isdigit() or len(suffix) < 30:
         return False
     try:
-        with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/getMe", timeout=2) as response:
+        with urllib.request.urlopen(
+            f"https://api.telegram.org/bot{token}/getMe",
+            timeout=2,
+            context=_ssl_context(),
+        ) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (OSError, urllib.error.URLError, json.JSONDecodeError):
         return False
     return bool(payload.get("ok"))
+
+
+def _ssl_context() -> ssl.SSLContext:
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()

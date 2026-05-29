@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +28,20 @@ class AgentProfile(BaseModel):
     default_backend: AgentBackend
     allowed_backends: list[AgentBackend]
     validation: list[str]
+
+
+class HarnessProfile(BaseModel):
+    key: LoopStageKey
+    label: str
+    owner: str
+    purpose: str
+    default_backend: AgentBackend
+    world_state: list[str]
+    allowed_actions: list[str]
+    tools: list[str]
+    scoring_rules: list[str]
+    failure_comments: list[str]
+    template_artifacts: list[str]
 
 
 class ModelProfile(BaseModel):
@@ -69,6 +83,118 @@ class SourceProfile(BaseModel):
     provenance: str
     summary: str
     active: bool = True
+    feeds_models: list[str] = Field(default_factory=list)
+
+
+EvidenceClaimStatus = Literal["pending", "approved", "rejected", "weak"]
+
+
+class EvidenceSourceSummary(BaseModel):
+    key: str
+    label: str
+    kind: str
+    summary: str
+    provenance: str
+    feeds_models: list[str] = Field(default_factory=list)
+    feeds_model_labels: list[str] = Field(default_factory=list)
+    pending_count: int = 0
+    approved_count: int = 0
+    rejected_count: int = 0
+    weak_count: int = 0
+    last_ingest_at: str | None = None
+    ready_for_datasets: bool = False
+
+
+class EvidenceClaim(BaseModel):
+    id: str
+    source_key: str
+    source_label: str | None = None
+    text: str
+    citation: str
+    status: EvidenceClaimStatus
+    ingested_at: str
+    updated_at: str
+    ingest_run_id: str | None = None
+    manual: bool = False
+
+
+class EvidenceSourceDetail(BaseModel):
+    source: SourceProfile
+    behavior_focus: str
+    ingest_focus: str | None = None
+    last_ingest_at: str | None = None
+    claims: list[EvidenceClaim]
+    artifact_paths: dict[str, str]
+
+
+class EvidenceIngestRequest(BaseModel):
+    query: str | None = None
+
+
+class EvidenceIngestResult(BaseModel):
+    source_key: str
+    ingest_run_id: str
+    backend: str
+    claims_added: int
+    ingested_at: str
+    manifest_path: str
+    claim_ids: list[str] = Field(default_factory=list)
+    ingest_focus: str | None = None
+
+
+class EvidenceClaimCreate(BaseModel):
+    text: str
+    citation: str
+    source_key: str
+
+
+class EvidenceClaimPatch(BaseModel):
+    status: EvidenceClaimStatus | None = None
+    text: str | None = None
+    citation: str | None = None
+    note: str | None = None
+
+
+class EvidenceBulkApproveResult(BaseModel):
+    approved_count: int
+    approved_claim_ids: list[str]
+    skipped_without_citation: int
+
+
+class EvidenceModelSummary(BaseModel):
+    model_slug: str
+    display_name: str
+    behavior_focus: str
+    approved_count: int
+    pending_count: int
+    weak_count: int
+    rejected_count: int
+    ready_for_datasets: bool
+    source_keys: list[str]
+
+
+class EvidenceManifest(BaseModel):
+    version: int
+    updated_at: str
+    behavior_focus: str
+    artifact_dir: str
+    sources: dict[str, dict[str, object]]
+    models: dict[str, dict[str, object]] = Field(default_factory=dict)
+    approved_claim_ids: list[str]
+    approved_count: int
+
+
+class EvidenceApprovedClaimsResponse(BaseModel):
+    approved_count: int
+    claims: list[EvidenceClaim]
+    manifest_path: str
+    ready_for_datasets: bool
+
+
+class EvidenceNotes(BaseModel):
+    behavior_focus: str
+    sources: dict[str, object]
+    notes_path: str
 
 
 class EnvironmentProfile(BaseModel):
@@ -113,19 +239,113 @@ class TelegramAuthorizationResult(BaseModel):
     reply: str | None = None
 
 
+class TelegramPollResult(BaseModel):
+    updates_seen: int = 0
+    messages_sent: int = 0
+    feedback_saved: int = 0
+    skipped: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
+class TelegramPollerStatus(BaseModel):
+    running: bool
+    last_result: TelegramPollResult = Field(default_factory=TelegramPollResult)
+    last_error: str | None = None
+
+
 class DatasetGenerateRequest(BaseModel):
     project_key: str = "believer_validation"
     goal: str = "Create a Believer dataset for SmolLM2 validation."
-    example_count: int = Field(default=100, ge=5, le=200)
+    example_count: int = Field(default=24, ge=4, le=96)
+    scenarios: list[str] = Field(
+        default_factory=lambda: ["counsel", "advice", "witness", "daily-word"],
+    )
+    scenario_weights: dict[str, int] = Field(default_factory=dict)
+    mix_even: bool = True
+    ground_in_evidence: bool = True
+    preview_only: bool = False
+    pack: str | None = Field(
+        default=None,
+        description="Quick pack: witness-heavy | import-feedback-only",
+    )
+
+
+class DatasetRowCreate(BaseModel):
+    scenario_key: str
+    user_prompt: str
+    assistant_answer: str
+    failure_labels: list[str] = Field(default_factory=list)
+    evidence_claim_ids: list[str] = Field(default_factory=list)
+
+
+class DatasetPreferencePairCreate(BaseModel):
+    prompt: str
+    chosen: str
+    rejected: str
+    failure_labels: list[str] = Field(default_factory=list)
+    scenario_key: str = "counsel"
+
+
+class DatasetEvidenceGate(BaseModel):
+    approved_count: int = 0
+    ready: bool = False
+    manifest_path: str | None = None
+    message: str = ""
 
 
 class DatasetGenerateResult(BaseModel):
     dataset: DatasetProfile
-    examples_path: str
-    manifest_path: str
-    preference_pairs_path: str
-    quality: list[str]
-    warnings: list[str]
+    examples_path: str = ""
+    manifest_path: str = ""
+    preference_pairs_path: str = ""
+    quality: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    evidence_gate: DatasetEvidenceGate | None = None
+    preview_only: bool = False
+    preview_samples: list["DatasetRow"] = Field(default_factory=list)
+    scenario_mix: dict[str, int] = Field(default_factory=dict)
+    grounded_in_evidence: bool = False
+
+
+class DatasetRow(BaseModel):
+    id: str
+    user_prompt: str
+    assistant_answer: str
+    scenario_key: str = ""
+    failure_labels: list[str] = Field(default_factory=list)
+    source: str = "generated"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DatasetRowPatch(BaseModel):
+    user_prompt: str | None = None
+    assistant_answer: str | None = None
+    failure_labels: list[str] | None = None
+
+
+class DatasetRowPage(BaseModel):
+    dataset_key: str
+    total: int
+    offset: int
+    limit: int
+    rows: list[DatasetRow]
+
+
+class DatasetImportFeedbackResult(BaseModel):
+    dataset_key: str
+    imported_count: int
+    skipped_duplicates: int = 0
+    pending_feedback_count: int = 0
+    message: str = ""
+
+
+class DatasetPreferencePairResult(BaseModel):
+    dataset_key: str
+    pair_id: str
+    message: str = ""
+
+
+TrainingPreset = Literal["fast", "standard", "quality"]
 
 
 class TrainingDryRunRequest(BaseModel):
@@ -133,6 +353,7 @@ class TrainingDryRunRequest(BaseModel):
     dataset_key: str = "believer_seed"
     model_key: str = "persona_small"
     preferred_backend: str | None = None
+    training_preset: TrainingPreset = "standard"
 
 
 class TrainingDryRunResult(BaseModel):
@@ -156,13 +377,14 @@ class TrainingAdapterBuildResult(BaseModel):
     output_dir: str
     missing_requirements: list[str]
     notes: list[str]
+    training_preset: TrainingPreset = "standard"
 
 
 class EvalRunRequest(BaseModel):
     environment_key: str = "chat_believer"
     prompt: str = "What should I do when I feel spiritually weak?"
     answer: str = "Pray, read Scripture, and ask for help from your church."
-    fen: str | None = None
+    workspace_hint: str | None = None
 
 
 class EvalComment(BaseModel):
@@ -196,6 +418,90 @@ class AdapterTestResult(BaseModel):
     notes: list[str]
 
 
+class AcceptanceCase(BaseModel):
+    prompt: str
+    answer: str
+    score: float
+    passed: bool
+    comments: list[EvalComment]
+
+
+class AcceptanceRunResult(BaseModel):
+    state: JobState
+    model: str
+    adapter_path: str
+    cases: list[AcceptanceCase]
+    passed: bool
+    missing_requirements: list[str]
+    artifact_path: str
+    notes: list[str]
+
+
+class TuneAcceptanceSummary(BaseModel):
+    state: str
+    passed: bool | None = None
+    cases_passed: int = 0
+    cases_total: int = 0
+    artifact_path: str | None = None
+
+
+class TuneModelStatus(BaseModel):
+    model_key: str
+    slug: str
+    label: str
+    display_name: str
+    project_key: str
+    adapter_path: str
+    adapter_state: Literal["missing", "ready", "blocked", "stale"]
+    dataset_key: str | None = None
+    dataset_row_count: int = 0
+    build_dataset_key: str | None = None
+    build_rows_used: int | None = None
+    build_state: str | None = None
+    built_at: str | None = None
+    stale: bool = False
+    stale_reason: str | None = None
+    dry_run_state: str | None = None
+    missing_requirements: list[str] = Field(default_factory=list)
+    acceptance: TuneAcceptanceSummary | None = None
+
+
+class TuneStatusResponse(BaseModel):
+    models: list[TuneModelStatus]
+
+
+class TuneScenarioCount(BaseModel):
+    key: str
+    label: str
+    count: int
+
+
+class TuneBuildPreview(BaseModel):
+    model_key: str
+    slug: str
+    dataset_key: str
+    dataset_slug: str
+    dataset_display_label: str
+    row_count: int
+    scenario_breakdown: list[TuneScenarioCount]
+    adapter_state: Literal["missing", "ready", "blocked", "stale"]
+    built_at: str | None = None
+    build_rows_used: int | None = None
+    stale: bool = False
+    stale_reason: str | None = None
+    training_preset_default: TrainingPreset = "standard"
+
+
+class TuneBuildJob(BaseModel):
+    state: Literal["idle", "running", "complete", "blocked", "failed"]
+    phase: str
+    model_key: str
+    dataset_key: str
+    training_preset: TrainingPreset = "standard"
+    result: TrainingAdapterBuildResult | None = None
+    error: str | None = None
+
+
 class WorkerRunRequest(BaseModel):
     agent_key: str
     backend: AgentBackend
@@ -225,6 +531,38 @@ class ChipmunkTranscribeResult(BaseModel):
     text: str
     engine: str
     notes: list[str] = Field(default_factory=list)
+
+
+class HarnessChatMessage(BaseModel):
+    id: int
+    role: Literal["user", "assistant", "system"]
+    content: str
+    prompt: str | None = None
+    model: str | None = None
+    adapter_path: str | None = None
+    reply_to_message_id: int | None = None
+    eval: EvalRunResult | None = None
+
+
+class HarnessChatThread(BaseModel):
+    model_key: str
+    scenario_key: str = "counsel"
+    messages: list[HarnessChatMessage] = Field(default_factory=list)
+
+
+class HarnessChatSendRequest(BaseModel):
+    model_key: str
+    scenario_key: str = "counsel"
+    text: str = Field(min_length=1)
+    reply_to_message_id: int | None = None
+
+
+class HarnessChatSendResult(BaseModel):
+    kind: Literal["assistant_reply", "feedback_saved"]
+    message: HarnessChatMessage
+    generation_state: JobState | None = None
+    missing_requirements: list[str] = Field(default_factory=list)
+    feedback_recorded: bool = False
 
 
 class TelegramBotCreate(BaseModel):
@@ -306,6 +644,7 @@ class Overview(BaseModel):
     hardware: HardwareProfile
     tools: list[ToolStatus]
     agents: list[AgentProfile]
+    harnesses: list[HarnessProfile]
     projects: list[ProjectProfile]
     sources: list[SourceProfile]
     models: list[ModelProfile]

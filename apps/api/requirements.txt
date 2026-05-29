@@ -3,7 +3,7 @@ uvicorn
 pydantic
 pytest
 httpx
-chess
+certifi
 torch
 transformers
 datasets

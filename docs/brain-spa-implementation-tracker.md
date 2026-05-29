@@ -24,11 +24,11 @@ This file tracks what is real, what was tested, and what still needs external in
 - [x] Datasets and Tune pages build and test the validation model path.
 - [x] Test page exposes environment and harness checks.
 - [x] Evidence page shows sources and behavior proof.
-- [x] Settings handles Telegram, Hermes, workers, and engines.
-- [x] Stockfish is shown as a chess engine, not an agent.
+- [x] Settings handles Telegram, Chipmunk/Hermes, stage harnesses, and engines.
+- [x] The four loop stages are custom harnesses, not Hermes agents.
 - [x] Hermes stays blocked unless Telegram is live-verified.
 - [x] Fake Telegram token does not mark Hermes ready.
-- [x] Worker detection covers Codex, OpenCode, Grok, Cursor, Hermes, and Stockfish.
+- [x] Worker detection covers Codex, OpenCode, Grok, Cursor, and Hermes.
 - [x] Model lifecycle transitions are explicit.
 - [x] Dataset lifecycle transitions are explicit.
 - [x] Invalid lifecycle transitions fail through the API.
@@ -64,9 +64,7 @@ Name the fear, name it as abstract and human, and return to God with the matter 
 - [x] Persona chat harness scores conviction, generic phrasing, and directness.
 - [x] Manual answer test passes for a grounded direct answer.
 - [x] Adapter answer test passes after stronger training.
-- [x] Chess harness validates FEN with `python-chess`.
-- [x] Chess harness checks Stockfish availability.
-- [x] Chess harness separates rules, board state, image stage, and explanation comments.
+- [x] Coding CLI harness checks workspace boundaries, test evidence, command safety, and explanation comments.
 - [x] Test page routes environment work through one general harness surface.
 
 ## Backend Evidence
@@ -80,6 +78,9 @@ Name the fear, name it as abstract and human, and return to God with the matter 
 - [x] `POST /api/evals/run`
 - [x] `POST /api/telegram/bots`
 - [x] `POST /api/telegram/authorize`
+- [x] `GET /api/telegram/poller/status`
+- [x] `POST /api/telegram/poller/start`
+- [x] `POST /api/telegram/poller/poll-once`
 - [x] `POST /api/workers/run`
 - [x] model lifecycle endpoints
 - [x] dataset lifecycle endpoints
@@ -106,9 +107,9 @@ Name the fear, name it as abstract and human, and return to God with the matter 
 
 These are not app blockers because the app handles them honestly:
 
-- Telegram needs a real BotFather token and allowed chat ID before Hermes can be live.
+- Telegram needs a real BotFather token and allowed chat ID before Hermes can be live; once configured, the API starts the local long-polling worker that wakes model-linked bots.
 - Cursor needs a detectable CLI or app command on `PATH`.
-- Image-to-FEN needs a real local vision model before it should be exposed as working.
+- Deeper coding harness runs need a disposable fixture repository and command allowlist before they should execute model-authored shell commands.
 
 ## Remaining Before GitHub
 

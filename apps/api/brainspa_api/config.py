@@ -38,6 +38,36 @@ def settings_path() -> Path:
     return runtime_root() / "state" / "app-settings.json"
 
 
+def model_feedback_path() -> Path:
+    return runtime_root() / "artifacts" / "evidence" / "telegram_feedback" / "feedback.jsonl"
+
+
+def evidence_artifacts_dir() -> Path:
+    return runtime_root() / "artifacts" / "evidence"
+
+
+def evidence_notes_path() -> Path:
+    return evidence_artifacts_dir() / "evidence_notes.json"
+
+
+def source_claims_path() -> Path:
+    return evidence_artifacts_dir() / "source_claims.jsonl"
+
+
+def evidence_manifest_path() -> Path:
+    return evidence_artifacts_dir() / "evidence_manifest.json"
+
+
+def _safe_path_segment(value: str) -> str:
+    return "".join(char if char.isalnum() or char in "-_" else "_" for char in value)
+
+
+def harness_chat_path(model_key: str, scenario_key: str = "counsel") -> Path:
+    safe_model = _safe_path_segment(model_key)
+    safe_scenario = _safe_path_segment(scenario_key)
+    return runtime_root() / "state" / f"harness-chat-{safe_model}-{safe_scenario}.json"
+
+
 def ensure_runtime_dirs() -> None:
     for path in (state_path().parent, event_log_path().parent, telegram_config_path().parent, runtime_root() / "artifacts"):
         path.mkdir(parents=True, exist_ok=True)

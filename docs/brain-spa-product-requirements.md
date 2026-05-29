@@ -108,21 +108,17 @@ The app must test both:
 
 If the generated answer fails, Brain Spa must show the exact failed dimension so the dataset can be improved.
 
-## Chess Harness
+## Custom Test Harnesses
 
-Chess is the first non-chat environment.
+Test is a harness builder, not a single demo.
 
-The app must not treat Stockfish as an agent. Stockfish is an engine used by the chess environment.
+The app must support task-specific environments for the model being made:
 
-The chess harness must support:
+- chat models need a chat page, system prompt, transcript, and scoring comments
+- coding models need a repository workspace, CLI boundary, allowed commands, tests, and scoring comments
+- every environment needs world state, tools, allowed actions, scoring rules, and failure comments
 
-- role selection: Advisor, Player, Tutor, Hybrid
-- FEN input
-- legal board validation through `python-chess`
-- Stockfish availability check
-- explanation scoring separate from board validation
-
-Image-to-FEN is allowed only when a real local vision path is added. Until then, the app must be honest that the current chess harness validates FEN.
+One-off demos can exist only as environments under Test. They must not define the product.
 
 ## Model Registry
 
@@ -164,22 +160,22 @@ The backend must:
 - call Telegram `getMe` to verify a live token
 - keep Hermes blocked until a token is live-verified
 - reject any non-matching chat ID
+- run a local long-polling worker while the API is running
+- load and answer from a model-linked local runtime when a non-Chipmunk model bot receives a message
+- record reply feedback to model bot outputs as Evidence with prompt, answer, and feedback
 
-## Agents
+## Operators And Harnesses
 
 Chipmunk is the controller.
 
-Sub-agents are goal-based, not personality-based:
+The four loop stages are custom harnesses, not extra Hermes personalities:
 
-- Dataset Builder
-- Environment Builder
-- Training Operator
-- Evaluation Analyst
-- Model Librarian
-- Runtime Operator
-- Code Worker
+- Evidence Harness
+- Datasets Harness
+- Tune Harness
+- Test Harness
 
-Each sub-agent must have a goal, allowed backends, validation rules, and a clear output.
+Each harness must have a goal, allowed tools, allowed actions, scoring rules, failure comments, and clear output artifacts.
 
 ## UI Standard
 

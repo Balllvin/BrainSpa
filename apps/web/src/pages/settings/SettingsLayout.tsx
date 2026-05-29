@@ -5,7 +5,7 @@ import { SettingsProvider, useAppSettings } from "@/hooks/useAppSettings";
 const NAV = [
   { to: "/settings/chipmunk", label: "Chipmunk", end: false },
   { to: "/settings/connections", label: "Connections", end: false },
-  { to: "/settings/agents", label: "Hermes agents", end: false },
+  { to: "/settings/agents", label: "Harnesses", end: false },
   { to: "/settings/telegram", label: "Telegram", end: false },
   { to: "/settings/models", label: "Models", end: false },
 ] as const;
@@ -28,7 +28,7 @@ function SettingsShell() {
 
       <header className="settings-page-header">
         <h1>Settings</h1>
-        <p className="settings-lead">Connect tools on this Mac, assign Hermes stage agents, then wire Telegram bots.</p>
+        <p className="settings-lead">Connect tools on this Mac, assign stage harnesses, then wire Telegram bots.</p>
       </header>
 
       <nav aria-label="Settings sections" className="settings-nav">

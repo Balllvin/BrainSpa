@@ -1,14 +1,38 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { useAppSettings } from "@/hooks/useAppSettings";
-import { createTelegramBot, importLegacyTelegramBots } from "@/lib/backend";
+import {
+  createTelegramBot,
+  fetchTelegramPollerStatus,
+  importLegacyTelegramBots,
+  pollTelegramOnce,
+  startTelegramPoller,
+  stopTelegramPoller,
+} from "@/lib/backend";
+import type { TelegramPollerStatus } from "@/lib/types";
 
 export function TelegramPage() {
   const { settings, apiOnline, refresh, setFlash } = useAppSettings();
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [pollerBusy, setPollerBusy] = useState(false);
+  const [pollerStatus, setPollerStatus] = useState<TelegramPollerStatus | null>(null);
   const bots = settings?.telegram_bots ?? [];
   const models = settings?.model_links ?? [];
+
+  async function refreshPollerStatus() {
+    const result = await fetchTelegramPollerStatus();
+    if (result.ok) setPollerStatus(result.status);
+  }
+
+  useEffect(() => {
+    if (!apiOnline) return;
+    void refreshPollerStatus();
+    const timer = window.setInterval(() => {
+      void refreshPollerStatus();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [apiOnline]);
 
   async function importLegacy() {
     setImporting(true);
@@ -48,6 +72,32 @@ export function TelegramPage() {
     setFlash(response.bot?.live_verified ? `Bot “${name}” connected.` : `Bot “${name}” saved (token not verified).`);
     event.currentTarget.reset();
     await refresh();
+    await refreshPollerStatus();
+  }
+
+  async function setPoller(action: "start" | "stop" | "poll") {
+    setPollerBusy(true);
+    if (action === "poll") {
+      const result = await pollTelegramOnce();
+      setPollerBusy(false);
+      if (!result.ok || !result.data) {
+        setFlash(result.error ?? "Telegram poll failed.", true);
+        return;
+      }
+      setFlash(
+        `Poll complete: ${result.data.updates_seen} update(s), ${result.data.messages_sent} reply/replies, ${result.data.feedback_saved} feedback row(s).`,
+      );
+      await refreshPollerStatus();
+      return;
+    }
+    const result = action === "start" ? await startTelegramPoller() : await stopTelegramPoller();
+    setPollerBusy(false);
+    if (!result.ok || !result.data) {
+      setFlash(result.error ?? "Telegram worker command failed.", true);
+      return;
+    }
+    setPollerStatus(result.data);
+    setFlash(action === "start" ? "Telegram worker started." : "Telegram worker stopped.");
   }
 
   return (
@@ -56,7 +106,34 @@ export function TelegramPage() {
         <h2>Telegram bots</h2>
         <span className="settings-header-meta">{bots.length} saved</span>
       </div>
-      <p className="field-hint">Create bots here, then assign them to Hermes agents on the Agents page.</p>
+      <p className="field-hint">Create bots here, then assign Chipmunk or a stage harness on the Harnesses page.</p>
+
+      <div className="settings-status-card">
+        <div className="settings-backend-copy">
+          <strong>Telegram worker</strong>
+          <span className={pollerStatus?.running ? "ok-text" : "warn-text"}>
+            {pollerStatus?.running ? "running on this laptop" : "stopped"}
+            {pollerStatus?.last_error ? ` · ${pollerStatus.last_error}` : ""}
+          </span>
+          {pollerStatus ? (
+            <span className="field-hint">
+              last poll: {pollerStatus.last_result.updates_seen} update(s), {pollerStatus.last_result.messages_sent} reply/replies,{" "}
+              {pollerStatus.last_result.feedback_saved} feedback row(s)
+            </span>
+          ) : null}
+        </div>
+        <div className="loop-action-row">
+          <button className="secondary" disabled={!apiOnline || pollerBusy} type="button" onClick={() => void setPoller("start")}>
+            Start worker
+          </button>
+          <button className="secondary" disabled={!apiOnline || pollerBusy} type="button" onClick={() => void setPoller("stop")}>
+            Stop worker
+          </button>
+          <button className="secondary" disabled={!apiOnline || pollerBusy} type="button" onClick={() => void setPoller("poll")}>
+            Poll now
+          </button>
+        </div>
+      </div>
 
       <div className="loop-action-row">
         <button className="secondary" disabled={!apiOnline || importing} type="button" onClick={importLegacy}>

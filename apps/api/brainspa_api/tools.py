@@ -11,7 +11,6 @@ TOOL_LABELS = {
     "opencode": "OpenCode CLI",
     "grok": "Grok CLI",
     "cursor": "Cursor",
-    "stockfish": "Stockfish",
     "hermes": "Hermes Agent",
 }
 
@@ -30,7 +29,7 @@ VERSION_COMMANDS = {
 
 def detect_tools() -> list[ToolStatus]:
     statuses: list[ToolStatus] = []
-    for key in ("codex", "opencode", "grok", "cursor", "stockfish", "hermes"):
+    for key in ("codex", "opencode", "grok", "cursor", "hermes"):
         command_path = shutil.which(key)
         statuses.append(
             ToolStatus(
@@ -47,20 +46,10 @@ def detect_tools() -> list[ToolStatus]:
 
 def _read_version(key: str) -> str | None:
     try:
-        if key == "stockfish":
-            result = subprocess.run(
-                ["stockfish"],
-                input="quit\n",
-                text=True,
-                capture_output=True,
-                timeout=0.75,
-                check=False,
-            )
-        else:
-            command = VERSION_COMMANDS.get(key)
-            if not command:
-                return None
-            result = subprocess.run(command, text=True, capture_output=True, timeout=0.75, check=False)
+        command = VERSION_COMMANDS.get(key)
+        if not command:
+            return None
+        result = subprocess.run(command, text=True, capture_output=True, timeout=0.75, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
 

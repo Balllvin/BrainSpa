@@ -36,15 +36,16 @@ What the app does:
 - shows Cursor as blocked when missing
 - lets `Verify` prove the current state from the app
 
-## Chess Image Input
+## Coding Harness Expansion
 
 Current state:
 
-- the chess harness validates FEN
-- `python-chess` checks board legality
-- Stockfish is used as an engine when available
+- the coding CLI harness scores workspace boundary awareness
+- the harness checks for explicit build/test evidence
+- destructive shell commands are flagged by the scorer
 
-Needed before image input can be marked working:
+Needed before deeper coding environments can be marked working:
 
-- a local image-to-FEN model or parser
-- tests proving the board image becomes the right FEN
+- a disposable fixture repository
+- a command allowlist per coding task
+- tests proving the harness rejects unsafe actions

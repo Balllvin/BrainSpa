@@ -1,12 +1,20 @@
 {
-  "name": "unified-brain-spa",
-  "private": true,
+  "name": "brain-spa",
+  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Balllvin/brain-spa-local-ai.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "api": "python3 -m apps.api.brainspa_api",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:api": "BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 python3 -m pytest apps/api/tests -q",
+    "verify": "npm run build && npm run test:api"
   },
   "dependencies": {
     "react": "^19.0.0",

@@ -11,10 +11,10 @@ from .tools import detect_tools
 LoopStageKey = Literal["evidence", "datasets", "tune", "test"]
 
 LOOP_STAGE_DEFAULTS: list[dict[str, Any]] = [
-    {"key": "evidence", "label": "Evidence", "backend": "codex", "telegram_bot_name": None},
-    {"key": "datasets", "label": "Datasets", "backend": "codex", "telegram_bot_name": None},
+    {"key": "evidence", "label": "Evidence", "backend": "grok", "telegram_bot_name": None},
+    {"key": "datasets", "label": "Datasets", "backend": "opencode", "telegram_bot_name": None},
     {"key": "tune", "label": "Tune", "backend": "codex", "telegram_bot_name": None},
-    {"key": "test", "label": "Test", "backend": "grok", "telegram_bot_name": None},
+    {"key": "test", "label": "Test", "backend": "codex", "telegram_bot_name": None},
 ]
 
 LOOP_CLI_BACKENDS = ("codex", "opencode", "grok", "cursor")
@@ -52,6 +52,15 @@ def load_settings() -> dict[str, Any]:
     for item in LOOP_STAGE_DEFAULTS:
         if item["key"] not in existing_keys:
             payload.setdefault("loop_agents", []).append(dict(item))
+            changed = True
+    for item in payload.get("loop_agents", []):
+        default = next((stage for stage in LOOP_STAGE_DEFAULTS if stage["key"] == item.get("key")), None)
+        if default and item.get("backend") == "hermes":
+            item["backend"] = default["backend"]
+            changed = True
+        old_defaults = {"evidence": "codex", "datasets": "codex", "test": "grok"}
+        if default and item.get("backend") == old_defaults.get(str(item.get("key"))):
+            item["backend"] = default["backend"]
             changed = True
     if changed:
         save_settings(payload)

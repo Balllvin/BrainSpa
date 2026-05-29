@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+from contextlib import asynccontextmanager
 from pathlib import Path
+from collections.abc import AsyncIterator
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +13,7 @@ from fastapi.responses import StreamingResponse
 
 from .config import ensure_runtime_dirs, runtime_root
 from .models import (
+    AcceptanceRunResult,
     AdapterTestRequest,
     AdapterTestResult,
     AppSettings,
@@ -22,9 +25,18 @@ from .models import (
     DatasetGenerateRequest,
     DatasetGenerateResult,
     DatasetProfile,
+    DatasetEvidenceGate,
+    DatasetImportFeedbackResult,
+    DatasetRow,
+    DatasetRowPage,
+    DatasetRowCreate,
+    DatasetRowPatch,
+    DatasetPreferencePairCreate,
+    DatasetPreferencePairResult,
     EvalRunRequest,
     EvalRunResult,
     HardwareProfile,
+    HarnessProfile,
     HermesSetup,
     LifecycleUpdate,
     LoopAgentSettings,
@@ -37,11 +49,32 @@ from .models import (
     TelegramAuthorizationRequest,
     TelegramAuthorizationResult,
     TelegramBotPublic,
+    TelegramPollResult,
+    TelegramPollerStatus,
     TrainingDryRunRequest,
     TrainingDryRunResult,
     TrainingAdapterBuildResult,
+    TuneBuildJob,
+    TuneBuildPreview,
+    TuneModelStatus,
+    TuneStatusResponse,
     WorkerRunRequest,
     WorkerRunResult,
+    HarnessChatSendRequest,
+    HarnessChatSendResult,
+    HarnessChatThread,
+    EvidenceApprovedClaimsResponse,
+    EvidenceBulkApproveResult,
+    EvidenceClaim,
+    EvidenceClaimCreate,
+    EvidenceClaimPatch,
+    EvidenceIngestRequest,
+    EvidenceIngestResult,
+    EvidenceManifest,
+    EvidenceModelSummary,
+    EvidenceNotes,
+    EvidenceSourceDetail,
+    EvidenceSourceSummary,
 )
 from .backend_connect import connect_backend_stream
 from .chipmunk_voice import create_voice_client_secret
@@ -63,9 +96,40 @@ from .state import (
     read_telegram_bots,
     set_xai_api_key,
     clear_xai_api_key,
+    telegram_bot_model_key,
 )
 from .tools import detect_tools
 from .transcribe import transcribe_audio_bytes
+from .harness_chat import read_harness_chat, send_harness_chat
+from .evidence_store import (
+    bulk_approve_pending_with_citation,
+    create_evidence_claim,
+    delete_evidence_claim,
+    get_evidence_source_detail,
+    get_model_evidence_summary,
+    list_approved_claims,
+    list_evidence_claims,
+    list_evidence_sources,
+    list_source_claims,
+    patch_evidence_claim,
+    read_evidence_manifest,
+    read_evidence_notes,
+    start_source_ingest,
+)
+from .test_scenarios import TestScenarioPublic, list_test_scenarios
+from .telegram_runtime import TelegramPoller
+from .datasets_workflows import (
+    add_manual_preference_pair,
+    create_dataset_row,
+    delete_dataset_row,
+    import_test_feedback,
+    list_dataset_rows,
+    patch_dataset_row,
+    read_evidence_gate,
+)
+from .datasets_workflows import generate_believer_dataset as generate_dataset_for_key
+from .tune_api import list_tune_status, tune_build_preview, tune_status_for_slug
+from .tune_build import read_build_job_for_slug, start_build_job
 from .workflows import (
     chipmunk_reply,
     generate_believer_dataset,
@@ -74,17 +138,37 @@ from .workflows import (
     run_worker_job,
     build_training_adapter,
     training_dry_run,
+    run_believer_acceptance,
+    believer_runtime_reply,
+    looks_like_loop_request,
 )
 
 
 def create_app() -> FastAPI:
     ensure_runtime_dirs()
-    app = FastAPI(title="Brain Spa Local API")
     state = BrainSpaState()
+    telegram_poller = TelegramPoller()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if os.environ.get("BRAIN_SPA_DISABLE_TELEGRAM_POLLING") != "1":
+            telegram_poller.start()
+        try:
+            yield
+        finally:
+            telegram_poller.stop()
+
+    app = FastAPI(title="Brain Spa Local API", lifespan=lifespan)
+
+    cors_raw = os.environ.get(
+        "BRAIN_SPA_CORS_ORIGINS",
+        "http://127.0.0.1:5173,http://localhost:5173",
+    )
+    cors_origins = [origin.strip() for origin in cors_raw.split(",") if origin.strip()]
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -111,6 +195,7 @@ def create_app() -> FastAPI:
             hardware=hardware_profile(),
             tools=detect_tools(),
             agents=state.agents(),
+            harnesses=state.harnesses(),
             projects=state.projects(),
             sources=state.sources(),
             models=state.models(),
@@ -153,6 +238,24 @@ def create_app() -> FastAPI:
     def import_legacy_telegram() -> dict[str, int]:
         count = migrate_legacy_telegram_bots()
         return {"imported": count}
+
+    @app.get("/api/telegram/poller/status", response_model=TelegramPollerStatus)
+    def telegram_poller_status() -> TelegramPollerStatus:
+        return telegram_poller.status()
+
+    @app.post("/api/telegram/poller/start", response_model=TelegramPollerStatus)
+    def telegram_poller_start() -> TelegramPollerStatus:
+        telegram_poller.start()
+        return telegram_poller.status()
+
+    @app.post("/api/telegram/poller/stop", response_model=TelegramPollerStatus)
+    def telegram_poller_stop() -> TelegramPollerStatus:
+        telegram_poller.stop()
+        return telegram_poller.status()
+
+    @app.post("/api/telegram/poller/poll-once", response_model=TelegramPollResult)
+    def telegram_poller_poll_once() -> TelegramPollResult:
+        return telegram_poller.poll_once(timeout=0)
 
     @app.get("/api/settings", response_model=AppSettings)
     def read_settings() -> AppSettings:
@@ -244,6 +347,16 @@ def create_app() -> FastAPI:
         authorized, reason = authorize_telegram_message(request.bot_name, request.chat_id)
         if not authorized:
             return TelegramAuthorizationResult(authorized=False, reason=reason)
+        model_key = telegram_bot_model_key(request.bot_name)
+        if model_key and request.bot_name != "chipmunk" and not looks_like_loop_request(request.text):
+            result = believer_runtime_reply(request.text or "What should I do when I feel spiritually weak?", model_key)
+            if result.state == "complete":
+                return TelegramAuthorizationResult(
+                    authorized=True,
+                    reason=reason,
+                    routed_to=model_key,
+                    reply=result.answer,
+                )
         route = chipmunk_reply(request.text or "telegram route check")
         return TelegramAuthorizationResult(
             authorized=True,
@@ -273,6 +386,94 @@ def create_app() -> FastAPI:
     def generate_dataset(request: DatasetGenerateRequest) -> DatasetGenerateResult:
         return generate_believer_dataset(request)
 
+    @app.get("/api/datasets/evidence-gate", response_model=DatasetEvidenceGate)
+    def datasets_evidence_gate() -> DatasetEvidenceGate:
+        return read_evidence_gate()
+
+    @app.get("/api/datasets/scenarios", response_model=list[TestScenarioPublic])
+    def datasets_scenarios() -> list[TestScenarioPublic]:
+        return list_test_scenarios("persona_small")
+
+    @app.get("/api/datasets/{dataset_key}/rows", response_model=DatasetRowPage)
+    def dataset_rows(dataset_key: str, offset: int = 0, limit: int = 50) -> DatasetRowPage:
+        return list_dataset_rows(dataset_key, offset=offset, limit=limit)
+
+    @app.patch("/api/datasets/{dataset_key}/rows/{row_id}", response_model=DatasetRow)
+    def dataset_row_patch(dataset_key: str, row_id: str, patch: DatasetRowPatch) -> DatasetRow:
+        return patch_dataset_row(dataset_key, row_id, patch)
+
+    @app.delete("/api/datasets/{dataset_key}/rows/{row_id}")
+    def dataset_row_delete(dataset_key: str, row_id: str) -> dict[str, bool]:
+        delete_dataset_row(dataset_key, row_id)
+        return {"ok": True}
+
+    @app.post("/api/datasets/{dataset_key}/generate", response_model=DatasetGenerateResult)
+    def generate_dataset_by_key(dataset_key: str, request: DatasetGenerateRequest) -> DatasetGenerateResult:
+        if dataset_key != "believer_seed":
+            raise HTTPException(status_code=404, detail=f"Unknown dataset: {dataset_key}")
+        return generate_dataset_for_key(request, dataset_key=dataset_key)
+
+    @app.post("/api/datasets/{dataset_key}/import-test-feedback", response_model=DatasetImportFeedbackResult)
+    def dataset_import_test_feedback(dataset_key: str) -> DatasetImportFeedbackResult:
+        return import_test_feedback(dataset_key)
+
+    @app.post("/api/datasets/{dataset_key}/rows", response_model=DatasetRow)
+    def dataset_row_create(dataset_key: str, body: DatasetRowCreate) -> DatasetRow:
+        return create_dataset_row(dataset_key, body)
+
+    @app.post("/api/datasets/{dataset_key}/preference-pairs", response_model=DatasetPreferencePairResult)
+    def dataset_preference_pair_create(
+        dataset_key: str,
+        body: DatasetPreferencePairCreate,
+    ) -> DatasetPreferencePairResult:
+        return add_manual_preference_pair(dataset_key, body)
+
+    @app.get("/api/tune/status", response_model=TuneStatusResponse)
+    def tune_status_overview() -> TuneStatusResponse:
+        return list_tune_status()
+
+    @app.get("/api/tune/{model_slug}/status", response_model=TuneModelStatus)
+    def tune_model_status(model_slug: str) -> TuneModelStatus:
+        try:
+            return tune_status_for_slug(model_slug)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=f"Unknown tune model: {model_slug}") from error
+
+    @app.post("/api/tune/dry-run", response_model=TrainingDryRunResult)
+    def tune_dry_run(request: TrainingDryRunRequest) -> TrainingDryRunResult:
+        return training_dry_run(request)
+
+    @app.get("/api/tune/{model_slug}/build-preview", response_model=TuneBuildPreview)
+    def tune_build_preview_route(model_slug: str, dataset_key: str | None = None) -> TuneBuildPreview:
+        try:
+            return tune_build_preview(model_slug, dataset_key)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=f"Unknown tune model: {model_slug}") from error
+
+    @app.get("/api/tune/{model_slug}/build-job", response_model=TuneBuildJob)
+    def tune_build_job_route(model_slug: str) -> TuneBuildJob:
+        job = read_build_job_for_slug(model_slug)
+        if not job:
+            return TuneBuildJob(
+                state="idle",
+                phase="idle",
+                model_key="",
+                dataset_key="",
+            )
+        return job
+
+    @app.post("/api/tune/build", response_model=TuneBuildJob)
+    def tune_build(request: TrainingDryRunRequest) -> TuneBuildJob:
+        return start_build_job(request)
+
+    @app.post("/api/tune/test-adapter", response_model=AdapterTestResult)
+    def tune_test_adapter(request: AdapterTestRequest) -> AdapterTestResult:
+        return test_training_adapter(request)
+
+    @app.post("/api/tune/acceptance", response_model=AcceptanceRunResult)
+    def tune_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
+        return run_believer_acceptance(request)
+
     @app.post("/api/training/dry-run", response_model=TrainingDryRunResult)
     def dry_run_training(request: TrainingDryRunRequest) -> TrainingDryRunResult:
         return training_dry_run(request)
@@ -285,9 +486,84 @@ def create_app() -> FastAPI:
     def test_adapter(request: AdapterTestRequest) -> AdapterTestResult:
         return test_training_adapter(request)
 
+    @app.post("/api/training/believer-acceptance", response_model=AcceptanceRunResult)
+    def believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
+        return run_believer_acceptance(request)
+
     @app.post("/api/evals/run", response_model=EvalRunResult)
     def run_eval(request: EvalRunRequest) -> EvalRunResult:
         return run_environment_eval(request)
+
+    @app.get("/api/evidence/sources", response_model=list[EvidenceSourceSummary])
+    def evidence_sources() -> list[EvidenceSourceSummary]:
+        return list_evidence_sources(state)
+
+    @app.get("/api/evidence/models/{model_slug}", response_model=EvidenceModelSummary)
+    def evidence_model_summary(model_slug: str) -> EvidenceModelSummary:
+        return get_model_evidence_summary(state, model_slug)
+
+    @app.get("/api/evidence/sources/{source_key}", response_model=EvidenceSourceDetail)
+    def evidence_source_detail(source_key: str) -> EvidenceSourceDetail:
+        return get_evidence_source_detail(state, source_key)
+
+    @app.get("/api/evidence/sources/{source_key}/claims", response_model=list[EvidenceClaim])
+    def evidence_source_claims(source_key: str) -> list[EvidenceClaim]:
+        return list_source_claims(state, source_key)
+
+    @app.get("/api/evidence/claims", response_model=list[EvidenceClaim])
+    def evidence_claims(
+        model: str | None = None,
+        status: str | None = None,
+        source_key: str | None = None,
+    ) -> list[EvidenceClaim]:
+        return list_evidence_claims(state, model=model, status=status, source_key=source_key)
+
+    @app.post("/api/evidence/claims", response_model=EvidenceClaim)
+    def evidence_claim_create(body: EvidenceClaimCreate) -> EvidenceClaim:
+        return create_evidence_claim(state, body)
+
+    @app.post("/api/evidence/sources/{source_key}/ingest", response_model=EvidenceIngestResult)
+    def evidence_source_ingest(source_key: str, request: EvidenceIngestRequest) -> EvidenceIngestResult:
+        return start_source_ingest(state, source_key, request)
+
+    @app.patch("/api/evidence/claims/{claim_id}", response_model=EvidenceClaim)
+    def evidence_claim_patch(claim_id: str, patch: EvidenceClaimPatch) -> EvidenceClaim:
+        return patch_evidence_claim(state, claim_id, patch)
+
+    @app.delete("/api/evidence/claims/{claim_id}")
+    def evidence_claim_delete(claim_id: str) -> dict[str, bool]:
+        return delete_evidence_claim(state, claim_id)
+
+    @app.post("/api/evidence/claims/bulk-approve", response_model=EvidenceBulkApproveResult)
+    def evidence_claims_bulk_approve(model: str | None = None) -> EvidenceBulkApproveResult:
+        return bulk_approve_pending_with_citation(state, model)
+
+    @app.get("/api/evidence/manifest", response_model=EvidenceManifest)
+    def evidence_manifest() -> EvidenceManifest:
+        return read_evidence_manifest(state)
+
+    @app.get("/api/evidence/notes", response_model=EvidenceNotes)
+    def evidence_notes() -> EvidenceNotes:
+        return read_evidence_notes()
+
+    @app.get("/api/evidence/approved-claims", response_model=EvidenceApprovedClaimsResponse)
+    def evidence_approved_claims(
+        source_key: str | None = None,
+        model: str | None = None,
+    ) -> EvidenceApprovedClaimsResponse:
+        return list_approved_claims(state, source_key=source_key, model=model)
+
+    @app.get("/api/harness/scenarios/{model_key}", response_model=list[TestScenarioPublic])
+    def harness_test_scenarios(model_key: str) -> list[TestScenarioPublic]:
+        return list_test_scenarios(model_key)
+
+    @app.get("/api/harness/chat/{model_key}/{scenario_key}", response_model=HarnessChatThread)
+    def harness_chat_thread(model_key: str, scenario_key: str) -> HarnessChatThread:
+        return read_harness_chat(model_key, scenario_key)
+
+    @app.post("/api/harness/chat/send", response_model=HarnessChatSendResult)
+    def harness_chat_send(request: HarnessChatSendRequest) -> HarnessChatSendResult:
+        return send_harness_chat(request)
 
     @app.post("/api/workers/run", response_model=WorkerRunResult)
     def run_worker(request: WorkerRunRequest) -> WorkerRunResult:

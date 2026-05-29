@@ -2,7 +2,6 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { updateLoopAgent } from "@/lib/backend";
 import type { AgentBackendKey, LoopStageKey } from "@/lib/types";
 
-const STAGES: LoopStageKey[] = ["evidence", "datasets", "tune", "test"];
 const CLI_OPTIONS: AgentBackendKey[] = ["codex", "opencode", "grok", "cursor"];
 
 export function HermesAgentsPage() {
@@ -20,17 +19,17 @@ export function HermesAgentsPage() {
       setFlash(result.error ?? "Could not save.", true);
       return;
     }
-    setFlash(`Saved ${stage} agent.`);
+    setFlash(`Saved ${stage} harness.`);
     await refresh();
   }
 
   return (
     <section className="panel stack settings-section">
       <div className="panel-header compact-header">
-        <h2>Hermes agents</h2>
+        <h2>Stage harnesses</h2>
       </div>
       <p className="field-hint">
-        Each loop stage is a Hermes agent. Pick which CLI runs it and which Telegram bot sends notifications.
+        Chipmunk is the supervising Hermes operator. These four loop stages are custom harnesses with their own CLI backend and optional Telegram notification bot.
       </p>
 
       <div className="settings-agent-grid">
@@ -48,7 +47,7 @@ export function HermesAgentsPage() {
               </div>
 
               <label className="field">
-                <span>CLI for this stage</span>
+                <span>CLI backend</span>
                 <select
                   disabled={!apiOnline}
                   value={agent.backend}

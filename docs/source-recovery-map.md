@@ -7,7 +7,7 @@ This map preserves what was recovered from the older app lineage without carryin
 - Transcript and evidence workflow: project-scoped sources, quality notes, export handoffs, and traceable runtime artifacts.
 - Training workflow: handoff validation, backend resolution, MLX and Transformers-family recipes, Axolotl and LLaMA-Factory recipe files, and explicit blocker reporting.
 - Local persona runner: bot token storage, allowed-user checks, in-app route testing, and Chipmunk as the controller.
-- Environment workflow: FEN-based harness as one example, Stockfish detection, legal board validation, and image-to-FEN as a possible input stage.
+- Environment workflow: custom harness templates, task-specific world state, allowed actions, scoring comments, and exact failure dimensions.
 
 ## Active Brain Spa Surfaces
 
@@ -15,7 +15,7 @@ This map preserves what was recovered from the older app lineage without carryin
 - `/datasets` generates SFT and preference-pair data.
 - `/tune` dry-runs training, builds adapters, and tests adapter output.
 - `/test` runs environment harness scoring with comments per failure dimension.
-- `/settings` links Telegram bots, checks allowed-chat routing, previews workers, and shows Hermes setup.
+- `/settings` links Telegram bots, checks allowed-chat routing, assigns stage harness backends, and shows Chipmunk/Hermes setup.
 
 ## Naming Rule
 
