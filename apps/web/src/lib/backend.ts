@@ -8,6 +8,8 @@ import type {
   AppSettings,
   BrainSpaOverview,
   ChipmunkChatResult,
+  ChipmunkHermesUpdate,
+  ChipmunkSettings,
   ChipmunkTranscribeResult,
   ConnectStreamEvent,
   DatasetProfile,
@@ -22,6 +24,7 @@ import type {
   DatasetRowPage,
   EvalRunResult,
   HermesSetup,
+  HermesProviderConnectResult,
   LoopAgentSettings,
   LoopStageKey,
   ModelProfile,
@@ -521,6 +524,10 @@ export async function fetchHermesSetup(): Promise<{ ok: boolean; data: HermesSet
   }
 }
 
+export function connectHermesProvider(providerKey: string) {
+  return postJson<HermesProviderConnectResult>(`/api/hermes/providers/${encodeURIComponent(providerKey)}/connect`, {});
+}
+
 export function authorizeTelegramRoute(botName: string, chatId: string, text: string) {
   return postJson<TelegramAuthorizationResult>("/api/telegram/authorize", {
     bot_name: botName,
@@ -682,9 +689,11 @@ export function patchChipmunkSettings(patch: {
   default_model_key?: string;
   default_telegram_bot_name?: string | null;
   voice_model?: string;
+  hermes?: ChipmunkHermesUpdate;
+  restart_gateway?: boolean;
   clear_xai_api_key?: boolean;
 }) {
-  return postJson<import("@/lib/types").ChipmunkSettings>("/api/settings/chipmunk", patch, "PATCH");
+  return postJson<ChipmunkSettings>("/api/settings/chipmunk", patch, "PATCH");
 }
 
 export async function fetchEvidenceModelSummary(modelSlug: string): Promise<{

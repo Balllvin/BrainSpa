@@ -5,10 +5,10 @@ Thanks for helping improve local-first model behavior tooling.
 ## Development setup
 
 ```bash
-git clone https://github.com/Balllvin/brain-spa-local-ai.git
-cd brain-spa-local-ai
+git clone https://github.com/Balllvin/BrainSpa.git
+cd BrainSpa
 npm install
-python3 -m pip install -r apps/api/requirements.txt
+python3.11 -m pip install -r apps/api/requirements.txt  # or newer
 ```
 
 Run API + UI:

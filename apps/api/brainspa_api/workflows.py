@@ -5,6 +5,7 @@ import json
 import platform
 import re
 import shutil
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -410,6 +411,16 @@ def run_worker_job(request: WorkerRunRequest) -> WorkerRunResult:
 
 def chipmunk_reply(message: str) -> ChipmunkChatResult:
     lowered = message.lower()
+    if _asks_for_status(lowered):
+        return _chipmunk_status()
+    if "dataset" in lowered and ("generate" in lowered or "build" in lowered or "preview" in lowered):
+        return _chipmunk_dataset_action(lowered)
+    if "dry-run" in lowered or "dry run" in lowered:
+        return _chipmunk_training_dry_run()
+    if "worker" in lowered:
+        return _chipmunk_worker_action(lowered, message)
+    if ("eval" in lowered or "score" in lowered) and ("test" in lowered or "harness" in lowered):
+        return _chipmunk_eval_action(message)
     if "dataset" in lowered:
         return ChipmunkChatResult(
             reply="Datasets harness should inspect evidence coverage, generate split-safe rows, and label exact failure modes before training.",
@@ -434,6 +445,9 @@ def chipmunk_reply(message: str) -> ChipmunkChatResult:
             routed_to="test",
             suggested_actions=["Open Test", "Run harness check"],
         )
+    hermes = _chipmunk_hermes_fallback(message)
+    if hermes:
+        return hermes
     return ChipmunkChatResult(
         reply="I can route this through Brain Spa, but I need the target: evidence, datasets, tune, test, Telegram, or worker.",
         routed_to="chipmunk",
@@ -459,6 +473,159 @@ def looks_like_loop_request(message: str) -> bool:
             "worker",
         )
     )
+
+
+def _asks_for_status(lowered: str) -> bool:
+    return lowered.strip() in {"status", "/status", "ping", "/start"} or "are you connected" in lowered
+
+
+def _chipmunk_status() -> ChipmunkChatResult:
+    hermes_path = shutil.which("hermes")
+    telegram_note = "Telegram route is active through Brain Spa's local poller."
+    if hermes_path:
+        hermes_note = f"Hermes is installed at {hermes_path}."
+    else:
+        hermes_note = "Hermes is not on PATH."
+    return ChipmunkChatResult(
+        reply=f"Chipmunk is connected. {telegram_note} {hermes_note}",
+        routed_to="chipmunk",
+        suggested_actions=["Generate dataset preview", "Run training dry-run", "Run worker preview"],
+    )
+
+
+def _chipmunk_dataset_action(lowered: str) -> ChipmunkChatResult:
+    preview_only = "preview" in lowered
+    grounded = "ungrounded" not in lowered and not preview_only
+    try:
+        result = generate_believer_dataset(
+            DatasetGenerateRequest(
+                example_count=4 if preview_only else 24,
+                ground_in_evidence=grounded,
+                preview_only=preview_only,
+            )
+        )
+    except Exception as error:
+        return ChipmunkChatResult(
+            reply=f"Dataset action blocked: {error}",
+            routed_to="datasets",
+            suggested_actions=["Open Evidence", "Approve claims", "Generate dataset preview"],
+        )
+    if preview_only:
+        return ChipmunkChatResult(
+            reply=(
+                f"Dataset preview ready for {result.dataset.key}: {result.dataset.row_count} row(s), "
+                f"mix {result.scenario_mix}."
+            ),
+            routed_to="datasets",
+            suggested_actions=["Open Datasets", "Generate full dataset"],
+        )
+    return ChipmunkChatResult(
+        reply=(
+            f"Dataset generated for {result.dataset.key}: {result.dataset.row_count} row(s). "
+            f"Artifact: {result.manifest_path}"
+        ),
+        routed_to="datasets",
+        suggested_actions=["Open Datasets", "Run training dry-run"],
+    )
+
+
+def _chipmunk_training_dry_run() -> ChipmunkChatResult:
+    result = training_dry_run(TrainingDryRunRequest())
+    missing = ", ".join(result.missing_requirements) if result.missing_requirements else "none"
+    return ChipmunkChatResult(
+        reply=f"Training dry-run {result.state}. Backend: {result.backend}. Missing: {missing}. Output: {result.output_dir}",
+        routed_to="tune",
+        suggested_actions=["Open Tune", "Inspect missing runtime modules"],
+    )
+
+
+def _chipmunk_worker_action(lowered: str, original: str) -> ChipmunkChatResult:
+    agent_key = "evidence"
+    for candidate in ("evidence", "datasets", "tune", "test"):
+        if candidate in lowered:
+            agent_key = candidate
+            break
+    result = run_worker_job(WorkerRunRequest(agent_key=agent_key, backend="codex", task=original))
+    return ChipmunkChatResult(
+        reply=f"Worker preview {result.state} for {result.agent_key}. {' '.join(result.logs)}",
+        routed_to=agent_key,
+        suggested_actions=["Open worker artifact", "Assign backend in Settings"],
+    )
+
+
+def _chipmunk_eval_action(message: str) -> ChipmunkChatResult:
+    result = run_environment_eval(
+        EvalRunRequest(
+            environment_key="coding_cli" if "coding" in message.lower() else "chat_believer",
+            prompt=message,
+            answer=message,
+        )
+    )
+    verdict = "passed" if result.passed else "needs work"
+    return ChipmunkChatResult(
+        reply=f"Harness eval {verdict}. Score: {result.score}. Artifact: {result.artifact_path}",
+        routed_to="test",
+        suggested_actions=["Open Test", "Inspect eval comments"],
+    )
+
+
+def _chipmunk_hermes_fallback(message: str) -> ChipmunkChatResult | None:
+    if not shutil.which("hermes"):
+        return None
+    prompt = (
+        "You are Chipmunk, the Brain Spa Hermes operator. Keep the answer short. "
+        "Route work through Evidence, Datasets, Tune, and Test. "
+        f"User message: {message}"
+    )
+    try:
+        result = subprocess.run(
+            ["hermes", "chat", "-q", prompt, "-Q", "--source", "brain-spa"],
+            cwd=Path(__file__).resolve().parents[3],
+            text=True,
+            capture_output=True,
+            timeout=45,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return ChipmunkChatResult(
+            reply=f"Hermes is installed, but Chipmunk could not start Hermes: {error}",
+            routed_to="chipmunk",
+            suggested_actions=["Run hermes status", "Configure Hermes auth"],
+        )
+    output = _clean_hermes_chat_output((result.stdout or result.stderr).strip())
+    if result.returncode != 0 or not output:
+        detail = _clean_hermes_error(output)
+        return ChipmunkChatResult(
+            reply=f"Hermes is installed, but Chipmunk could not connect to a Hermes model: {detail}",
+            routed_to="chipmunk",
+            suggested_actions=["Run hermes status", "Configure Hermes auth"],
+        )
+    return ChipmunkChatResult(
+        reply=output[:3500],
+        routed_to="chipmunk",
+        suggested_actions=["Open the loop map", "Run a stage action"],
+    )
+
+
+def _clean_hermes_error(output: str) -> str:
+    if not output:
+        return "no output"
+    lowered = output.lower()
+    if "traceback" in lowered or "provider" in lowered or "auth" in lowered or "api key" in lowered:
+        return "no authenticated Hermes provider is configured"
+    return output.splitlines()[0][:180]
+
+
+def _clean_hermes_chat_output(output: str) -> str:
+    lines = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("session_id:"):
+            continue
+        if "tirith security scanner" in stripped:
+            continue
+        lines.append(stripped)
+    return "\n".join(lines).strip()
 
 
 def _recommend_backend(modules: dict[str, bool]) -> str:

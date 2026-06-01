@@ -58,7 +58,7 @@ export function ConnectionsPage() {
         </div>
         <p className="field-hint">
           {hermes?.connected
-            ? `Detected at ${shortPath(hermes.command_path) ?? "PATH"}. No button — automatic.`
+            ? `Detected at ${shortPath(hermes.command_path) ?? "PATH"}. Configure Chipmunk's provider and gateway on the Chipmunk page.`
             : "Install Hermes on PATH (pip install hermes-agent). Brain Spa detects it on reload."}
         </p>
       </article>

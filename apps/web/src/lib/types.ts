@@ -217,11 +217,70 @@ export interface ModelTelegramLink {
   telegram_bot_name: string | null;
 }
 
+export interface ChipmunkHermesStatus {
+  profile: string;
+  profile_path: string;
+  config_path: string;
+  env_path: string;
+  launch_agent_label: string;
+  gateway_running: boolean;
+  gateway_pid: number | null;
+  gateway_state: string;
+  gateway_last_exit_code: string | null;
+  provider: string;
+  model: string;
+  base_url: string;
+  reasoning_effort: string;
+  service_tier: string;
+  max_turns: number | null;
+  gateway_timeout: number | null;
+  terminal_cwd: string;
+  telegram_token_configured: boolean;
+  telegram_allowed_users: string | null;
+  telegram_home_channel: string | null;
+  openai_codex_configured: boolean;
+  xai_api_key_synced: boolean;
+  toolsets: string[];
+  telegram_toolsets: string[];
+  recent_provider_error: string | null;
+}
+
+export interface ChipmunkHermesUpdate {
+  provider?: string;
+  model?: string;
+  base_url?: string;
+  reasoning_effort?: string;
+  service_tier?: string;
+  max_turns?: number;
+  gateway_timeout?: number;
+  telegram_allowed_users?: string | null;
+  telegram_home_channel?: string | null;
+}
+
 export interface ChipmunkSettings {
   default_model_key: string;
   default_telegram_bot_name: string | null;
   voice_model: string;
   xai_configured: boolean;
+  hermes: ChipmunkHermesStatus | null;
+}
+
+export interface HermesProviderStatus {
+  key: string;
+  label: string;
+  auth_kind: string;
+  configured: boolean;
+  active: boolean;
+  model: string;
+  connect_label: string;
+  blocked_reason: string | null;
+  manual_command: string | null;
+}
+
+export interface HermesProviderConnectResult {
+  connected: boolean;
+  provider: HermesProviderStatus;
+  message: string;
 }
 
 export interface AppSettings {
@@ -229,6 +288,7 @@ export interface AppSettings {
   backends: BackendStatus[];
   model_links: ModelTelegramLink[];
   telegram_bots: TelegramBotPublic[];
+  hermes_providers: HermesProviderStatus[];
   chipmunk: ChipmunkSettings;
 }
 

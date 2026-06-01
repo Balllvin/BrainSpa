@@ -226,6 +226,24 @@ class HermesSetup(BaseModel):
     telegram_policy: str
 
 
+class HermesProviderStatus(BaseModel):
+    key: str
+    label: str
+    auth_kind: str
+    configured: bool = False
+    active: bool = False
+    model: str
+    connect_label: str
+    blocked_reason: str | None = None
+    manual_command: str | None = None
+
+
+class HermesProviderConnectResult(BaseModel):
+    connected: bool
+    provider: HermesProviderStatus
+    message: str
+
+
 class TelegramAuthorizationRequest(BaseModel):
     bot_name: str
     chat_id: str
@@ -614,17 +632,60 @@ class ModelTelegramUpdate(BaseModel):
     telegram_bot_name: str | None = None
 
 
+class ChipmunkHermesStatus(BaseModel):
+    profile: str
+    profile_path: str
+    config_path: str
+    env_path: str
+    launch_agent_label: str
+    gateway_running: bool = False
+    gateway_pid: int | None = None
+    gateway_state: str = "unknown"
+    gateway_last_exit_code: str | None = None
+    provider: str = ""
+    model: str = ""
+    base_url: str = ""
+    reasoning_effort: str = "medium"
+    service_tier: str = "normal"
+    max_turns: int | None = None
+    gateway_timeout: int | None = None
+    terminal_cwd: str = ""
+    telegram_token_configured: bool = False
+    telegram_allowed_users: str | None = None
+    telegram_home_channel: str | None = None
+    openai_codex_configured: bool = False
+    xai_api_key_synced: bool = False
+    toolsets: list[str] = Field(default_factory=list)
+    telegram_toolsets: list[str] = Field(default_factory=list)
+    recent_provider_error: str | None = None
+
+
+class ChipmunkHermesUpdate(BaseModel):
+    provider: str | None = None
+    model: str | None = None
+    base_url: str | None = None
+    reasoning_effort: str | None = None
+    service_tier: str | None = None
+    max_turns: int | None = None
+    gateway_timeout: int | None = None
+    telegram_allowed_users: str | None = None
+    telegram_home_channel: str | None = None
+
+
 class ChipmunkSettings(BaseModel):
     default_model_key: str = "persona_small"
     default_telegram_bot_name: str | None = None
     voice_model: str = "grok-voice-think-fast-1.0"
     xai_configured: bool = False
+    hermes: ChipmunkHermesStatus | None = None
 
 
 class ChipmunkSettingsUpdate(BaseModel):
     default_model_key: str | None = None
     default_telegram_bot_name: str | None = None
     voice_model: str | None = None
+    hermes: ChipmunkHermesUpdate | None = None
+    restart_gateway: bool = False
     xai_api_key: str | None = None
     clear_xai_api_key: bool = False
 
@@ -634,6 +695,7 @@ class AppSettings(BaseModel):
     backends: list[BackendStatus]
     model_links: list[ModelTelegramLink]
     telegram_bots: list[TelegramBotPublic]
+    hermes_providers: list[HermesProviderStatus] = Field(default_factory=list)
     chipmunk: ChipmunkSettings = Field(default_factory=ChipmunkSettings)
 
 

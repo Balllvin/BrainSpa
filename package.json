@@ -5,15 +5,15 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Balllvin/brain-spa-local-ai.git"
+    "url": "https://github.com/Balllvin/BrainSpa.git"
   },
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "api": "python3 -m apps.api.brainspa_api",
+    "api": "node scripts/run-python.mjs -m apps.api.brainspa_api",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:api": "BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 python3 -m pytest apps/api/tests -q",
+    "test:api": "BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 node scripts/run-python.mjs -m pytest apps/api/tests -q",
     "verify": "npm run build && npm run test:api"
   },
   "dependencies": {

@@ -120,4 +120,4 @@ These are not app blockers because the app handles them honestly:
 - [x] Commit the finished app.
 - [x] Create the public GitHub repository.
 
-Repository: `https://github.com/Balllvin/brain-spa-local-ai`
+Repository: `https://github.com/Balllvin/BrainSpa`

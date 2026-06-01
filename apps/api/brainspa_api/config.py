@@ -6,6 +6,24 @@ from pathlib import Path
 from typing import Any
 
 
+def _load_env_file() -> None:
+    path = Path.cwd() / ".env"
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("\"'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env_file()
+
+
 def runtime_root() -> Path:
     return Path(os.environ.get("BRAIN_SPA_HOME", Path.home() / ".brain-spa")).expanduser()
 

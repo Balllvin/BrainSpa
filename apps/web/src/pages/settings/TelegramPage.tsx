@@ -106,7 +106,10 @@ export function TelegramPage() {
         <h2>Telegram bots</h2>
         <span className="settings-header-meta">{bots.length} saved</span>
       </div>
-      <p className="field-hint">Create bots here, then assign Chipmunk or a stage harness on the Harnesses page.</p>
+      <p className="field-hint">
+        Create model and notification bots here. Chipmunk Telegram is owned by the official Hermes gateway on the
+        Chipmunk page.
+      </p>
 
       <div className="settings-status-card">
         <div className="settings-backend-copy">
@@ -167,8 +170,8 @@ export function TelegramPage() {
         <h3 className="settings-subheading">Add bot</h3>
         <label className="field">
           <span>Name</span>
-          <input name="name" placeholder="chipmunk" required />
-          <small className="field-hint">Use chipmunk for Chipmunk, or notify-evidence, etc.</small>
+          <input name="name" placeholder="believer" required />
+          <small className="field-hint">Use model or notification names such as believer, notify-evidence, or tune-alerts.</small>
         </label>
         <label className="field">
           <span>Bot token</span>

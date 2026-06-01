@@ -2292,6 +2292,65 @@ select:focus {
   margin-bottom: 8px;
 }
 
+.settings-status-grid,
+.settings-two-column,
+.settings-check-grid,
+.settings-kv-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-status-grid,
+.settings-two-column {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.settings-check-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.settings-kv-grid {
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.settings-kv-grid div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--grid);
+  background: #080808;
+}
+
+.settings-kv-grid dt {
+  margin-bottom: 6px;
+  font-family: var(--font-micro);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.settings-kv-grid dd {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.settings-log-line {
+  display: block;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid var(--grid);
+  background: #050505;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .settings-agent-grid {
   display: grid;
   gap: 12px;
@@ -2430,6 +2489,16 @@ select:focus {
   font-family: var(--font-micro);
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+.settings-inline-code {
+  border: 1px solid var(--grid);
+  color: var(--muted);
+  display: inline-block;
+  font-family: var(--font-micro);
+  font-size: 0.72rem;
+  margin-top: 6px;
+  padding: 4px 6px;
 }
 
 .settings-check-error {

@@ -41,6 +41,8 @@ The local API also runs a Telegram long-polling worker. This is the part that wa
 
 - `getUpdates` reads messages for each enabled, live-verified bot.
 - Non-Chipmunk model bots route normal messages to the linked local runtime.
+- Chipmunk routes through the operator path when the bot is named `chipmunk` or matches Settings → Chipmunk → Default Telegram bot.
+- Chipmunk Telegram commands can execute the same backend actions as the app: dataset preview/generation, training dry-runs, worker previews, and harness eval checks.
 - The worker sends the answer back with `sendMessage`.
 - The outbound Telegram message ID is stored locally so future replies can be matched to the exact prompt and answer.
 

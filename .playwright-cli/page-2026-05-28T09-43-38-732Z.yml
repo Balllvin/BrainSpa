@@ -1,7 +1,0 @@
-- generic [active] [ref=e1]:
-  - generic: DRAFT F · DEPTH · NO BOX · SCALE ONLY
-  - banner [ref=e2]:
-    - generic [ref=e3]: "[ BRAIN SPA ]"
-    - navigation [ref=e4]: CHIPMUNK · WORKSPACE
-  - button "Toggle Chipmunk" [ref=e6] [cursor=pointer]
-  - paragraph: PRESS · EXPAND · PRESS OFF

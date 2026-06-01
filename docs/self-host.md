@@ -19,22 +19,23 @@ Optional for the full loop (Tune adapter build, believer generation):
 ## Install
 
 ```bash
-git clone https://github.com/Balllvin/brain-spa-local-ai.git
-cd brain-spa-local-ai
+git clone https://github.com/Balllvin/BrainSpa.git
+cd BrainSpa
 npm install
-python3 -m pip install -r apps/api/requirements.txt
+python3.11 -m pip install -r apps/api/requirements.txt  # or newer
 ```
 
-Copy `.env.example` to `.env` if you need non-default hosts or keys.
+Copy `.env.example` to `.env` if you need non-default hosts or keys. The API reads `.env` from the project root before resolving `BRAIN_SPA_HOME`.
 
 ## Run
 
 Terminal 1 — API:
 
 ```bash
-export BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1   # optional; skip Telegram worker
 npm run api
 ```
+
+Set `BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1` only when you want the Telegram worker off.
 
 Terminal 2 — UI:
 

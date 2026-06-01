@@ -15,6 +15,8 @@ from .models import EvalRunRequest, TelegramPollResult, TelegramPollerStatus
 from .state import authorize_telegram_message, log_event, migrate_legacy_telegram_bots
 from .workflows import believer_runtime_reply, chipmunk_reply, looks_like_loop_request, run_environment_eval
 
+RESERVED_HERMES_BOT_NAMES = {"chipmunk"}
+
 
 class TelegramClient(Protocol):
     def get_updates(self, token: str, offset: int | None = None, timeout: int = 0) -> list[dict[str, Any]]: ...
@@ -119,6 +121,9 @@ def poll_telegram_once(client: TelegramClient | None = None, timeout: int = 0) -
         if not bot.get("enabled") or not bot.get("live_verified"):
             continue
         bot_name = str(bot.get("name") or "")
+        if bot_name.lower() in RESERVED_HERMES_BOT_NAMES:
+            skipped += 1
+            continue
         token = str(bot.get("bot_token") or "")
         offset = offsets.get(bot_name)
         try:
@@ -187,7 +192,7 @@ def _handle_message(bot: dict[str, Any], message: dict[str, Any], client: Telegr
     answer, routed_to, model_name = _build_telegram_reply(bot_name, str(bot.get("model_key") or "persona_small"), text)
     response = client.send_message(str(bot["bot_token"]), chat_id, answer, reply_to_message_id=message_id)
     bot_message_id = _int_or_none(response.get("result", {}).get("message_id"))
-    if bot_message_id is not None and bot_name != "chipmunk" and routed_to == str(bot.get("model_key") or "") and model_name:
+    if bot_message_id is not None and not _is_chipmunk_bot(bot_name) and routed_to == str(bot.get("model_key") or "") and model_name:
         _record_model_message(
             {
                 "bot_name": bot_name,
@@ -206,7 +211,7 @@ def _handle_message(bot: dict[str, Any], message: dict[str, Any], client: Telegr
 
 
 def _build_telegram_reply(bot_name: str, model_key: str, text: str) -> tuple[str, str, str | None]:
-    if bot_name != "chipmunk" and model_key and not looks_like_loop_request(text):
+    if not _is_chipmunk_bot(bot_name) and model_key and not looks_like_loop_request(text):
         result = believer_runtime_reply(text, model_key)
         if result.state == "complete":
             return result.answer, model_key, result.model
@@ -214,6 +219,10 @@ def _build_telegram_reply(bot_name: str, model_key: str, text: str) -> tuple[str
         return f"Model is configured but blocked locally: {reason}.", model_key, result.model
     route = chipmunk_reply(text)
     return route.reply, route.routed_to, None
+
+
+def _is_chipmunk_bot(bot_name: str) -> bool:
+    return bot_name.lower() in RESERVED_HERMES_BOT_NAMES
 
 
 def _save_feedback_if_model_reply(

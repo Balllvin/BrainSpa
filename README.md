@@ -9,10 +9,10 @@ Chipmunk is the voice-first operator on the home screen; the loop stages are whe
 ## Quick start
 
 ```bash
-git clone https://github.com/Balllvin/brain-spa-local-ai.git
-cd brain-spa-local-ai
+git clone https://github.com/Balllvin/BrainSpa.git
+cd BrainSpa
 npm install
-python3 -m pip install -r apps/api/requirements.txt
+python3.11 -m pip install -r apps/api/requirements.txt  # or newer
 ```
 
 Terminal 1 — API:

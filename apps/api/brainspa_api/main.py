@@ -38,6 +38,7 @@ from .models import (
     HardwareProfile,
     HarnessProfile,
     HermesSetup,
+    HermesProviderConnectResult,
     LifecycleUpdate,
     LoopAgentSettings,
     LoopAgentUpdate,
@@ -96,6 +97,7 @@ from .state import (
     read_telegram_bots,
     set_xai_api_key,
     clear_xai_api_key,
+    get_xai_api_key,
     telegram_bot_model_key,
 )
 from .tools import detect_tools
@@ -117,6 +119,7 @@ from .evidence_store import (
     start_source_ingest,
 )
 from .test_scenarios import TestScenarioPublic, list_test_scenarios
+from .hermes_provider import connect_hermes_provider
 from .telegram_runtime import TelegramPoller
 from .datasets_workflows import (
     add_manual_preference_pair,
@@ -226,12 +229,24 @@ def create_app() -> FastAPI:
             telegram_policy="Only the configured allowed chat ID may route messages to Chipmunk.",
         )
 
+    @app.post("/api/hermes/providers/{provider_key}/connect", response_model=HermesProviderConnectResult)
+    def hermes_provider_connect(provider_key: str) -> HermesProviderConnectResult:
+        try:
+            return connect_hermes_provider(provider_key)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
     @app.get("/api/telegram/bots", response_model=list[TelegramBotPublic])
     def telegram_bots() -> list[TelegramBotPublic]:
         return read_telegram_bots()
 
     @app.post("/api/telegram/bots", response_model=TelegramBotPublic)
     def create_telegram_bot(bot: TelegramBotCreate) -> TelegramBotPublic:
+        if bot.name.strip().lower() == "chipmunk":
+            raise HTTPException(
+                status_code=400,
+                detail="Chipmunk Telegram is reserved for the official Hermes gateway. Configure it on Settings -> Chipmunk.",
+            )
         return add_telegram_bot(bot)
 
     @app.post("/api/telegram/import-legacy")
@@ -297,6 +312,10 @@ def create_app() -> FastAPI:
             clear_xai_api_key()
         if update.xai_api_key:
             set_xai_api_key(update.xai_api_key)
+        if update.clear_xai_api_key or update.xai_api_key:
+            from .chipmunk_hermes import sync_chipmunk_xai_key
+
+            sync_chipmunk_xai_key(get_xai_api_key())
         patch = update.model_dump(exclude_unset=True, exclude={"xai_api_key", "clear_xai_api_key"})
         data = update_chipmunk_settings(patch)
         return ChipmunkSettings(**data)
@@ -344,6 +363,11 @@ def create_app() -> FastAPI:
 
     @app.post("/api/telegram/authorize", response_model=TelegramAuthorizationResult)
     def authorize_telegram(request: TelegramAuthorizationRequest) -> TelegramAuthorizationResult:
+        if request.bot_name.strip().lower() == "chipmunk":
+            return TelegramAuthorizationResult(
+                authorized=False,
+                reason="Chipmunk Telegram is handled by the official Hermes gateway, not the Brain Spa model-bot worker.",
+            )
         authorized, reason = authorize_telegram_message(request.bot_name, request.chat_id)
         if not authorized:
             return TelegramAuthorizationResult(authorized=False, reason=reason)

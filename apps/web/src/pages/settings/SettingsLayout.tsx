@@ -28,7 +28,6 @@ function SettingsShell() {
 
       <header className="settings-page-header">
         <h1>Settings</h1>
-        <p className="settings-lead">Connect tools on this Mac, assign stage harnesses, then wire Telegram bots.</p>
       </header>
 
       <nav aria-label="Settings sections" className="settings-nav">

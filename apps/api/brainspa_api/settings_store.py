@@ -188,26 +188,37 @@ def build_backend_statuses() -> list[dict[str, Any]]:
 
 def chipmunk_settings() -> dict[str, Any]:
     from .state import get_xai_api_key
+    from .chipmunk_hermes import read_chipmunk_hermes_status
 
     payload = load_settings()
     chipmunk = payload.get("chipmunk", default_settings()["chipmunk"])
     return {
         **chipmunk,
         "xai_configured": bool(get_xai_api_key()),
+        "hermes": read_chipmunk_hermes_status().model_dump(),
     }
 
 
 def update_chipmunk_settings(patch: dict[str, Any]) -> dict[str, Any]:
+    from .chipmunk_hermes import restart_chipmunk_gateway, update_chipmunk_hermes_config
+    from .models import ChipmunkHermesUpdate
+
     payload = load_settings()
     current = payload.setdefault("chipmunk", default_settings()["chipmunk"])
     for key in ("default_model_key", "default_telegram_bot_name", "voice_model"):
         if key in patch:
             current[key] = patch[key]
+    if patch.get("hermes") is not None:
+        update_chipmunk_hermes_config(ChipmunkHermesUpdate(**patch["hermes"]))
     save_settings(payload)
+    if patch.get("restart_gateway"):
+        restart_chipmunk_gateway()
     return chipmunk_settings()
 
 
 def build_app_settings(models: list[dict[str, Any]], telegram_bots: list[Any]) -> dict[str, Any]:
+    from .hermes_provider import list_hermes_providers
+
     loop = []
     for agent in loop_agents():
         loop.append(
@@ -221,5 +232,6 @@ def build_app_settings(models: list[dict[str, Any]], telegram_bots: list[Any]) -
         "backends": build_backend_statuses(),
         "model_links": [link.model_dump() for link in model_telegram_links(models)],
         "telegram_bots": telegram_bots,
+        "hermes_providers": [provider.model_dump() for provider in list_hermes_providers()],
         "chipmunk": chipmunk_settings(),
     }

@@ -224,7 +224,7 @@ def seed_state() -> dict[str, Any]:
                 "key": "recovery_commits",
                 "label": "Recovered Repository History",
                 "kind": "source_recovery",
-                "provenance": "GitHub commit history for Brain Spa source, data workflows, training source, and dataset forge.",
+                "provenance": "GitHub commit history for Brain Spa source, data workflows, training source, and harness recovery.",
                 "summary": "Source map for transcript ingestion, training handoff validation, Telegram persona running, and custom harnesses.",
                 "active": True,
                 "feeds_models": [],
