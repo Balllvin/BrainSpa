@@ -4,18 +4,18 @@ import { Link } from "react-router-dom";
 import { fetchEvidenceModelSummary, fetchEvidenceSources } from "@/lib/backend";
 import { datasetGeneratePath } from "@/lib/datasetsRoutes";
 import {
-  BELIEVER_MODEL_SLUG,
+  STARTER_MODEL_SLUG,
   evidenceReviewPath,
   evidenceReviewPathWithAdd,
   evidenceSourcePath,
-  sourceFeedsBeliever,
+  sourceFeedsStarter,
 } from "@/lib/evidenceRoutes";
 import type { EvidenceModelSummary, EvidenceSourceSummary } from "@/lib/types";
 
 import { EvidenceShell } from "./EvidenceShell";
 
 export function EvidenceHomePage() {
-  const [believer, setBeliever] = useState<EvidenceModelSummary | null>(null);
+  const [starter, setStarter] = useState<EvidenceModelSummary | null>(null);
   const [sources, setSources] = useState<EvidenceSourceSummary[]>([]);
   const [otherOpen, setOtherOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -23,28 +23,28 @@ export function EvidenceHomePage() {
 
   useEffect(() => {
     void Promise.all([
-      fetchEvidenceModelSummary(BELIEVER_MODEL_SLUG),
+      fetchEvidenceModelSummary(STARTER_MODEL_SLUG),
       fetchEvidenceSources(),
-    ]).then(([believerRes, sourcesRes]) => {
+    ]).then(([starterRes, sourcesRes]) => {
       if (!sourcesRes.ok) {
         setError(sourcesRes.error ?? "Could not load sources.");
         setReady(true);
         return;
       }
       setSources(sourcesRes.sources);
-      if (believerRes.ok && believerRes.summary) {
-        setBeliever(believerRes.summary);
+      if (starterRes.ok && starterRes.summary) {
+        setStarter(starterRes.summary);
       }
       setReady(true);
     });
   }, []);
 
-  const believerSources = useMemo(
-    () => sources.filter((source) => sourceFeedsBeliever(source.feeds_model_labels ?? [])),
+  const starterSources = useMemo(
+    () => sources.filter((source) => sourceFeedsStarter(source.feeds_model_labels ?? [])),
     [sources],
   );
   const otherSources = useMemo(
-    () => sources.filter((source) => !sourceFeedsBeliever(source.feeds_model_labels ?? [])),
+    () => sources.filter((source) => !sourceFeedsStarter(source.feeds_model_labels ?? [])),
     [sources],
   );
 
@@ -53,48 +53,48 @@ export function EvidenceHomePage() {
       {!ready ? <p className="evidence-empty">Loading…</p> : null}
       {error ? <p className="evidence-error">{error}</p> : null}
 
-      {ready && believer ? (
+      {ready && starter ? (
         <>
-          {believer.ready_for_datasets ? (
+          {starter.ready_for_datasets ? (
             <div className="evidence-ready-banner">
               <strong>
-                {believer.approved_count} approved — ready for Datasets
+                {starter.approved_count} approved — ready for Datasets
               </strong>
-              <p>Generate Believer training rows from approved claims only.</p>
-              <Link className="evidence-ready-link" to={datasetGeneratePath(BELIEVER_MODEL_SLUG)}>
+              <p>Generate Starter training rows from approved claims only.</p>
+              <Link className="evidence-ready-link" to={datasetGeneratePath(STARTER_MODEL_SLUG)}>
                 Generate training rows →
               </Link>
             </div>
           ) : null}
 
-          <article className="evidence-believer-panel">
-            <header className="evidence-believer-panel-head">
-              <h2 className="evidence-believer-title">Believer evidence</h2>
-              <span className="evidence-believer-badge">Feeds Believer training set</span>
+          <article className="evidence-starter-panel">
+            <header className="evidence-starter-panel-head">
+              <h2 className="evidence-starter-title">Starter evidence</h2>
+              <span className="evidence-starter-badge">Feeds Starter training set</span>
             </header>
-            <p className="evidence-focus">{believer.behavior_focus}</p>
-            <p className="evidence-believer-meta">
-              {believer.approved_count} approved · {believer.pending_count} pending
-              {believer.weak_count ? ` · ${believer.weak_count} weak` : ""}
-              {believer.rejected_count ? ` · ${believer.rejected_count} rejected` : ""}
+            <p className="evidence-focus">{starter.behavior_focus}</p>
+            <p className="evidence-starter-meta">
+              {starter.approved_count} approved · {starter.pending_count} pending
+              {starter.weak_count ? ` · ${starter.weak_count} weak` : ""}
+              {starter.rejected_count ? ` · ${starter.rejected_count} rejected` : ""}
             </p>
             <p className="evidence-triage-hint">
               Approve = used in Datasets. Weak = saved but not used. Reject = excluded.
             </p>
-            <div className="evidence-believer-actions">
+            <div className="evidence-starter-actions">
               <Link
                 className="evidence-primary evidence-primary--link"
-                to={evidenceReviewPath(BELIEVER_MODEL_SLUG, "pending")}
+                to={evidenceReviewPath(STARTER_MODEL_SLUG, "pending")}
               >
                 Review pending
               </Link>
-              <Link className="evidence-action" to={evidenceReviewPathWithAdd(BELIEVER_MODEL_SLUG)}>
+              <Link className="evidence-action" to={evidenceReviewPathWithAdd(STARTER_MODEL_SLUG)}>
                 Add claim
               </Link>
             </div>
-            {believerSources.length ? (
+            {starterSources.length ? (
               <ul className="evidence-linked-sources">
-                {believerSources.map((source) => (
+                {starterSources.map((source) => (
                   <li key={source.key}>
                     <span>{source.label}</span>
                     <span className="evidence-source-meta">

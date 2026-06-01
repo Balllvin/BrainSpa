@@ -35,25 +35,25 @@ from .models import (
 from .state import BrainSpaState, get_xai_api_key
 
 DEFAULT_BEHAVIOR_FOCUS = (
-    "Blunt faith-forward persona grounded in real sources—not generic assistant hedging."
+    "Direct, practical behavior grounded in approved source material—not generic assistant hedging."
 )
 
-BELIEVER_MODEL_SLUG = "believer"
-BELIEVER_MODEL_KEY = "persona_small"
-BELIEVER_DISPLAY_NAME = "Believer"
+STARTER_MODEL_SLUG = "starter"
+STARTER_MODEL_KEY = "starter_model"
+STARTER_DISPLAY_NAME = "Starter"
 
 MODEL_SLUG_TO_KEY: dict[str, str] = {
-    "believer": BELIEVER_MODEL_KEY,
-    "persona_small": BELIEVER_MODEL_KEY,
+    "starter": STARTER_MODEL_KEY,
+    "starter_model": STARTER_MODEL_KEY,
 }
 
 MODEL_KEY_TO_SLUG: dict[str, str] = {
-    BELIEVER_MODEL_KEY: BELIEVER_MODEL_SLUG,
+    STARTER_MODEL_KEY: STARTER_MODEL_SLUG,
 }
 
 MODEL_DISPLAY: dict[str, str] = {
-    BELIEVER_MODEL_SLUG: BELIEVER_DISPLAY_NAME,
-    BELIEVER_MODEL_KEY: BELIEVER_DISPLAY_NAME,
+    STARTER_MODEL_SLUG: STARTER_DISPLAY_NAME,
+    STARTER_MODEL_KEY: STARTER_DISPLAY_NAME,
 }
 
 ClaimStatus = Literal["pending", "approved", "rejected", "weak"]
@@ -670,7 +670,7 @@ def list_approved_claims(
         approved = [item for item in approved if item.get("source_key") in keys]
 
     manifest = read_evidence_manifest(state)
-    slug = _model_slug(model) if model else BELIEVER_MODEL_SLUG
+    slug = _model_slug(model) if model else STARTER_MODEL_SLUG
     model_bucket = manifest.models.get(slug, {}) if model else {}
     ready = bool(model_bucket.get("ready_for_datasets")) if model else manifest.approved_count > 0
     count = int(model_bucket.get("approved_count", len(approved))) if model else len(approved)

@@ -16,10 +16,10 @@ import type { DatasetEvidenceGate, DatasetGenerateResult, DatasetRow, TestScenar
 
 import { DatasetsShell } from "./DatasetsShell";
 
-const DEFAULT_SCENARIOS = ["counsel", "advice", "witness", "daily-word"];
+const DEFAULT_SCENARIOS = ["counsel", "advice", "daily-word", "review"];
 
 export function DatasetsGeneratePage() {
-  const { datasetSlug = "believer" } = useParams();
+  const { datasetSlug = "starter" } = useParams();
   const datasetKey = datasetKeyFromSlug(datasetSlug);
   const label = datasetDisplayLabel(datasetKey);
 
@@ -31,7 +31,7 @@ export function DatasetsGeneratePage() {
   const [weights, setWeights] = useState<Record<string, number>>({
     counsel: 1,
     advice: 1,
-    witness: 1,
+    review: 1,
     "daily-word": 1,
   });
   const [groundInEvidence, setGroundInEvidence] = useState(true);
@@ -240,9 +240,9 @@ export function DatasetsGeneratePage() {
             className="secondary"
             disabled={Boolean(busy) || !canRun}
             type="button"
-            onClick={() => runGenerate("witness-heavy")}
+            onClick={() => runGenerate("review-heavy")}
           >
-            12 witness-heavy
+            12 review-heavy
           </button>
           <button
             className="secondary"
@@ -277,7 +277,7 @@ export function DatasetsGeneratePage() {
             <Link className="secondary" to={datasetRowsPath(datasetSlug)}>
               Review rows
             </Link>
-            <Link className="primary" to="/tune/believer/build">
+            <Link className="primary" to="/tune/starter/build">
               Continue to Tune
             </Link>
           </div>

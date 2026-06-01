@@ -22,7 +22,7 @@ from .workflows import (
 )
 
 _DATASET_SLUGS: dict[str, str] = {
-    "believer_seed": "believer",
+    "starter_seed": "starter",
 }
 
 
@@ -31,21 +31,21 @@ def _dataset_slug(dataset_key: str) -> str:
 
 
 def _dataset_display_label(dataset_key: str, label: str = "") -> str:
-    if dataset_key == "believer_seed":
-        return "Believer training set"
+    if dataset_key == "starter_seed":
+        return "Starter training set"
     return label or dataset_key
 
 AdapterState = Literal["missing", "ready", "blocked", "stale"]
 
 
 _DISPLAY_NAMES: dict[str, str] = {
-    "persona_small": "Believer",
-    "coding_small": "Coding Worker",
+    "starter_model": "Starter",
+    "coding_model": "Coding Worker",
 }
 
 _SLUGS: dict[str, str] = {
-    "persona_small": "believer",
-    "coding_small": "coding-worker",
+    "starter_model": "starter",
+    "coding_model": "coding-worker",
 }
 
 
@@ -83,7 +83,7 @@ def _adapter_ready(adapter_dir: Path) -> bool:
 
 
 def _read_acceptance_summary() -> TuneAcceptanceSummary | None:
-    path = runtime_root() / "artifacts" / "evals" / "believer_acceptance.json"
+    path = runtime_root() / "artifacts" / "evals" / "starter_acceptance.json"
     payload = _read_json(path)
     if not payload:
         return None
@@ -104,9 +104,9 @@ def _default_dataset_key(model_key: str, projects: list[dict[str, Any]], dataset
             key = str(project["active_dataset"])
             if key in datasets:
                 return key
-    if "believer_seed" in datasets:
-        return "believer_seed"
-    return next(iter(datasets), "believer_seed")
+    if "starter_seed" in datasets:
+        return "starter_seed"
+    return next(iter(datasets), "starter_seed")
 
 
 def tune_status_for_model(model_key: str) -> TuneModelStatus:
@@ -168,7 +168,7 @@ def tune_status_for_model(model_key: str) -> TuneModelStatus:
     if stale and adapter_state == "ready":
         adapter_state = "stale"
 
-    acceptance = _read_acceptance_summary() if model_key == "persona_small" else None
+    acceptance = _read_acceptance_summary() if model_key == "starter_model" else None
 
     return TuneModelStatus(
         model_key=model_key,
@@ -225,7 +225,7 @@ def _scenario_breakdown(dataset_key: str, model_key: str) -> list[TuneScenarioCo
     except Exception:
         return []
 
-    labels = {item.key: item.label for item in SCENARIOS_BY_MODEL.get(model_key, SCENARIOS_BY_MODEL.get("persona_small", []))}
+    labels = {item.key: item.label for item in SCENARIOS_BY_MODEL.get(model_key, SCENARIOS_BY_MODEL.get("starter_model", []))}
     counts: dict[str, int] = {}
     for row in rows:
         metadata = row.get("metadata") or {}
@@ -244,7 +244,7 @@ def _scenario_breakdown(dataset_key: str, model_key: str) -> list[TuneScenarioCo
 
 def tune_build_preview(model_slug: str, dataset_key: str | None = None) -> TuneBuildPreview:
     status = tune_status_for_slug(model_slug)
-    resolved_dataset = dataset_key or status.dataset_key or "believer_seed"
+    resolved_dataset = dataset_key or status.dataset_key or "starter_seed"
     state = BrainSpaState()
     datasets = {item["key"]: item for item in state.load().get("datasets", [])}
     dataset = datasets.get(resolved_dataset, {})

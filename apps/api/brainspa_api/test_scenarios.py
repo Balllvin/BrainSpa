@@ -16,8 +16,8 @@ PERSONA_SCENARIOS = [
         key="counsel",
         label="COUNSEL",
         mode="chat",
-        placeholder="What weighs on you?",
-        hint="Talk through something on your mind.",
+        placeholder="What needs to be clearer?",
+        hint="Ask for direct practical guidance.",
     ),
     TestScenarioPublic(
         key="advice",
@@ -28,17 +28,17 @@ PERSONA_SCENARIOS = [
     ),
     TestScenarioPublic(
         key="daily-word",
-        label="DAILY WORD",
+        label="DAILY NOTE",
         mode="generate",
         placeholder="",
-        hint="One short encouragement for today.",
+        hint="One short operational note for today.",
     ),
     TestScenarioPublic(
-        key="witness",
-        label="WITNESS",
+        key="review",
+        label="REVIEW",
         mode="chat",
-        placeholder="Someone said faith is only coping…",
-        hint="Answer a challenge to faith.",
+        placeholder="This answer feels vague…",
+        hint="Pressure-test an answer or plan.",
     ),
 ]
 
@@ -53,8 +53,8 @@ CODING_SCENARIOS = [
 ]
 
 SCENARIOS_BY_MODEL: dict[str, list[TestScenarioPublic]] = {
-    "persona_small": PERSONA_SCENARIOS,
-    "coding_small": CODING_SCENARIOS,
+    "starter_model": PERSONA_SCENARIOS,
+    "coding_model": CODING_SCENARIOS,
 }
 
 
@@ -65,14 +65,11 @@ def list_test_scenarios(model_key: str) -> list[TestScenarioPublic]:
 def scenario_generation_text(scenario_key: str, user_text: str) -> str:
     text = user_text.strip()
     if scenario_key == "daily-word":
-        return (
-            "Give one short daily word of encouragement rooted in Scripture for today. "
-            "One or two sentences. Speak directly to the reader."
-        )
+        return "Give one short operational note for today. One or two sentences. Speak directly to the reader."
     if scenario_key == "advice":
-        return f"Give practical Christian counsel for this situation: {text}"
-    if scenario_key == "witness":
-        return f"Answer this challenge to faith with calm conviction: {text}"
+        return f"Give practical, concrete guidance for this situation: {text}"
+    if scenario_key == "review":
+        return f"Review this answer for specificity, evidence, and next action: {text}"
     if scenario_key == "cli-task":
         return f"Answer as a coding worker with repo awareness and a verification step: {text}"
     return text

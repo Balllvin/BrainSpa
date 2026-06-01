@@ -10,13 +10,13 @@ export interface TestScenario {
 
 /** Mirrors `apps/api/brainspa_api/test_scenarios.py` when API is offline or stale. */
 export const FALLBACK_SCENARIOS: Record<string, TestScenario[]> = {
-  persona_small: [
+  starter_model: [
     {
       key: "counsel",
       label: "COUNSEL",
       mode: "chat",
-      placeholder: "What weighs on you?",
-      hint: "Talk through something on your mind.",
+      placeholder: "What needs to be clearer?",
+      hint: "Ask for direct practical guidance.",
     },
     {
       key: "advice",
@@ -27,20 +27,20 @@ export const FALLBACK_SCENARIOS: Record<string, TestScenario[]> = {
     },
     {
       key: "daily-word",
-      label: "DAILY WORD",
+      label: "DAILY NOTE",
       mode: "generate",
       placeholder: "",
-      hint: "One short encouragement for today.",
+      hint: "One short operational note for today.",
     },
     {
-      key: "witness",
-      label: "WITNESS",
+      key: "review",
+      label: "REVIEW",
       mode: "chat",
-      placeholder: "Someone said faith is only coping…",
-      hint: "Answer a challenge to faith.",
+      placeholder: "This answer feels vague…",
+      hint: "Pressure-test an answer or plan.",
     },
   ],
-  coding_small: [
+  coding_model: [
     {
       key: "cli-task",
       label: "CLI TASK",
@@ -52,15 +52,15 @@ export const FALLBACK_SCENARIOS: Record<string, TestScenario[]> = {
 };
 
 export function fallbackScenarios(modelKey: string): TestScenario[] {
-  return FALLBACK_SCENARIOS[modelKey] ?? FALLBACK_SCENARIOS.persona_small;
+  return FALLBACK_SCENARIOS[modelKey] ?? FALLBACK_SCENARIOS.starter_model;
 }
 
 export { testModelPath as modelPath, testScenarioPath as scenarioPath } from "@/lib/testRoutes";
 
 /** User-facing tuned model name (not registry key). */
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
-  persona_small: "Believer",
-  coding_small: "Coding Worker",
+  starter_model: "Starter",
+  coding_model: "Coding Worker",
 };
 
 export function modelDisplayName(modelKey: string, apiLabel?: string | null): string {

@@ -121,7 +121,7 @@ def seed_state() -> dict[str, Any]:
                 "tools": ["codex", "transformers", "TRL", "PEFT", "MLX recipe writer", "artifact registry"],
                 "scoring_rules": ["dry-run complete", "requirements explicit", "adapter saved", "base model unchanged"],
                 "failure_comments": ["missing trainer module", "dataset handoff invalid", "adapter artifact missing", "loss unavailable"],
-                "template_artifacts": ["dry_run.json", "trainer_recipes", "adapter_build_result.json", "believer_adapter"],
+                "template_artifacts": ["dry_run.json", "trainer_recipes", "adapter_build_result.json", "starter_adapter"],
             },
             {
                 "key": "test",
@@ -151,8 +151,8 @@ def seed_state() -> dict[str, Any]:
         ],
         "models": [
             {
-                "key": "persona_small",
-                "label": "Believer",
+                "key": "starter_model",
+                "label": "Starter",
                 "base_model": "HuggingFaceTB/SmolLM2-360M-Instruct",
                 "role": "Small persona and chatbot fine-tunes",
                 "state": "candidate",
@@ -162,7 +162,7 @@ def seed_state() -> dict[str, Any]:
                 "known_failures": ["Needs task-specific data for strong domain behavior"],
             },
             {
-                "key": "coding_small",
+                "key": "coding_model",
                 "label": "Coding Small",
                 "base_model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
                 "role": "Small coding-worker experiments",
@@ -175,9 +175,9 @@ def seed_state() -> dict[str, Any]:
         ],
         "datasets": [
             {
-                "key": "believer_seed",
-                "label": "Believer training set",
-                "goal": "Validate the full Brain Spa loop with a small model that answers from explicit Christian conviction.",
+                "key": "starter_seed",
+                "label": "Starter training set",
+                "goal": "Validate the full Brain Spa loop with a small model that answers in a direct, practical target behavior.",
                 "state": "draft",
                 "quality_notes": ["Needs source material", "Needs split-safe eval set", "Needs failure labels"],
                 "warnings": ["Not ready for training"],
@@ -185,38 +185,38 @@ def seed_state() -> dict[str, Any]:
         ],
         "projects": [
             {
-                "key": "believer_validation",
-                "label": "Believer Validation",
+                "key": "starter_validation",
+                "label": "Starter Validation",
                 "goal": "End-to-end local validation for dataset generation, training handoff, model registry, and Telegram chat.",
-                "active_model": "persona_small",
-                "active_dataset": "believer_seed",
-                "environment": "chat_believer",
+                "active_model": "starter_model",
+                "active_dataset": "starter_seed",
+                "environment": "chat_starter",
             },
             {
                 "key": "coding_environment",
                 "label": "Coding Environment",
                 "goal": "Validate CLI and file-editing behavior for models intended to operate in a coding harness.",
-                "active_model": "coding_small",
+                "active_model": "coding_model",
                 "active_dataset": None,
                 "environment": "coding_cli",
             },
         ],
         "sources": [
             {
-                "key": "believer_voice_refs",
-                "label": "Believer Voice References",
+                "key": "starter_voice_refs",
+                "label": "Starter Behavior References",
                 "kind": "web",
-                "provenance": "Faith-forward interviews, sermons, and blunt pastoral tone references",
-                "summary": "Ground Believer persona in cited faith voice—not generic assistant hedging.",
+                "provenance": "Approved source notes and target-behavior references",
+                "summary": "Ground Starter behavior in cited source material—not generic assistant hedging.",
                 "active": True,
-                "feeds_models": ["persona_small", "believer"],
+                "feeds_models": ["starter_model", "starter"],
             },
             {
-                "key": "composer_training_interview",
-                "label": "Composer Training Interview",
+                "key": "runtime_source_notes",
+                "label": "Runtime Source Notes",
                 "kind": "transcript",
-                "provenance": "docs/Composer 2 and 2.5 training interview.docx",
-                "summary": "Guidance source for fine-grained training comments, environment loops, and reward design.",
+                "provenance": "Private runtime source notes outside the public repository",
+                "summary": "Optional guidance source for fine-grained training comments, environment loops, and reward design.",
                 "active": True,
                 "feeds_models": [],
             },
@@ -232,11 +232,11 @@ def seed_state() -> dict[str, Any]:
         ],
         "environments": [
             {
-                "key": "chat_believer",
-                "label": "Believer Chat Harness",
-                "goal": "Test whether the model answers from the intended conviction without generic or evasive phrasing.",
+                "key": "chat_starter",
+                "label": "Starter Chat Harness",
+                "goal": "Test whether the model answers with the intended target behavior without generic or evasive phrasing.",
                 "harness": "Single-turn and short multi-turn chat",
-                "scoring": ["Conviction fit", "Grounding", "Boundary clarity", "Non-generic wording"],
+                "scoring": ["Target-behavior fit", "Grounding", "Boundary clarity", "Non-generic wording"],
             },
             {
                 "key": "coding_cli",
@@ -432,9 +432,9 @@ def migrate_legacy_telegram_bots() -> int:
                     continue
                 label = str(item.get("project_name") or item.get("name") or f"bot-{_id}")
                 name = _slug_bot_name(label)
-                model_key = "persona_small"
+                model_key = "starter_model"
                 if "coding" in label.lower():
-                    model_key = "coding_small"
+                    model_key = "coding_model"
                 imported.append(
                     {
                         "name": name,
@@ -477,7 +477,7 @@ def read_telegram_bots() -> list[TelegramBotPublic]:
         bots.append(
             TelegramBotPublic(
                 name=item["name"],
-                model_key=item.get("model_key", "persona_small"),
+                model_key=item.get("model_key", "starter_model"),
                 allowed_chat_id_configured=bool(item.get("allowed_chat_id")),
                 enabled=bool(item.get("enabled", True)),
                 live_verified=bool(item.get("live_verified")),
@@ -567,7 +567,7 @@ def telegram_bot_model_key(bot_name: str) -> str | None:
     data = json.loads(path.read_text(encoding="utf-8"))
     for item in data.get("bots", []):
         if item.get("name") == bot_name:
-            return str(item.get("model_key") or "persona_small")
+            return str(item.get("model_key") or "starter_model")
     return None
 
 

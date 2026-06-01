@@ -93,11 +93,11 @@ The local validation build must train `HuggingFaceTB/SmolLM2-360M-Instruct` with
 
 The first full validation target is a persona adapter.
 
-The goal is a small model that answers from explicit Christian conviction instead of generic self-help.
+The goal is a small model that answers in a direct, practical target behavior instead of generic self-help.
 
 The harness scores:
 
-- conviction grounding
+- concrete actionability
 - generic phrasing
 - directness
 

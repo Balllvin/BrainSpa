@@ -1,18 +1,18 @@
 /** URL slugs for Tune routes (user-facing), mapped to registry model keys (API). */
 
 const MODEL_SLUG_TO_KEY: Record<string, string> = {
-  believer: "persona_small",
-  "coding-worker": "coding_small",
+  starter: "starter_model",
+  "coding-worker": "coding_model",
 };
 
 const MODEL_KEY_TO_SLUG: Record<string, string> = {
-  persona_small: "believer",
-  coding_small: "coding-worker",
+  starter_model: "starter",
+  coding_model: "coding-worker",
 };
 
 const LEGACY_MODEL_SLUGS: Record<string, string> = {
-  persona_small: "believer",
-  coding_small: "coding-worker",
+  starter_model: "starter",
+  coding_model: "coding-worker",
 };
 
 export function modelKeyFromSlug(slug: string): string {

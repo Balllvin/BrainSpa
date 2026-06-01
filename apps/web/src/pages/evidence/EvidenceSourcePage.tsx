@@ -3,11 +3,11 @@ import { Link, useParams } from "react-router-dom";
 
 import { fetchEvidenceSourceDetail, startEvidenceIngest } from "@/lib/backend";
 import {
-  BELIEVER_MODEL_SLUG,
+  STARTER_MODEL_SLUG,
   canonicalSourceSlug,
   evidenceHomePath,
   evidenceReviewPath,
-  isBelieverModelSlug,
+  isStarterModelSlug,
   sourceKeyFromSlug,
 } from "@/lib/evidenceRoutes";
 import type { EvidenceSourceDetail } from "@/lib/types";
@@ -18,7 +18,7 @@ export function EvidenceSourcePage() {
   const { slug = "" } = useParams();
   const sourceKey = sourceKeyFromSlug(slug);
   const canonicalSlug = canonicalSourceSlug(slug);
-  const reviewSlug = isBelieverModelSlug(canonicalSlug) ? BELIEVER_MODEL_SLUG : canonicalSlug;
+  const reviewSlug = isStarterModelSlug(canonicalSlug) ? STARTER_MODEL_SLUG : canonicalSlug;
 
   const [detail, setDetail] = useState<EvidenceSourceDetail | null>(null);
   const [focus, setFocus] = useState("");
@@ -59,19 +59,19 @@ export function EvidenceSourcePage() {
   }
 
   const title = detail?.source.label ?? "Source";
-  const feedsBeliever =
+  const feedsStarter =
     Boolean(
-      detail?.source.feeds_models?.includes("persona_small") ||
-        detail?.source.feeds_models?.includes("believer"),
-    ) || isBelieverModelSlug(canonicalSlug);
+      detail?.source.feeds_models?.includes("starter_model") ||
+        detail?.source.feeds_models?.includes("starter"),
+    ) || isStarterModelSlug(canonicalSlug);
 
   return (
     <EvidenceShell backTo={evidenceHomePath()} backLabel="Evidence" title={title}>
       {detail ? (
         <>
-          {feedsBeliever ? (
-            <p className="evidence-believer-badge evidence-believer-badge--inline">
-              Feeds Believer training set
+          {feedsStarter ? (
+            <p className="evidence-starter-badge evidence-starter-badge--inline">
+              Feeds Starter training set
             </p>
           ) : null}
           <section className="evidence-ingest-plan">
@@ -87,7 +87,7 @@ export function EvidenceSourcePage() {
                 rows={3}
                 value={focus}
                 onChange={(event) => setFocus(event.target.value)}
-                placeholder="Blunt faith voice grounded in real sources—not generic assistant tone."
+                placeholder="Direct behavior grounded in approved sources—not generic assistant tone."
               />
             </label>
             <button className="evidence-primary" disabled={busy} type="submit">

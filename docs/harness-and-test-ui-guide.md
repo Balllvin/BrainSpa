@@ -1,6 +1,5 @@
 # Loop stages: agent harness (backend) and user UI (frontend)
 
-Canonical app: `/Users/alvin/Desktop/brain spa`  
 Reference stage: **Test** (`/test`) — replicate these patterns on **Evidence**, **Datasets**, and **Tune**.
 
 ---
@@ -24,33 +23,33 @@ The user should **not** operate the harness like an agent (registry keys, tool l
 ## Product principles
 
 1. **User tests and steers; AI works in the back end**  
-   Eval scores, adapter paths, `persona_small`, harness tool lists stay off primary UI. Show **Believer**, not registry keys.
+   Eval scores, adapter paths, `starter_model`, harness tool lists stay off primary UI. Show **Starter**, not registry keys.
 
 2. **One page archetype per job** — not one layout for every stage.  
    | Archetype | When | Test example |
    |-----------|------|----------------|
-   | **Overview** | Pick model / source / dataset | `/test`, `/test/believer` |
-   | **Chat** | Multi-turn try-out | counsel, advice, witness |
+   | **Overview** | Pick model / source / dataset | `/test`, `/test/starter` |
+   | **Chat** | Multi-turn try-out | counsel, advice, review |
    | **Generate** | One primary action, big result | daily word |
    | **Action + list** | Run job, see registry summary | Datasets today (improve) |
    | **Wizard / form** | Parameters then run | Tune today (improve) |
    | **Review** | Approve/reject rows, edits | Evidence / Datasets (target) |
 
-3. **URLs match what the user sees**  
-   Slugs in the path (`/test/believer/advice`). Map slugs ↔ registry keys in one module per stage (`testRoutes.ts`). Redirect legacy keys.
+3. **URLs match what the user sees**
+   Slugs in the path (`/test/starter/advice`). Map slugs ↔ registry keys in one module per stage (`testRoutes.ts`). Redirect legacy keys.
 
-4. **Navigation is minimal**  
+4. **Navigation is minimal**
    - Stage home (`/test`, `/evidence`, …) = **section root** — no “back to Chipmunk”.  
-   - Deeper pages: **arrow only**, top-left (`TestNavArrow`). No “← Believer” text.  
+   - Deeper pages: **arrow only**, top-left (`TestNavArrow`). No “← Starter” text.
    - Hints on list cards, not duplicated in chat header.
 
-5. **Feedback is lightweight**  
+5. **Feedback is lightweight**
    “Wrong answer?” → correction → shared store (`model_feedback.py`). Hover → red. No eval panel on Test.
 
-6. **Multiple environments probe capability**  
+6. **Multiple environments probe capability**
    Different shapes reveal jaggedness through use, not dashboard scores.
 
-7. **Optimistic, chat-native UX** (all chat archetypes)  
+7. **Optimistic, chat-native UX** (all chat archetypes)
    See [Chat UX contract](#chat-ux-contract) below — required on every chat page.
 
 ---
@@ -60,12 +59,12 @@ The user should **not** operate the harness like an agent (registry keys, tool l
 | URL | Archetype | Purpose |
 |-----|-----------|---------|
 | `/test` | Overview | Pick tuned model (no back link) |
-| `/test/believer` | Overview | Pick environment |
-| `/test/believer/counsel` | Chat | Multi-turn |
-| `/test/believer/daily-word` | Generate | One-shot word |
-| `/test/believer/witness` | Chat | Challenge / faith |
+| `/test/starter` | Overview | Pick environment |
+| `/test/starter/counsel` | Chat | Multi-turn |
+| `/test/starter/daily-word` | Generate | One-shot word |
+| `/test/starter/review` | Chat | Answer review / specificity |
 
-Registry: `persona_small` ↔ slug `believer`. API calls use `model_key`; routes use slugs only.
+Registry: `starter_model` ↔ slug `starter`. API calls use `model_key`; routes use slugs only.
 
 ---
 
@@ -77,7 +76,7 @@ Use this pattern when adding stage APIs.
 |-------|------|------|
 | Scenario registry | `test_scenarios.py` | `key`, `label`, `mode` (`chat` \| `generate`), `placeholder`, `hint` — **drives frontend branch** |
 | Threads | `harness_chat.py` | Per `(model_key, scenario_key)` messages; `Generate` for one-shot |
-| Generation | `workflows.py` | Real adapter output (`_generate_believer_answer`); multi-turn = last N turns |
+| Generation | `workflows.py` | Real adapter output (`_generate_starter_answer`); multi-turn = last N turns |
 | Feedback | `model_feedback.py` | Corrections / reply-to-message → JSONL for tuning |
 | Routes | `main.py` | `GET /api/harness/scenarios/{model_key}`, `GET/POST` harness chat |
 | Paths | `config.py` | `harness_chat_path`, `model_feedback_path` under `~/.brain-spa/` |
@@ -166,7 +165,7 @@ Applies to **every** chat environment (Test now; Evidence/Datasets/Tune if they 
 | Section root has no parent back | `/test` |
 | Single card ≠ two-column grid with empty cell | `.test-picker-grid--solo` |
 | Scenario hints small, tight | `.test-scenario-hint` ~0.78rem |
-| Display names, not keys | `modelDisplayName()` → Believer |
+| Display names, not keys | `modelDisplayName()` → Starter |
 | List not oversized red blocks | `.test-scenario-list` rows |
 
 ---
@@ -181,7 +180,7 @@ Applies to **every** chat environment (Test now; Evidence/Datasets/Tune if they 
 
 **Copy & naming**
 
-- [ ] No registry keys (`persona_small`, `believer_seed`) in primary labels.
+- [ ] No registry keys (`starter_model`, `starter_seed`) in primary labels.
 - [ ] No `tools:` / `scores:` harness cards on loop home (move to Settings or agent docs).
 - [ ] No `Stage harness` link as the main CTA on the stage home.
 
@@ -234,11 +233,11 @@ Hide `manifest_path` behind “View details” or Settings; show row count and q
 | User intent | Archetype | Example URL | Backend (agent) |
 |-------------|-----------|-------------|-----------------|
 | Pick model to train | Overview | `/tune` | Model registry |
-| Dry-run / build adapter | Wizard | `/tune/believer/build` | training APIs |
-| Quick smoke test | Chat or single prompt | `/tune/believer/try` | adapter test endpoint |
-| Acceptance | Results summary | `/tune/believer/status` | acceptance run — scores for user as pass/fail summary only |
+| Dry-run / build adapter | Wizard | `/tune/starter/build` | training APIs |
+| Quick smoke test | Chat or single prompt | `/tune/starter/try` | adapter test endpoint |
+| Acceptance | Results summary | `/tune/starter/status` | acceptance run — scores for user as pass/fail summary only |
 
-Display **Believer** in UI; `persona_small` only in API payloads.
+Display **Starter** in UI; `starter_model` only in API payloads.
 
 ### Shared front-end module pattern (per stage)
 
@@ -283,7 +282,7 @@ Reuse CSS prefixes or generalize to `.loop-stage`, `.loop-chat-stage` once a sec
 | Chat hook | `apps/web/src/pages/test/useHarnessEnvironment.ts` |
 | Scenarios API | `apps/api/brainspa_api/test_scenarios.py` |
 | Chat persistence | `apps/api/brainspa_api/harness_chat.py` |
-| Believer generation | `apps/api/brainspa_api/workflows.py` |
+| Starter generation | `apps/api/brainspa_api/workflows.py` |
 | Feedback store | `apps/api/brainspa_api/model_feedback.py` |
 | Styles | `apps/web/src/styles/tactical.css` (`.test-*`) |
 
@@ -291,7 +290,7 @@ Reuse CSS prefixes or generalize to `.loop-stage`, `.loop-chat-stage` once a sec
 
 ## Full loop, feedback, new models
 
-See **`docs/loop-pipeline-and-feedback.md`** — four-stage handoffs, Believer reference path, Test→Datasets feedback, new model rollout checklist, parallel agent file boundaries.
+See **`docs/loop-pipeline-and-feedback.md`** — four-stage handoffs, Starter reference path, Test→Datasets feedback, new model rollout checklist, parallel agent file boundaries.
 
 ## Stage audits (post-v1 implementation)
 

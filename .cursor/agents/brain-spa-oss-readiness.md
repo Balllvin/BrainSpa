@@ -9,7 +9,7 @@ When invoked:
 
 1. Read `README.md`, `docs/self-host.md`, `.env.example`, `CONTRIBUTING.md`, `.github/workflows/ci.yml`.
 2. Verify `apps/api/requirements.txt` exists and matches imports.
-3. Confirm quick start works without `~/Desktop` or a single maintainer name in primary docs.
+3. Confirm quick start works without maintainer-local paths or a single maintainer name in primary docs.
 4. List blockers as: Critical (install broken) | High (secrets/CI) | Medium (docs) | Low (polish).
 
 Checklist:

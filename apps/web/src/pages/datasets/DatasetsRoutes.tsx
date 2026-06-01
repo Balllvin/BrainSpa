@@ -19,6 +19,6 @@ export function DatasetsRoutes() {
 }
 
 function DatasetSlugRedirect() {
-  const { datasetSlug = "believer" } = useParams();
+  const { datasetSlug = "starter" } = useParams();
   return <Navigate replace to={datasetRowsPath(canonicalDatasetSlug(datasetSlug))} />;
 }

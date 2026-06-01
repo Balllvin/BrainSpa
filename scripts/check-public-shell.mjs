@@ -143,7 +143,7 @@ for (const path of trackedFiles) {
 }
 
 if (violations.length > 0) {
-  console.error('Public shell check failed. The GitHub repo must contain app shell/code/docs only, not Alvin runtime data, generated evidence, datasets, adapters, or secrets.');
+  console.error('Public shell check failed. The GitHub repo must contain app shell/code/docs only, not personal runtime data, generated evidence, datasets, adapters, or secrets.');
   for (const item of violations) {
     console.error(`- ${item.path} [${item.scope}]: ${item.reason}`);
   }

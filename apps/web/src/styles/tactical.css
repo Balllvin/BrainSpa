@@ -1110,7 +1110,7 @@ select:focus {
   color: var(--accent);
 }
 
-.evidence-believer-panel {
+.evidence-starter-panel {
   display: grid;
   gap: 12px;
   padding: 16px 18px;
@@ -1119,7 +1119,7 @@ select:focus {
   max-width: 640px;
 }
 
-.evidence-believer-panel-head {
+.evidence-starter-panel-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1127,7 +1127,7 @@ select:focus {
   gap: 8px;
 }
 
-.evidence-believer-title {
+.evidence-starter-title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
@@ -1135,7 +1135,7 @@ select:focus {
   text-transform: uppercase;
 }
 
-.evidence-believer-badge {
+.evidence-starter-badge {
   font-family: var(--mono);
   font-size: 0.68rem;
   text-transform: uppercase;
@@ -1143,18 +1143,18 @@ select:focus {
   color: var(--accent);
 }
 
-.evidence-believer-badge--inline {
+.evidence-starter-badge--inline {
   margin: 0;
 }
 
-.evidence-believer-meta {
+.evidence-starter-meta {
   margin: 0;
   font-family: var(--mono);
   font-size: 0.74rem;
   color: var(--muted);
 }
 
-.evidence-believer-actions {
+.evidence-starter-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;

@@ -11,14 +11,14 @@ from typing import Any
 from fastapi import HTTPException
 from packages.brainspa_training.handoff import validate_handoff
 
-from .believer import (
-    BELIEVER_CONTEXTS,
-    BELIEVER_FAILURE_PRESSURES,
-    BELIEVER_SYSTEM_PROMPT,
-    BELIEVER_TOPICS,
-    audit_believer_examples,
-    believer_training_answer,
-    build_believer_preference_pairs,
+from .starter import (
+    STARTER_CONTEXTS,
+    STARTER_FAILURE_PRESSURES,
+    STARTER_SYSTEM_PROMPT,
+    STARTER_TOPICS,
+    audit_starter_examples,
+    starter_training_answer,
+    build_starter_preference_pairs,
 )
 from .config import evidence_manifest_path, model_feedback_path, runtime_root
 from .evidence_store import _read_claims, read_evidence_manifest
@@ -38,9 +38,9 @@ from .models import (
 from .state import BrainSpaState
 from .test_scenarios import PERSONA_SCENARIOS, scenario_generation_text
 
-DATASET_KEYS = {"believer_seed"}
-BELIEVER_SCENARIO_KEYS = tuple(s.key for s in PERSONA_SCENARIOS)
-PACK_WITNESS_HEAVY = "witness-heavy"
+DATASET_KEYS = {"starter_seed"}
+STARTER_SCENARIO_KEYS = tuple(s.key for s in PERSONA_SCENARIOS)
+PACK_REVIEW_HEAVY = "review-heavy"
 PACK_IMPORT_FEEDBACK_ONLY = "import-feedback-only"
 
 
@@ -113,8 +113,8 @@ def _sync_dataset_state(dataset_key: str, rows: list[dict[str, Any]], manifest_p
     payload.update(
         {
             "key": dataset_key,
-            "label": payload.get("label") or "Believer training set",
-            "goal": payload.get("goal") or "Train Believer from approved evidence.",
+            "label": payload.get("label") or "Starter training set",
+            "goal": payload.get("goal") or "Train Starter from approved evidence.",
             "row_count": len(rows),
             "artifact_path": str(manifest_path) if manifest_path else payload.get("artifact_path"),
         }
@@ -133,18 +133,18 @@ def _scenario_mix(rows: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def _normalize_scenarios(request: DatasetGenerateRequest) -> list[str]:
-    allowed = set(BELIEVER_SCENARIO_KEYS)
+    allowed = set(STARTER_SCENARIO_KEYS)
     selected = [key for key in request.scenarios if key in allowed]
-    return selected or list(BELIEVER_SCENARIO_KEYS)
+    return selected or list(STARTER_SCENARIO_KEYS)
 
 
 def _apply_pack_defaults(request: DatasetGenerateRequest) -> DatasetGenerateRequest:
-    if request.pack == PACK_WITNESS_HEAVY:
+    if request.pack == PACK_REVIEW_HEAVY:
         return request.model_copy(
             update={
                 "example_count": 12,
-                "scenarios": list(BELIEVER_SCENARIO_KEYS),
-                "scenario_weights": {"witness": 6, "advice": 2, "counsel": 2, "daily-word": 2},
+                "scenarios": list(STARTER_SCENARIO_KEYS),
+                "scenario_weights": {"review": 6, "advice": 2, "counsel": 2, "daily-word": 2},
                 "mix_even": False,
                 "ground_in_evidence": True,
                 "preview_only": False,
@@ -170,7 +170,7 @@ def _allocate_scenarios(request: DatasetGenerateRequest) -> list[str]:
 def _paraphrase_claim(text: str, index: int) -> str:
     cleaned = re.sub(r"\s+", " ", text.strip())
     if not cleaned:
-        return "Speak with blunt faith, not generic assistant tone."
+        return "Speak directly from the approved evidence, not generic assistant tone."
     openings = (
         "The line to hold",
         "What matters here",
@@ -189,18 +189,18 @@ def _assistant_from_claim(paraphrase: str, scenario_key: str, context: str, pres
     core = core.rstrip(".")
     if scenario_key == "daily-word":
         short = core.split(".")[0]
-        return f"{short}. Trust Christ for today — one obedient step."
-    if scenario_key == "witness":
+        return f"{short}. Turn it into one concrete action today."
+    if scenario_key == "review":
         return (
-            f"{core} Faith is trust in the risen Christ, not a coping trick. "
-            "Answer with patience; do not mock the question."
+            f"{core} Name the vague part, the missing evidence, and the next correction. "
+            "Keep the answer calm and practical."
         )
     if scenario_key == "advice":
         return (
-            f"{core} Name one concrete act of obedience for {context.lower()}; "
+            f"{core} Name one concrete action for {context.lower()}; "
             f"refuse {pressure.lower()}."
         )
-    return f"{core} Pray plainly about {context.lower()}, then obey what's clear before {pressure.lower()} wins."
+    return f"{core} State the useful fact for {context.lower()}, then do what is clear before {pressure.lower()} wins."
 
 
 def _claim_stem_for_scenario(
@@ -214,8 +214,8 @@ def _claim_stem_for_scenario(
     setting = f"Context: {context}. Avoid {pressure}."
     if scenario_key == "counsel":
         return f"I'm wrestling with this: {paraphrase} {setting}"
-    if scenario_key == "witness":
-        return f"Someone pushed back with this idea: {paraphrase} {setting}"
+    if scenario_key == "review":
+        return f"This answer needs review: {paraphrase} {setting}"
     if scenario_key == "advice":
         return f"In this situation — {paraphrase} — what should I do? {setting}"
     if scenario_key == "daily-word":
@@ -228,8 +228,8 @@ def _build_grounded_row(
     scenario_key: str,
     claim: dict[str, Any],
 ) -> dict[str, Any]:
-    context = BELIEVER_CONTEXTS[index % len(BELIEVER_CONTEXTS)]
-    pressure = BELIEVER_FAILURE_PRESSURES[(index // len(BELIEVER_CONTEXTS)) % len(BELIEVER_FAILURE_PRESSURES)]
+    context = STARTER_CONTEXTS[index % len(STARTER_CONTEXTS)]
+    pressure = STARTER_FAILURE_PRESSURES[(index // len(STARTER_CONTEXTS)) % len(STARTER_FAILURE_PRESSURES)]
     stem = _claim_stem_for_scenario(claim, scenario_key, index, context, pressure)
     user_prompt = scenario_generation_text(scenario_key, stem)
     if scenario_key == "daily-word":
@@ -238,17 +238,17 @@ def _build_grounded_row(
     assistant = _assistant_from_claim(paraphrase, scenario_key, context, pressure)
     claim_id = str(claim.get("id") or "")
     return {
-        "id": f"believer-{index + 1:03d}",
+        "id": f"starter-{index + 1:03d}",
         "messages": [
-            {"role": "system", "content": BELIEVER_SYSTEM_PROMPT},
+            {"role": "system", "content": STARTER_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
             {"role": "assistant", "content": assistant},
         ],
         "metadata": {
             "stage": "foundation",
             "scenario_key": scenario_key,
-            "quality_target": "conviction_without_generic_padding",
-            "failure_labels_to_watch": ["generic_advice", "weak_grounding", "evasive_conviction"],
+            "quality_target": "specific_action_without_generic_padding",
+            "failure_labels_to_watch": ["generic_advice", "weak_grounding", "evasive_answer"],
             "source": "approved_evidence",
             "evidence_claim_ids": [claim_id] if claim_id else [],
         },
@@ -256,35 +256,35 @@ def _build_grounded_row(
 
 
 def _build_template_row(index: int, scenario_key: str) -> dict[str, Any]:
-    topic, base_prompt = BELIEVER_TOPICS[index % len(BELIEVER_TOPICS)]
-    context = BELIEVER_CONTEXTS[index % len(BELIEVER_CONTEXTS)]
-    pressure = BELIEVER_FAILURE_PRESSURES[(index // len(BELIEVER_CONTEXTS)) % len(BELIEVER_FAILURE_PRESSURES)]
+    topic, base_prompt = STARTER_TOPICS[index % len(STARTER_TOPICS)]
+    context = STARTER_CONTEXTS[index % len(STARTER_CONTEXTS)]
+    pressure = STARTER_FAILURE_PRESSURES[(index // len(STARTER_CONTEXTS)) % len(STARTER_FAILURE_PRESSURES)]
     stem = f"{base_prompt} Context: {context}. Pressure to avoid: {pressure}."
     user_prompt = scenario_generation_text(scenario_key, stem)
     if scenario_key == "daily-word":
         user_prompt = f"{user_prompt} Focus for this row: {stem}"
-        assistant = believer_training_answer("prayer", context, pressure)
+        assistant = starter_training_answer(topic, context, pressure)
         if len(assistant.split(".")) > 3:
             parts = assistant.split(".")
             assistant = ".".join(parts[:2]).strip() + "."
-    elif scenario_key == "witness":
-        assistant = believer_training_answer("witness", context, pressure)
+    elif scenario_key == "review":
+        assistant = starter_training_answer("review", context, pressure)
     elif scenario_key == "advice":
-        assistant = believer_training_answer(topic, context, pressure)
+        assistant = starter_training_answer(topic, context, pressure)
     else:
-        assistant = believer_training_answer(topic, context, pressure)
+        assistant = starter_training_answer(topic, context, pressure)
     return {
-        "id": f"believer-{index + 1:03d}",
+        "id": f"starter-{index + 1:03d}",
         "messages": [
-            {"role": "system", "content": BELIEVER_SYSTEM_PROMPT},
+            {"role": "system", "content": STARTER_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
             {"role": "assistant", "content": assistant},
         ],
         "metadata": {
             "stage": "foundation",
             "scenario_key": scenario_key,
-            "quality_target": "conviction_without_generic_padding",
-            "failure_labels_to_watch": ["generic_advice", "weak_grounding", "evasive_conviction"],
+            "quality_target": "specific_action_without_generic_padding",
+            "failure_labels_to_watch": ["generic_advice", "weak_grounding", "evasive_answer"],
             "source": "template",
             "evidence_claim_ids": [],
         },
@@ -349,14 +349,14 @@ def _row_to_public(item: dict[str, Any]) -> DatasetRow:
 
 def create_dataset_row(dataset_key: str, body: DatasetRowCreate) -> DatasetRow:
     _require_dataset_key(dataset_key)
-    if body.scenario_key not in BELIEVER_SCENARIO_KEYS:
+    if body.scenario_key not in STARTER_SCENARIO_KEYS:
         raise HTTPException(status_code=400, detail=f"Unknown scenario: {body.scenario_key}")
     rows = _load_rows(dataset_key)
-    row_id = f"believer-manual-{uuid.uuid4().hex[:8]}"
+    row_id = f"starter-manual-{uuid.uuid4().hex[:8]}"
     item = {
         "id": row_id,
         "messages": [
-            {"role": "system", "content": BELIEVER_SYSTEM_PROMPT},
+            {"role": "system", "content": STARTER_SYSTEM_PROMPT},
             {"role": "user", "content": body.user_prompt.strip()},
             {"role": "assistant", "content": body.assistant_answer.strip()},
         ],
@@ -431,7 +431,7 @@ def add_manual_preference_pair(dataset_key: str, body: DatasetPreferencePairCrea
     )
 
 
-def generate_believer_dataset(request: DatasetGenerateRequest, *, dataset_key: str = "believer_seed") -> DatasetGenerateResult:
+def generate_starter_dataset(request: DatasetGenerateRequest, *, dataset_key: str = "starter_seed") -> DatasetGenerateResult:
     request = _apply_pack_defaults(request)
 
     if request.pack == PACK_IMPORT_FEEDBACK_ONLY:
@@ -441,7 +441,7 @@ def generate_believer_dataset(request: DatasetGenerateRequest, *, dataset_key: s
         return DatasetGenerateResult(
             dataset=dataset or DatasetProfile(
                 key=dataset_key,
-                label="Believer training set",
+                label="Starter training set",
                 goal=request.goal,
                 state="draft",
                 quality_notes=[],
@@ -470,7 +470,7 @@ def generate_believer_dataset(request: DatasetGenerateRequest, *, dataset_key: s
         return DatasetGenerateResult(
             dataset=DatasetProfile(
                 key=dataset_key,
-                label="Believer training set",
+                label="Starter training set",
                 goal=request.goal,
                 state="draft",
                 quality_notes=[],
@@ -489,7 +489,7 @@ def generate_believer_dataset(request: DatasetGenerateRequest, *, dataset_key: s
     artifact_dir = dataset_artifact_dir(dataset_key)
     artifact_dir.mkdir(parents=True, exist_ok=True)
     examples_path = _write_rows(dataset_key, examples)
-    preference_pairs = build_believer_preference_pairs(examples)
+    preference_pairs = build_starter_preference_pairs(examples)
     preference_path = preference_jsonl_path(dataset_key)
     preference_path.write_text("\n".join(json.dumps(item) for item in preference_pairs) + "\n", encoding="utf-8")
     manifest = {
@@ -509,7 +509,7 @@ def generate_believer_dataset(request: DatasetGenerateRequest, *, dataset_key: s
     manifest_path = artifact_dir / "sft_handoff.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    quality, warnings = audit_believer_examples(examples)
+    quality, warnings = audit_starter_examples(examples)
     warnings.extend(extra_warnings)
     warnings.extend(validate_handoff(manifest))
     updated = _sync_dataset_state(dataset_key, examples, manifest_path)

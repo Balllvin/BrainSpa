@@ -87,8 +87,8 @@ export function TuneTryPage() {
           </div>
           <div className="tune-next-links">
             <span className="tune-picker-meta--muted">Continue in Test:</span>
-            <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "witness")}>
-              Witness
+            <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "review")}>
+              Review
             </Link>
             <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "counsel")}>
               Counsel
