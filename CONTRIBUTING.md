@@ -45,6 +45,13 @@ Shared review agents live in `.cursor/agents/`:
 - `brain-spa-loop-critic` — loop UX anti-slop
 - `brain-spa-install-verifier` — install smoke tests
 
+## Branch workflow
+
+- `main` is the clean public canonical branch on GitHub.
+- `local-runtime` is the local working branch for Brain Spa iteration on Alvin's machine.
+- Make changes on `local-runtime`, push that branch, then open PRs into `main`.
+- Keep runtime state outside git: `~/.brain-spa`, `.env`, tokens, and Playwright scratch files stay local.
+
 ## Commits and PRs
 
 - One logical change per PR when possible
