@@ -1,13 +1,12 @@
 # Four-stage loop, feedback, and new models
 
-Canonical app: `/Users/alvin/Desktop/brain spa`  
 Companion: `docs/harness-and-test-ui-guide.md`, `docs/ui-ux-architecture.md`
 
 ---
 
 ## What we are building (one product, four stages)
 
-Brain Spa changes **model behavior** through a closed loop. **Believer** (`persona_small`) is the reference model; the same pattern applies to new models.
+Brain Spa changes **model behavior** through a closed loop. **Starter** (`starter_model`) is the reference model; the same pattern applies to new models.
 
 ```
 Evidence → Datasets → Tune → Test
@@ -19,24 +18,24 @@ Evidence → Datasets → Tune → Test
 |-------|------------------------|-------------|-----------------------------------------------|
 | **Evidence** | Source Model (Grok default) | Find and approve **proof** of the behavior you want | `evidence/` — notes, claims JSONL, manifests |
 | **Datasets** | Data Model (OpenCode default) | Turn approved evidence into **training rows** + preference pairs | `datasets/` — `*_sft_train.jsonl`, handoff manifests |
-| **Tune** | Training Model (Codex default) | **Dry-run**, **build adapter**, register weights | `training/` — `believer_adapter`, dry_run.json, build results |
+| **Tune** | Training Model (Codex default) | **Dry-run**, **build adapter**, register weights | `training/` — `starter_adapter`, dry_run.json, build results |
 | **Test** | Harness Model | **Try** the model in real environments; say what's wrong | harness chat threads, `model_feedback` JSONL, acceptance runs |
 
 **Test** does not train. It **proves** behavior and **feeds back** misses. **Tune** does not mine the web. **Evidence** does not score chat. Each stage has one job; handoffs are **files + registry state**, not copy-paste between pages.
 
 ---
 
-## Believer end-to-end (reference)
+## Starter end-to-end (reference)
 
 | Step | Registry / keys | Artifact |
 |------|-----------------|----------|
-| Evidence for faith/persona voice | sources in state | evidence notes, claims |
-| Dataset | `believer_seed` | JSONL rows grounded in evidence |
-| Model registry | `persona_small` | label **Believer**, base model in state |
-| Tune | dataset + model | `artifacts/training/believer_validation/believer_adapter` |
-| Test | slug `believer`, scenarios counsel/advice/daily-word/witness | harness chat + Telegram uses same generation path |
+| Evidence for target behavior | sources in state | evidence notes, claims |
+| Dataset | `starter_seed` | JSONL rows grounded in evidence |
+| Model registry | `starter_model` | label **Starter**, base model in state |
+| Tune | dataset + model | `artifacts/training/starter_validation/starter_adapter` |
+| Test | slug `starter`, scenarios counsel/advice/daily-note/review | harness chat + Telegram uses same generation path |
 
-Generation must use the **adapter** (`workflows._generate_believer_answer`), not keyword fallbacks.
+Generation must use the **adapter** (`workflows._generate_starter_answer`), not keyword fallbacks.
 
 ---
 
@@ -56,12 +55,12 @@ User-facing copy: “Saved — will be used in the next dataset pass” not “l
 Test answers: **does the tuned model behave in the worlds we care about?**
 
 - **Environments** = scenarios (`test_scenarios.py`): chat vs generate modes.
-- **Probes jaggedness** — counsel vs witness vs daily word; different shapes expose different failures.
+- **Probes jaggedness** — counsel vs review vs daily note; different shapes expose different failures.
 - **Does not show** harness scores on primary UI; optional in artifacts for agents.
 - **Output for loop**: feedback records + user judgment → Datasets stage input.
 
 When designing Datasets rows, ask: *which Test scenario would fail if this row were missing?*  
-When designing Evidence, ask: *what claim would Witness need to defend?*
+When designing Evidence, ask: *what claim would the Review scenario need to evaluate?*
 
 ---
 
@@ -92,7 +91,7 @@ Use display name in UI; slug in URLs; registry `model_key` in API only.
 **LoopPages.tsx** — Remove only your `STAGEPage` export after migration.  
 **Shared** — If extracting `LoopNavArrow` from Test, put in `components/loop/LoopNavArrow.tsx` (one file, idempotent create).
 
-**Do not** break Test routes or Believer generation while working.
+**Do not** break Test routes or Starter generation while working.
 
 ---
 
@@ -119,9 +118,9 @@ Use display name in UI; slug in URLs; registry `model_key` in API only.
 ## Verification (full loop smoke)
 
 1. Evidence: at least one approved claim artifact exists.
-2. Datasets: `believer_seed` (or successor) row count > 0; handoff valid.
+2. Datasets: `starter_seed` (or successor) row count > 0; handoff valid.
 3. Tune: adapter path exists; dry-run not blocked.
-4. Test: `/test/believer/witness` returns real adapter text; Wrong answer? writes feedback.
+4. Test: `/test/starter/review` returns real adapter text; Wrong answer? writes feedback.
 5. `npm run build` + API tests green.
 
 ---
@@ -133,6 +132,3 @@ Use display name in UI; slug in URLs; registry `model_key` in API only.
 | `harness-and-test-ui-guide.md` | UX contracts, Test reference, anti-slop |
 | `loop-pipeline-and-feedback.md` | This file — loop + feedback + rollout |
 | `ui-ux-architecture.md` | Product shape, workers, home page |
-| `prompts/evidence-parallel-agent.md` | Evidence-only agent prompt |
-| `prompts/datasets-parallel-agent.md` | Datasets-only agent prompt |
-| `prompts/tune-parallel-agent.md` | Tune-only agent prompt |

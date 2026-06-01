@@ -130,19 +130,19 @@ from .datasets_workflows import (
     patch_dataset_row,
     read_evidence_gate,
 )
-from .datasets_workflows import generate_believer_dataset as generate_dataset_for_key
+from .datasets_workflows import generate_starter_dataset as generate_dataset_for_key
 from .tune_api import list_tune_status, tune_build_preview, tune_status_for_slug
 from .tune_build import read_build_job_for_slug, start_build_job
 from .workflows import (
     chipmunk_reply,
-    generate_believer_dataset,
+    generate_starter_dataset,
     test_training_adapter,
     run_environment_eval,
     run_worker_job,
     build_training_adapter,
     training_dry_run,
-    run_believer_acceptance,
-    believer_runtime_reply,
+    run_starter_acceptance,
+    starter_runtime_reply,
     looks_like_loop_request,
 )
 
@@ -373,7 +373,7 @@ def create_app() -> FastAPI:
             return TelegramAuthorizationResult(authorized=False, reason=reason)
         model_key = telegram_bot_model_key(request.bot_name)
         if model_key and request.bot_name != "chipmunk" and not looks_like_loop_request(request.text):
-            result = believer_runtime_reply(request.text or "What should I do when I feel spiritually weak?", model_key)
+            result = starter_runtime_reply(request.text or "What should I do when I do not know enough yet?", model_key)
             if result.state == "complete":
                 return TelegramAuthorizationResult(
                     authorized=True,
@@ -408,7 +408,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/datasets/generate", response_model=DatasetGenerateResult)
     def generate_dataset(request: DatasetGenerateRequest) -> DatasetGenerateResult:
-        return generate_believer_dataset(request)
+        return generate_starter_dataset(request)
 
     @app.get("/api/datasets/evidence-gate", response_model=DatasetEvidenceGate)
     def datasets_evidence_gate() -> DatasetEvidenceGate:
@@ -416,7 +416,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/datasets/scenarios", response_model=list[TestScenarioPublic])
     def datasets_scenarios() -> list[TestScenarioPublic]:
-        return list_test_scenarios("persona_small")
+        return list_test_scenarios("starter_model")
 
     @app.get("/api/datasets/{dataset_key}/rows", response_model=DatasetRowPage)
     def dataset_rows(dataset_key: str, offset: int = 0, limit: int = 50) -> DatasetRowPage:
@@ -433,7 +433,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/datasets/{dataset_key}/generate", response_model=DatasetGenerateResult)
     def generate_dataset_by_key(dataset_key: str, request: DatasetGenerateRequest) -> DatasetGenerateResult:
-        if dataset_key != "believer_seed":
+        if dataset_key != "starter_seed":
             raise HTTPException(status_code=404, detail=f"Unknown dataset: {dataset_key}")
         return generate_dataset_for_key(request, dataset_key=dataset_key)
 
@@ -496,7 +496,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/tune/acceptance", response_model=AcceptanceRunResult)
     def tune_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
-        return run_believer_acceptance(request)
+        return run_starter_acceptance(request)
 
     @app.post("/api/training/dry-run", response_model=TrainingDryRunResult)
     def dry_run_training(request: TrainingDryRunRequest) -> TrainingDryRunResult:
@@ -510,9 +510,9 @@ def create_app() -> FastAPI:
     def test_adapter(request: AdapterTestRequest) -> AdapterTestResult:
         return test_training_adapter(request)
 
-    @app.post("/api/training/believer-acceptance", response_model=AcceptanceRunResult)
-    def believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
-        return run_believer_acceptance(request)
+    @app.post("/api/training/starter-acceptance", response_model=AcceptanceRunResult)
+    def starter_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
+        return run_starter_acceptance(request)
 
     @app.post("/api/evals/run", response_model=EvalRunResult)
     def run_eval(request: EvalRunRequest) -> EvalRunResult:

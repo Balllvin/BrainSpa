@@ -20,10 +20,10 @@ import type { DatasetImportFeedbackResult, DatasetRow, TestScenario } from "@/li
 
 import { DatasetsShell } from "./DatasetsShell";
 
-const DEFAULT_SCENARIOS = ["counsel", "advice", "witness", "daily-word"];
+const DEFAULT_SCENARIOS = ["counsel", "advice", "daily-word", "review"];
 
 export function DatasetsRowsPage() {
-  const { datasetSlug = "believer" } = useParams();
+  const { datasetSlug = "starter" } = useParams();
   const datasetKey = datasetKeyFromSlug(datasetSlug);
   const label = datasetDisplayLabel(datasetKey);
 
@@ -336,7 +336,7 @@ export function DatasetsRowsPage() {
 
       {total > 0 ? (
         <p className="datasets-hint">
-          After edits or imports, <Link to="/tune/believer/build">rebuild adapter in Tune</Link>.
+          After edits or imports, <Link to="/tune/starter/build">rebuild adapter in Tune</Link>.
         </p>
       ) : null}
     </DatasetsShell>

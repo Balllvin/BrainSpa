@@ -15,19 +15,19 @@ def test_evidence_ingest_approve_and_manifest(monkeypatch, tmp_path):
     sources = client.get("/api/evidence/sources")
     assert sources.status_code == 200
     payload = sources.json()
-    believer = next(item for item in payload if item["key"] == "believer_voice_refs")
-    assert "Believer" in believer["feeds_model_labels"]
+    starter = next(item for item in payload if item["key"] == "starter_voice_refs")
+    assert "Starter" in starter["feeds_model_labels"]
 
     ingest = client.post(
-        "/api/evidence/sources/believer_voice_refs/ingest",
-        json={"query": "Blunt faith voice, no generic hedging"},
+        "/api/evidence/sources/starter_voice_refs/ingest",
+        json={"query": "Direct target behavior, no generic hedging"},
     )
     assert ingest.status_code == 200
     body = ingest.json()
     assert body["claims_added"] >= 1
     assert body["claim_ids"]
 
-    claims = client.get("/api/evidence/claims", params={"model": "believer", "status": "pending"})
+    claims = client.get("/api/evidence/claims", params={"model": "starter", "status": "pending"})
     assert claims.status_code == 200
     claim_list = claims.json()
     assert len(claim_list) >= 1
@@ -44,9 +44,9 @@ def test_evidence_ingest_approve_and_manifest(monkeypatch, tmp_path):
     assert manifest.status_code == 200
     manifest_body = manifest.json()
     assert manifest_body["approved_count"] >= 1
-    assert manifest_body["models"]["believer"]["approved_count"] >= 1
+    assert manifest_body["models"]["starter"]["approved_count"] >= 1
 
-    approved_claims = client.get("/api/evidence/approved-claims", params={"model": "believer"})
+    approved_claims = client.get("/api/evidence/approved-claims", params={"model": "starter"})
     assert approved_claims.status_code == 200
     approved_body = approved_claims.json()
     assert approved_body["ready_for_datasets"] is True
@@ -59,15 +59,15 @@ def test_evidence_manual_claim_bulk_approve_and_delete(monkeypatch, tmp_path):
     created = client.post(
         "/api/evidence/claims",
         json={
-            "text": "Speak with blunt pastoral conviction, not corporate tone.",
-            "citation": "Pastor interview clip, 12:04",
-            "source_key": "believer_voice_refs",
+            "text": "Speak with direct practical specificity, not corporate tone.",
+            "citation": "Approved source note, 12:04",
+            "source_key": "starter_voice_refs",
         },
     )
     assert created.status_code == 200
     claim_id = created.json()["id"]
 
-    bulk = client.post("/api/evidence/claims/bulk-approve", params={"model": "believer"})
+    bulk = client.post("/api/evidence/claims/bulk-approve", params={"model": "starter"})
     assert bulk.status_code == 200
     assert bulk.json()["approved_count"] >= 1
 
@@ -76,7 +76,7 @@ def test_evidence_manual_claim_bulk_approve_and_delete(monkeypatch, tmp_path):
         json={
             "text": "Temporary pending claim to delete.",
             "citation": "Draft note",
-            "source_key": "believer_voice_refs",
+            "source_key": "starter_voice_refs",
         },
     )
     pending_id = pending.json()["id"]
@@ -85,11 +85,11 @@ def test_evidence_manual_claim_bulk_approve_and_delete(monkeypatch, tmp_path):
 
     edited = client.patch(
         f"/api/evidence/claims/{claim_id}",
-        json={"text": "Updated blunt conviction claim."},
+        json={"text": "Updated direct specificity claim."},
     )
     assert edited.status_code == 400
 
-    summary = client.get("/api/evidence/models/believer")
+    summary = client.get("/api/evidence/models/starter")
     assert summary.status_code == 200
     assert summary.json()["ready_for_datasets"] is True
 

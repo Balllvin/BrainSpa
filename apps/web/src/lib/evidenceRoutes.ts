@@ -6,19 +6,19 @@
  */
 
 const SOURCE_SLUG_TO_KEY: Record<string, string> = {
-  believer: "believer_voice_refs",
+  starter: "starter_voice_refs",
   composer: "composer_training_interview",
   recovery: "recovery_commits",
 };
 
 const SOURCE_KEY_TO_SLUG: Record<string, string> = {
-  believer_voice_refs: "believer",
+  starter_voice_refs: "starter",
   composer_training_interview: "composer",
   recovery_commits: "recovery",
 };
 
 const LEGACY_SOURCE_SLUGS: Record<string, string> = {
-  believer_voice_refs: "believer",
+  starter_voice_refs: "starter",
   composer_training_interview: "composer",
   recovery_commits: "recovery",
 };
@@ -52,10 +52,10 @@ export function evidenceSourcePath(slugOrKey: string) {
   return `/evidence/sources/${encodeURIComponent(canonicalSourceSlug(slugOrKey))}`;
 }
 
-export const BELIEVER_MODEL_SLUG = "believer";
+export const STARTER_MODEL_SLUG = "starter";
 
-export function isBelieverModelSlug(slugOrKey: string) {
-  return canonicalSourceSlug(slugOrKey) === BELIEVER_MODEL_SLUG;
+export function isStarterModelSlug(slugOrKey: string) {
+  return canonicalSourceSlug(slugOrKey) === STARTER_MODEL_SLUG;
 }
 
 export function evidenceReviewPath(slugOrKey: string, filter?: string) {
@@ -70,6 +70,6 @@ export function evidenceReviewPathWithAdd(slugOrKey: string) {
   return `${evidenceReviewPath(slugOrKey, "pending")}&add=1`;
 }
 
-export function sourceFeedsBeliever(feedsModelLabels: string[]) {
-  return feedsModelLabels.some((label) => label.toLowerCase().includes("believer"));
+export function sourceFeedsStarter(feedsModelLabels: string[]) {
+  return feedsModelLabels.some((label) => label.toLowerCase().includes("starter"));
 }

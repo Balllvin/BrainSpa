@@ -57,10 +57,10 @@ Runtime data lives outside the repo under `~/.brain-spa` (or `BRAIN_SPA_HOME`). 
 
 | Stage | Route | You do |
 |-------|-------|--------|
-| Evidence | `/evidence` | Approve cited claims (Believer-first) |
-| Datasets | `/datasets/believer/generate` | Generate training rows from approved evidence |
-| Tune | `/tune/believer` | Dry-run and build LoRA adapter |
-| Test | `/test/believer` | Try the model (counsel, witness, …) |
+| Evidence | `/evidence` | Approve cited claims (Starter-first) |
+| Datasets | `/datasets/starter/generate` | Generate training rows from approved evidence |
+| Tune | `/tune/starter` | Dry-run and build LoRA adapter |
+| Test | `/test/starter` | Try the model (counsel, review, …) |
 | Settings | `/settings` | xAI key, Telegram, stage harness CLIs |
 
 Handoffs are **files + API state** under `~/.brain-spa/artifacts/`. See [docs/loop-pipeline-and-feedback.md](docs/loop-pipeline-and-feedback.md).
@@ -73,11 +73,11 @@ Default: `http://127.0.0.1:8000`
 |----------|---------|
 | `GET /api/health` | Liveness |
 | `GET /api/overview` | Registry snapshot |
-| `GET /api/evidence/models/believer` | Believer evidence summary |
-| `GET /api/evidence/claims?model=believer` | Filtered claims |
+| `GET /api/evidence/models/starter` | Starter evidence summary |
+| `GET /api/evidence/claims?model=starter` | Filtered claims |
 | `POST /api/evidence/claims` | Add manual claim |
 | `GET /api/evidence/approved-claims` | Datasets handoff |
-| `POST /api/datasets/believer_seed/generate` | Generate JSONL rows |
+| `POST /api/datasets/starter_seed/generate` | Generate JSONL rows |
 | `POST /api/training/dry-run` | Training readiness |
 | `POST /api/training/build-adapter` | LoRA build |
 | `GET /api/harness/scenarios/{model_key}` | Test environments |

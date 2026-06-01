@@ -26,6 +26,9 @@ docs/telegram env.docx
 /runtime/
 /runs/
 /outputs/
+/output/
+/playwright-report/
+/test-results/
 /generated/
 /evidence/
 /datasets/
@@ -40,6 +43,7 @@ docs/telegram env.docx
 /local-data/
 /user-data/
 *.jsonl
+*.docx
 *.parquet
 *.arrow
 *.safetensors

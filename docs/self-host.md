@@ -10,7 +10,7 @@ Brain Spa is **local-first**: one machine, one operator, artifacts on disk under
 | Python | 3.11+ |
 | OS | macOS or Linux tested; Windows may need path tweaks |
 
-Optional for the full loop (Tune adapter build, believer generation):
+Optional for the full loop (Tune adapter build, starter generation):
 
 - GPU or patience for CPU training
 - ~2GB+ disk for small HF models
@@ -82,7 +82,7 @@ Never commit secrets or `BRAIN_SPA_HOME` contents. The public GitHub repo is onl
 
 | Stage | Entry | Job |
 |-------|-------|-----|
-| Evidence | `/evidence` | Approve cited claims for Believer |
+| Evidence | `/evidence` | Approve cited claims for Starter |
 | Datasets | `/datasets` | Rows from approved evidence |
 | Tune | `/tune` | Dry-run and build adapter |
 | Test | `/test` | Try model in environments |

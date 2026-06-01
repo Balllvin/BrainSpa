@@ -83,11 +83,11 @@ def test_overview_seeds_core_state(monkeypatch, tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["product_name"] == "Brain Spa"
-    assert {model["key"] for model in payload["models"]} == {"persona_small", "coding_small"}
+    assert {model["key"] for model in payload["models"]} == {"starter_model", "coding_model"}
     assert {agent["key"] for agent in payload["agents"]} == {"chipmunk"}
     assert {harness["key"] for harness in payload["harnesses"]} == {"evidence", "datasets", "tune", "test"}
     assert "coding_cli" in {environment["key"] for environment in payload["environments"]}
-    assert "composer_training_interview" in {source["key"] for source in payload["sources"]}
+    assert "starter_voice_refs" in {source["key"] for source in payload["sources"]}
 
 
 def test_telegram_bot_token_is_written_but_never_returned(monkeypatch, tmp_path):
@@ -97,9 +97,9 @@ def test_telegram_bot_token_is_written_but_never_returned(monkeypatch, tmp_path)
     response = client.post(
         "/api/telegram/bots",
         json={
-            "name": "Believer Bot",
+            "name": "Starter Bot",
             "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-            "model_key": "persona_small",
+            "model_key": "starter_model",
             "allowed_chat_id": "42",
             "enabled": True,
         },
@@ -107,8 +107,8 @@ def test_telegram_bot_token_is_written_but_never_returned(monkeypatch, tmp_path)
 
     assert response.status_code == 200
     assert response.json() == {
-        "name": "Believer Bot",
-        "model_key": "persona_small",
+        "name": "Starter Bot",
+        "model_key": "starter_model",
         "allowed_chat_id_configured": True,
         "enabled": True,
         "live_verified": False,
@@ -127,9 +127,9 @@ def test_telegram_authorization_enforces_allowed_chat(monkeypatch, tmp_path):
     client.post(
         "/api/telegram/bots",
         json={
-            "name": "Believer Bot",
+            "name": "Starter Bot",
             "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-            "model_key": "persona_small",
+            "model_key": "starter_model",
             "allowed_chat_id": "42",
             "enabled": True,
         },
@@ -141,11 +141,11 @@ def test_telegram_authorization_enforces_allowed_chat(monkeypatch, tmp_path):
 
     rejected = client.post(
         "/api/telegram/authorize",
-        json={"bot_name": "Believer Bot", "chat_id": "99", "text": "generate a dataset"},
+        json={"bot_name": "Starter Bot", "chat_id": "99", "text": "generate a dataset"},
     )
     accepted = client.post(
         "/api/telegram/authorize",
-        json={"bot_name": "Believer Bot", "chat_id": "42", "text": "generate a dataset"},
+        json={"bot_name": "Starter Bot", "chat_id": "42", "text": "generate a dataset"},
     )
 
     assert rejected.status_code == 200
@@ -162,9 +162,9 @@ def test_telegram_authorization_blocks_unverified_token(monkeypatch, tmp_path):
     client.post(
         "/api/telegram/bots",
         json={
-            "name": "Believer Bot",
+            "name": "Starter Bot",
             "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-            "model_key": "persona_small",
+            "model_key": "starter_model",
             "allowed_chat_id": "42",
             "enabled": True,
         },
@@ -172,7 +172,7 @@ def test_telegram_authorization_blocks_unverified_token(monkeypatch, tmp_path):
 
     response = client.post(
         "/api/telegram/authorize",
-        json={"bot_name": "Believer Bot", "chat_id": "42", "text": "generate a dataset"},
+        json={"bot_name": "Starter Bot", "chat_id": "42", "text": "generate a dataset"},
     )
 
     assert response.status_code == 200
@@ -191,9 +191,9 @@ def test_telegram_polling_sends_model_reply_for_wired_persona(monkeypatch, tmp_p
             {
                 "bots": [
                     {
-                        "name": "believer",
+                        "name": "starter",
                         "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-                        "model_key": "persona_small",
+                        "model_key": "starter_model",
                         "allowed_chat_id": "42",
                         "enabled": True,
                         "live_verified": True,
@@ -218,13 +218,13 @@ def test_telegram_polling_sends_model_reply_for_wired_persona(monkeypatch, tmp_p
         sent_message_id=701,
     )
     monkeypatch.setattr(
-        "apps.api.brainspa_api.telegram_runtime.believer_runtime_reply",
-        lambda message, model_key="persona_small": type(
+        "apps.api.brainspa_api.telegram_runtime.starter_runtime_reply",
+        lambda message, model_key="starter_model": type(
             "Reply",
             (),
             {
                 "state": "complete",
-                "answer": "Confess envy to God and do the next faithful task.",
+                "answer": "Name the comparison, identify the useful next action, and verify it.",
                 "model": "HuggingFaceTB/SmolLM2-360M-Instruct",
                 "eval": None,
                 "notes": [],
@@ -241,7 +241,7 @@ def test_telegram_polling_sends_model_reply_for_wired_persona(monkeypatch, tmp_p
         {
             "token": "1234567890:abcdefghijklmnopqrstuvwxyz",
             "chat_id": "42",
-            "text": "Confess envy to God and do the next faithful task.",
+            "text": "Name the comparison, identify the useful next action, and verify it.",
             "reply_to_message_id": 10,
         }
     ]
@@ -258,9 +258,9 @@ def test_telegram_reply_to_model_output_is_saved_as_evidence_feedback(monkeypatc
             {
                 "bots": [
                     {
-                        "name": "believer",
+                        "name": "starter",
                         "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-                        "model_key": "persona_small",
+                        "model_key": "starter_model",
                         "allowed_chat_id": "42",
                         "enabled": True,
                         "live_verified": True,
@@ -276,13 +276,13 @@ def test_telegram_reply_to_model_output_is_saved_as_evidence_feedback(monkeypatc
             {
                 "messages": [
                     {
-                        "bot_name": "believer",
+                        "bot_name": "starter",
                         "chat_id": "42",
                         "user_message_id": 10,
                         "bot_message_id": 701,
-                        "model_key": "persona_small",
+                        "model_key": "starter_model",
                         "prompt": "What should I do when I envy a friend?",
-                        "answer": "Confess envy to God and do the next faithful task.",
+                        "answer": "Name the comparison, identify the useful next action, and verify it.",
                     }
                 ]
             }
@@ -297,7 +297,7 @@ def test_telegram_reply_to_model_output_is_saved_as_evidence_feedback(monkeypatc
                     "message_id": 11,
                     "chat": {"id": 42},
                     "from": {"id": 42},
-                    "text": "This is good, but it should mention why comparison is spiritually dangerous.",
+                    "text": "This is good, but it should mention why comparison hides the next useful action.",
                     "reply_to_message": {"message_id": 701},
                 },
             }
@@ -310,11 +310,11 @@ def test_telegram_reply_to_model_output_is_saved_as_evidence_feedback(monkeypatc
     assert result.messages_sent == 0
     feedback = [json.loads(line) for line in telegram_feedback_path().read_text(encoding="utf-8").splitlines()]
     assert feedback[-1]["stage"] == "evidence"
-    assert feedback[-1]["bot_name"] == "believer"
-    assert feedback[-1]["model_key"] == "persona_small"
+    assert feedback[-1]["bot_name"] == "starter"
+    assert feedback[-1]["model_key"] == "starter_model"
     assert feedback[-1]["prompt"] == "What should I do when I envy a friend?"
-    assert feedback[-1]["answer"] == "Confess envy to God and do the next faithful task."
-    assert "comparison is spiritually dangerous" in feedback[-1]["feedback"]
+    assert feedback[-1]["answer"] == "Name the comparison, identify the useful next action, and verify it."
+    assert "comparison hides the next useful action" in feedback[-1]["feedback"]
 
 
 def test_telegram_polling_does_not_reply_twice_to_same_inbound_message(monkeypatch, tmp_path):
@@ -328,9 +328,9 @@ def test_telegram_polling_does_not_reply_twice_to_same_inbound_message(monkeypat
             {
                 "bots": [
                     {
-                        "name": "believer",
+                        "name": "starter",
                         "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-                        "model_key": "persona_small",
+                        "model_key": "starter_model",
                         "allowed_chat_id": "42",
                         "enabled": True,
                         "live_verified": True,
@@ -354,13 +354,13 @@ def test_telegram_polling_does_not_reply_twice_to_same_inbound_message(monkeypat
         ]
     )
     monkeypatch.setattr(
-        "apps.api.brainspa_api.telegram_runtime.believer_runtime_reply",
-        lambda message, model_key="persona_small": type(
+        "apps.api.brainspa_api.telegram_runtime.starter_runtime_reply",
+        lambda message, model_key="starter_model": type(
             "Reply",
             (),
             {
                 "state": "complete",
-                "answer": "Confess envy to God and do the next faithful task.",
+                "answer": "Name the comparison, identify the useful next action, and verify it.",
                 "model": "HuggingFaceTB/SmolLM2-360M-Instruct",
                 "eval": None,
                 "notes": [],
@@ -388,9 +388,9 @@ def test_loop_command_sent_to_model_bot_is_not_recorded_as_persona_feedback(monk
             {
                 "bots": [
                     {
-                        "name": "believer",
+                        "name": "starter",
                         "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-                        "model_key": "persona_small",
+                        "model_key": "starter_model",
                         "allowed_chat_id": "42",
                         "enabled": True,
                         "live_verified": True,
@@ -435,7 +435,7 @@ def test_configured_chipmunk_telegram_bot_is_reserved_for_hermes(monkeypatch, tm
                     {
                         "name": "chipmunk",
                         "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-                        "model_key": "persona_small",
+                        "model_key": "starter_model",
                         "allowed_chat_id": "42",
                         "enabled": True,
                         "live_verified": True,
@@ -475,7 +475,7 @@ def test_chipmunk_telegram_api_rejects_custom_bot(monkeypatch, tmp_path):
         json={
             "name": "chipmunk",
             "bot_token": "1234567890:abcdefghijklmnopqrstuvwxyz",
-            "model_key": "persona_small",
+            "model_key": "starter_model",
             "allowed_chat_id": "42",
             "enabled": True,
         },
@@ -623,7 +623,7 @@ def test_chipmunk_settings_patch_updates_hermes_profile_and_xai_env(monkeypatch,
     assert response.json()["hermes"]["service_tier"] == "normal"
 
 
-def test_believer_dataset_generation_writes_handoff(monkeypatch, tmp_path):
+def test_starter_dataset_generation_writes_handoff(monkeypatch, tmp_path):
     from apps.api.tests.test_datasets_api import _seed_approved_evidence
 
     monkeypatch.setenv("BRAIN_SPA_HOME", str(tmp_path))
@@ -637,9 +637,9 @@ def test_believer_dataset_generation_writes_handoff(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["dataset"]["key"] == "believer_seed"
+    assert payload["dataset"]["key"] == "starter_seed"
     assert payload["dataset"]["row_count"] == 24
-    rows_file = train_jsonl_path("believer_seed")
+    rows_file = train_jsonl_path("starter_seed")
     sample = json.loads(rows_file.read_text().splitlines()[0])
     assert sample["metadata"]["evidence_claim_ids"]
     assert payload["warnings"] == []
@@ -656,9 +656,9 @@ def test_dataset_and_model_lifecycle_transitions_are_explicit(monkeypatch, tmp_p
     client = TestClient(create_app())
     client.post("/api/datasets/generate", json={"example_count": 8, "ground_in_evidence": True})
 
-    dataset = client.post("/api/datasets/believer_seed/state", json={"state": "active"})
-    invalid_model = client.post("/api/models/persona_small/state", json={"state": "archived"})
-    model = client.post("/api/models/persona_small/state", json={"state": "active"})
+    dataset = client.post("/api/datasets/starter_seed/state", json={"state": "active"})
+    invalid_model = client.post("/api/models/starter_model/state", json={"state": "archived"})
+    model = client.post("/api/models/starter_model/state", json={"state": "active"})
 
     assert dataset.status_code == 200
     assert dataset.json()["state"] == "active"
@@ -698,28 +698,28 @@ def test_tune_status_lists_models_and_alias_dry_run(monkeypatch, tmp_path):
     status = client.get("/api/tune/status")
     assert status.status_code == 200
     models = status.json()["models"]
-    believer = next(item for item in models if item["slug"] == "believer")
-    assert believer["model_key"] == "persona_small"
-    assert believer["display_name"] == "Believer"
-    assert believer["adapter_state"] in {"missing", "ready", "blocked", "stale"}
-    assert "believer_validation" in believer["adapter_path"]
+    starter = next(item for item in models if item["slug"] == "starter")
+    assert starter["model_key"] == "starter_model"
+    assert starter["display_name"] == "Starter"
+    assert starter["adapter_state"] in {"missing", "ready", "blocked", "stale"}
+    assert "starter_validation" in starter["adapter_path"]
 
-    slug_status = client.get("/api/tune/believer/status")
+    slug_status = client.get("/api/tune/starter/status")
     assert slug_status.status_code == 200
-    assert slug_status.json()["slug"] == "believer"
+    assert slug_status.json()["slug"] == "starter"
 
-    dry_run = client.post("/api/tune/dry-run", json={"model_key": "persona_small", "dataset_key": "believer_seed"})
+    dry_run = client.post("/api/tune/dry-run", json={"model_key": "starter_model", "dataset_key": "starter_seed"})
     assert dry_run.status_code == 200
-    assert dry_run.json()["dataset_key"] == "believer_seed"
+    assert dry_run.json()["dataset_key"] == "starter_seed"
 
-    preview = client.get("/api/tune/believer/build-preview")
+    preview = client.get("/api/tune/starter/build-preview")
     assert preview.status_code == 200
-    assert preview.json()["dataset_display_label"] == "Believer training set"
-    assert preview.json()["slug"] == "believer"
+    assert preview.json()["dataset_display_label"] == "Starter training set"
+    assert preview.json()["slug"] == "starter"
 
     job = client.post(
         "/api/tune/build",
-        json={"model_key": "persona_small", "dataset_key": "believer_seed", "training_preset": "fast"},
+        json={"model_key": "starter_model", "dataset_key": "starter_seed", "training_preset": "fast"},
     )
     assert job.status_code == 200
     assert job.json()["training_preset"] == "fast"
@@ -733,9 +733,9 @@ def test_eval_returns_fine_grained_comments(monkeypatch, tmp_path):
     response = client.post(
         "/api/evals/run",
         json={
-            "environment_key": "chat_believer",
-            "prompt": "What should I do when weak?",
-            "answer": "Pray, read Scripture, and ask God for grace while taking the next obedient step.",
+            "environment_key": "chat_starter",
+            "prompt": "What should I do when the answer is weak?",
+            "answer": "Name the vague part, add the missing evidence, and state the next concrete action.",
         },
     )
 
@@ -743,7 +743,7 @@ def test_eval_returns_fine_grained_comments(monkeypatch, tmp_path):
     payload = response.json()
     assert payload["passed"] is True
     assert {comment["dimension"] for comment in payload["comments"]} == {
-        "conviction",
+        "actionability",
         "generic_slop",
         "directness",
         "role_leak",
@@ -804,7 +804,7 @@ def test_settings_loop_and_model_routing(monkeypatch, tmp_path):
     assert patch.json()["telegram_bot_name"] == "notify-evidence"
 
     model_patch = client.patch(
-        "/api/settings/models/persona_small/telegram",
+        "/api/settings/models/starter_model/telegram",
         json={"telegram_bot_name": "chipmunk"},
     )
     assert model_patch.status_code == 200
@@ -899,7 +899,7 @@ def test_worker_preview_and_chipmunk_routing(monkeypatch, tmp_path):
 
     worker = client.post(
         "/api/workers/run",
-        json={"agent_key": "datasets", "backend": "codex", "task": "audit believer dataset"},
+        json={"agent_key": "datasets", "backend": "codex", "task": "audit starter dataset"},
     )
     chipmunk = client.post("/api/chipmunk/chat", json={"message": "generate a dataset"})
 
@@ -934,7 +934,7 @@ def test_harness_chat_generates_and_reply_saves_feedback(monkeypatch, tmp_path):
     from apps.api.brainspa_api.config import model_feedback_path
     from apps.api.brainspa_api.models import AdapterTestResult, EvalRunResult
 
-    def fake_reply(message, model_key="persona_small", **kwargs):
+    def fake_reply(message, model_key="starter_model", **kwargs):
         return AdapterTestResult(
             state="complete",
             model="HuggingFaceTB/SmolLM2-360M-Instruct",
@@ -942,7 +942,7 @@ def test_harness_chat_generates_and_reply_saves_feedback(monkeypatch, tmp_path):
             prompt=message,
             answer=f"Model reply to: {message}",
             eval=EvalRunResult(
-                environment_key="chat_believer",
+                environment_key="chat_starter",
                 score=0.8,
                 passed=True,
                 comments=[],
@@ -952,15 +952,15 @@ def test_harness_chat_generates_and_reply_saves_feedback(monkeypatch, tmp_path):
             notes=[],
         )
 
-    monkeypatch.setattr("apps.api.brainspa_api.harness_chat.believer_runtime_reply", fake_reply)
+    monkeypatch.setattr("apps.api.brainspa_api.harness_chat.starter_runtime_reply", fake_reply)
     client = TestClient(create_app())
 
     first = client.post(
         "/api/harness/chat/send",
         json={
-            "model_key": "persona_small",
+            "model_key": "starter_model",
             "scenario_key": "counsel",
-            "text": "What do you think about God?",
+            "text": "What do you think about vague answers?",
         },
     )
     assert first.status_code == 200
@@ -968,14 +968,14 @@ def test_harness_chat_generates_and_reply_saves_feedback(monkeypatch, tmp_path):
     assert first_payload["kind"] == "assistant_reply"
     assistant_id = first_payload["message"]["id"]
 
-    thread = client.get("/api/harness/chat/persona_small/counsel")
+    thread = client.get("/api/harness/chat/starter_model/counsel")
     assert thread.status_code == 200
     assert len(thread.json()["messages"]) >= 2
 
     feedback = client.post(
         "/api/harness/chat/send",
         json={
-            "model_key": "persona_small",
+            "model_key": "starter_model",
             "scenario_key": "counsel",
             "text": "Answer the question directly instead of deflecting.",
             "reply_to_message_id": assistant_id,
@@ -986,5 +986,5 @@ def test_harness_chat_generates_and_reply_saves_feedback(monkeypatch, tmp_path):
 
     records = [json.loads(line) for line in model_feedback_path().read_text(encoding="utf-8").splitlines()]
     assert records[-1]["source"] == "harness_chat_reply_feedback"
-    assert records[-1]["prompt"] == "What do you think about God?"
+    assert records[-1]["prompt"] == "What do you think about vague answers?"
     assert "Model reply to:" in records[-1]["answer"]

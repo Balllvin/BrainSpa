@@ -104,12 +104,15 @@ def sync_chipmunk_xai_key(api_key: str | None) -> None:
 
 
 def restart_chipmunk_gateway() -> ChipmunkHermesStatus:
-    subprocess.run(
-        ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{LAUNCH_AGENT_LABEL}"],
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+    try:
+        subprocess.run(
+            ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{LAUNCH_AGENT_LABEL}"],
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+    except OSError:
+        pass
     return read_chipmunk_hermes_status()
 
 
@@ -210,13 +213,21 @@ def _remove_env_value(key: str) -> None:
 
 
 def _read_launch_agent() -> dict[str, Any]:
-    result = subprocess.run(
-        ["launchctl", "print", f"gui/{os.getuid()}/{LAUNCH_AGENT_LABEL}"],
-        check=False,
-        text=True,
-        capture_output=True,
-        timeout=5,
-    )
+    try:
+        result = subprocess.run(
+            ["launchctl", "print", f"gui/{os.getuid()}/{LAUNCH_AGENT_LABEL}"],
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {
+            "running": False,
+            "pid": None,
+            "state": "unavailable",
+            "last_exit_code": None,
+        }
     output = result.stdout + result.stderr
     state = _match_value(output, r"\bstate = ([^\n]+)") or "unknown"
     pid_raw = _match_value(output, r"\bpid = (\d+)")

@@ -46,7 +46,7 @@ const HUB_CARDS: HubCard[] = [
   {
     key: "test",
     name: "Test environments",
-    hint: "Counsel, advice, witness, daily word",
+    hint: "Counsel, advice, review, daily note",
     path: (slug) => testModelPath(slug),
   },
 ];
@@ -74,13 +74,13 @@ export function TuneModelPage() {
     return <Navigate replace to={tuneModelPath(canonicalSlug)} />;
   }
 
-  const datasetSlug = status?.dataset_key === "believer_seed" ? "believer" : status?.dataset_key ?? "believer";
+  const datasetSlug = status?.dataset_key === "starter_seed" ? "starter" : status?.dataset_key ?? "starter";
 
   return (
     <TuneShell
       backTo={tuneHomePath()}
       backLabel="Tune"
-      title={status?.display_name ?? (canonicalSlug === "believer" ? "Believer" : canonicalSlug)}
+      title={status?.display_name ?? (canonicalSlug === "starter" ? "Starter" : canonicalSlug)}
     >
       {!ready ? <p className="tune-empty">Loading…</p> : null}
       {ready && error ? <p className="tune-error">{error}</p> : null}

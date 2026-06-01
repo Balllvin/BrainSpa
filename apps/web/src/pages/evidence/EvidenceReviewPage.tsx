@@ -13,11 +13,11 @@ import {
 } from "@/lib/backend";
 import { datasetGeneratePath } from "@/lib/datasetsRoutes";
 import {
-  BELIEVER_MODEL_SLUG,
+  STARTER_MODEL_SLUG,
   canonicalSourceSlug,
   evidenceHomePath,
   evidenceSourcePath,
-  isBelieverModelSlug,
+  isStarterModelSlug,
   sourceKeyFromSlug,
 } from "@/lib/evidenceRoutes";
 import type { EvidenceClaim, EvidenceClaimStatus, EvidenceModelSummary } from "@/lib/types";
@@ -30,14 +30,14 @@ export function EvidenceReviewPage() {
   const { slug = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const canonicalSlug = canonicalSourceSlug(slug);
-  const believerView = isBelieverModelSlug(canonicalSlug);
+  const starterView = isStarterModelSlug(canonicalSlug);
 
   const filter = (searchParams.get("filter") as EvidenceClaimStatus | null) ?? "pending";
   const showAdd = searchParams.get("add") === "1";
 
   const [claims, setClaims] = useState<EvidenceClaim[]>([]);
-  const [believer, setBeliever] = useState<EvidenceModelSummary | null>(null);
-  const [believerSources, setBelieverSources] = useState<{ key: string; label: string }[]>([]);
+  const [starter, setStarter] = useState<EvidenceModelSummary | null>(null);
+  const [starterSources, setStarterSources] = useState<{ key: string; label: string }[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,14 +54,14 @@ export function EvidenceReviewPage() {
 
   async function load() {
     setError(null);
-    const claimQuery = believerView
-      ? { model: BELIEVER_MODEL_SLUG, status: filter }
+    const claimQuery = starterView
+      ? { model: STARTER_MODEL_SLUG, status: filter }
       : { sourceKey: sourceKeyFromSlug(canonicalSlug), status: filter };
 
-    const [claimsRes, believerRes, sourcesRes] = await Promise.all([
+    const [claimsRes, starterRes, sourcesRes] = await Promise.all([
       fetchEvidenceClaims(claimQuery),
-      believerView ? fetchEvidenceModelSummary(BELIEVER_MODEL_SLUG) : Promise.resolve({ ok: true, summary: null, error: null }),
-      believerView ? fetchEvidenceSources() : Promise.resolve({ ok: true, sources: [], error: null }),
+      starterView ? fetchEvidenceModelSummary(STARTER_MODEL_SLUG) : Promise.resolve({ ok: true, summary: null, error: null }),
+      starterView ? fetchEvidenceSources() : Promise.resolve({ ok: true, sources: [], error: null }),
     ]);
 
     if (!claimsRes.ok) {
@@ -70,14 +70,14 @@ export function EvidenceReviewPage() {
       return;
     }
     setClaims(claimsRes.claims);
-    if (believerRes.ok && believerRes.summary) {
-      setBeliever(believerRes.summary);
+    if (starterRes.ok && starterRes.summary) {
+      setStarter(starterRes.summary);
     }
     if (sourcesRes.ok) {
       const linked = sourcesRes.sources
-        .filter((source) => source.feeds_model_labels?.includes("Believer"))
+        .filter((source) => source.feeds_model_labels?.includes("Starter"))
         .map((source) => ({ key: source.key, label: source.label }));
-      setBelieverSources(linked);
+      setStarterSources(linked);
       if (!addSourceKey && linked.length) {
         setAddSourceKey(linked[0].key);
       }
@@ -88,10 +88,10 @@ export function EvidenceReviewPage() {
   useEffect(() => {
     setReady(false);
     void load();
-  }, [canonicalSlug, filter, believerView]);
+  }, [canonicalSlug, filter, starterView]);
 
-  const title = believerView
-    ? "Review · Believer"
+  const title = starterView
+    ? "Review · Starter"
     : `Review · ${claims[0]?.source_label ?? "Source"}`;
 
   const pendingWithCitation = useMemo(
@@ -119,24 +119,24 @@ export function EvidenceReviewPage() {
       return;
     }
     await load();
-    if (believerView) {
-      const summary = await fetchEvidenceModelSummary(BELIEVER_MODEL_SLUG);
-      if (summary.ok) setBeliever(summary.summary);
+    if (starterView) {
+      const summary = await fetchEvidenceModelSummary(STARTER_MODEL_SLUG);
+      if (summary.ok) setStarter(summary.summary);
     }
   }
 
   async function onBulkApprove() {
     setBulkBusy(true);
     setError(null);
-    const response = await bulkApproveEvidenceClaims(believerView ? BELIEVER_MODEL_SLUG : undefined);
+    const response = await bulkApproveEvidenceClaims(starterView ? STARTER_MODEL_SLUG : undefined);
     setBulkBusy(false);
     if (!response.ok || !response.data) {
       setError(response.error ?? "Bulk approve failed.");
       return;
     }
     await load();
-    const summary = await fetchEvidenceModelSummary(BELIEVER_MODEL_SLUG);
-    if (summary.ok) setBeliever(summary.summary);
+    const summary = await fetchEvidenceModelSummary(STARTER_MODEL_SLUG);
+    if (summary.ok) setStarter(summary.summary);
   }
 
   async function onAddClaim(event: FormEvent<HTMLFormElement>) {
@@ -200,11 +200,11 @@ export function EvidenceReviewPage() {
 
   return (
     <EvidenceShell backTo={evidenceHomePath()} backLabel="Evidence" title={title}>
-      {believerView && believer?.ready_for_datasets ? (
+      {starterView && starter?.ready_for_datasets ? (
         <div className="evidence-ready-banner">
-          <strong>{believer.approved_count} approved — ready for Datasets</strong>
-          <Link className="evidence-ready-link" to={datasetGeneratePath(BELIEVER_MODEL_SLUG)}>
-            Generate Believer training rows →
+          <strong>{starter.approved_count} approved — ready for Datasets</strong>
+          <Link className="evidence-ready-link" to={datasetGeneratePath(STARTER_MODEL_SLUG)}>
+            Generate Starter training rows →
           </Link>
         </div>
       ) : null}
@@ -227,7 +227,7 @@ export function EvidenceReviewPage() {
         ))}
       </div>
 
-      {believerView && filter === "pending" ? (
+      {starterView && filter === "pending" ? (
         <div className="evidence-bulk-row">
           <button
             type="button"
@@ -237,13 +237,13 @@ export function EvidenceReviewPage() {
           >
             {bulkBusy ? "Approving…" : `Bulk approve cited pending (${pendingWithCitation})`}
           </button>
-          <Link className="evidence-action" to={evidenceSourcePath(BELIEVER_MODEL_SLUG)}>
+          <Link className="evidence-action" to={evidenceSourcePath(STARTER_MODEL_SLUG)}>
             Mine / refresh source
           </Link>
         </div>
       ) : null}
 
-      {(showAdd || believerView) && (
+      {(showAdd || starterView) && (
         <form className="evidence-add-form" onSubmit={(event) => void onAddClaim(event)}>
           <h2 className="evidence-add-title">Add claim</h2>
           <label className="evidence-field">
@@ -265,11 +265,11 @@ export function EvidenceReviewPage() {
               required
             />
           </label>
-          {believerView && believerSources.length > 1 ? (
+          {starterView && starterSources.length > 1 ? (
             <label className="evidence-field">
               <span>Source</span>
               <select value={addSourceKey} onChange={(event) => setAddSourceKey(event.target.value)}>
-                {believerSources.map((source) => (
+                {starterSources.map((source) => (
                   <option key={source.key} value={source.key}>
                     {source.label}
                   </option>
@@ -288,8 +288,8 @@ export function EvidenceReviewPage() {
       {ready && !claims.length ? (
         <p className="evidence-empty">
           No {filter} claims.{" "}
-          {believerView ? (
-            <Link to={evidenceSourcePath(BELIEVER_MODEL_SLUG)}>Mine a source</Link>
+          {starterView ? (
+            <Link to={evidenceSourcePath(STARTER_MODEL_SLUG)}>Mine a source</Link>
           ) : (
             <Link to={evidenceSourcePath(canonicalSlug)}>Mine this source</Link>
           )}{" "}

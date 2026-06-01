@@ -7,7 +7,7 @@ from .model_feedback import append_model_feedback_record
 from .models import HarnessChatMessage, HarnessChatSendRequest, HarnessChatSendResult, HarnessChatThread
 from .state import log_event
 from .test_scenarios import scenario_generation_text
-from .workflows import believer_runtime_reply, project_key_for_model
+from .workflows import starter_runtime_reply, project_key_for_model
 
 
 def read_harness_chat(model_key: str, scenario_key: str = "counsel") -> HarnessChatThread:
@@ -35,7 +35,7 @@ def send_harness_chat(request: HarnessChatSendRequest) -> HarnessChatSendResult:
         if message.role == "assistant" and message.prompt
     ][-3:]
     prompt_for_model = scenario_generation_text(scenario_key, request.text)
-    generation = believer_runtime_reply(
+    generation = starter_runtime_reply(
         prompt_for_model,
         request.model_key,
         history=history,

@@ -48,7 +48,7 @@ Shared review agents live in `.cursor/agents/`:
 ## Branch workflow
 
 - `main` is the clean public canonical branch on GitHub.
-- `local-runtime` is the local working branch for Brain Spa iteration on Alvin's machine.
+- `local-runtime` is the local working branch for Brain Spa iteration on a private runtime branch.
 - Make changes on `local-runtime`, push that branch, then open PRs into `main`.
 - Before pushing, run `npm run verify`; it includes `npm run check:public-shell`.
 - Keep runtime state outside git: `~/.brain-spa`, `.env`, tokens, generated evidence, datasets, adapters, transcripts, evals, and Playwright scratch files stay local.

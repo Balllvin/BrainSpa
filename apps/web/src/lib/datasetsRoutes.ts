@@ -1,15 +1,15 @@
 /** URL slugs for Datasets routes (user-facing), mapped to registry dataset keys (API). */
 
 const DATASET_SLUG_TO_KEY: Record<string, string> = {
-  believer: "believer_seed",
+  starter: "starter_seed",
 };
 
 const DATASET_KEY_TO_SLUG: Record<string, string> = {
-  believer_seed: "believer",
+  starter_seed: "starter",
 };
 
 const LEGACY_DATASET_SLUGS: Record<string, string> = {
-  believer_seed: "believer",
+  starter_seed: "starter",
 };
 
 export function datasetKeyFromSlug(slug: string): string {
@@ -34,8 +34,8 @@ export function canonicalDatasetSlug(slugOrKey: string): string {
 }
 
 export function datasetDisplayLabel(datasetKey: string, registryLabel?: string): string {
-  if (datasetKey === "believer_seed") {
-    return "Believer training set";
+  if (datasetKey === "starter_seed") {
+    return "Starter training set";
   }
   return registryLabel ?? datasetKey;
 }

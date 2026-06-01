@@ -13,17 +13,17 @@ from typing import Any
 from packages.brainspa_agents.protocol import WorkerPreview
 from packages.brainspa_training.handoff import validate_handoff
 
-from .believer import (
-    BELIEVER_ACCEPTANCE_PROMPTS,
-    BELIEVER_CONTEXTS,
-    BELIEVER_FAILURE_PRESSURES,
-    BELIEVER_SYSTEM_PROMPT,
-    BELIEVER_TOPICS,
-    audit_believer_examples,
-    believer_training_answer,
-    build_believer_preference_pairs,
+from .starter import (
+    STARTER_ACCEPTANCE_PROMPTS,
+    STARTER_CONTEXTS,
+    STARTER_FAILURE_PRESSURES,
+    STARTER_SYSTEM_PROMPT,
+    STARTER_TOPICS,
+    audit_starter_examples,
+    starter_training_answer,
+    build_starter_preference_pairs,
     clean_generated_answer,
-    eval_believer_chat,
+    eval_starter_chat,
     format_generation_prompt,
     has_fluency_artifact,
     has_repetition_artifact,
@@ -50,10 +50,10 @@ from .models import (
 from .state import BrainSpaState
 
 
-def generate_believer_dataset(request: DatasetGenerateRequest) -> DatasetGenerateResult:
+def generate_starter_dataset(request: DatasetGenerateRequest) -> DatasetGenerateResult:
     from . import datasets_workflows
 
-    return datasets_workflows.generate_believer_dataset(request)
+    return datasets_workflows.generate_starter_dataset(request)
 
 
 
@@ -135,7 +135,7 @@ def build_training_adapter(
     datasets = {item["key"]: item for item in state.load()["datasets"]}
     model = models[request.model_key]
     dataset = datasets[request.dataset_key]
-    output_dir = runtime_root() / "artifacts" / "training" / request.project_key / "believer_adapter"
+    output_dir = runtime_root() / "artifacts" / "training" / request.project_key / "starter_adapter"
     output_dir.mkdir(parents=True, exist_ok=True)
     set_phase("checking_requirements")
     if missing:
@@ -213,7 +213,7 @@ def test_training_adapter(request: AdapterTestRequest) -> AdapterTestResult:
     state = BrainSpaState()
     models = {item["key"]: item for item in state.load()["models"]}
     model = models[request.model_key]
-    adapter_dir = runtime_root() / "artifacts" / "training" / request.project_key / "believer_adapter"
+    adapter_dir = runtime_root() / "artifacts" / "training" / request.project_key / "starter_adapter"
     if not adapter_dir.exists():
         missing.append("adapter_artifact")
     if missing:
@@ -228,7 +228,7 @@ def test_training_adapter(request: AdapterTestRequest) -> AdapterTestResult:
             notes=["Build the adapter before testing model output."],
         )
 
-    answer, eval_result, generation_notes = _generate_believer_answer(
+    answer, eval_result, generation_notes = _generate_starter_answer(
         model["base_model"],
         adapter_dir,
         request.prompt,
@@ -241,7 +241,7 @@ def test_training_adapter(request: AdapterTestRequest) -> AdapterTestResult:
         answer=answer,
         eval=eval_result,
         missing_requirements=[],
-        notes=["Generated through the local SmolLM2 Believer runtime.", "Scored by the active harness.", *generation_notes],
+        notes=["Generated through the local SmolLM2 Starter runtime.", "Scored by the active harness.", *generation_notes],
     )
 
 
@@ -251,14 +251,14 @@ def run_environment_eval(request: EvalRunRequest) -> EvalRunResult:
     if request.environment_key == "coding_cli":
         result = _eval_coding_cli(request)
     else:
-        result = eval_believer_chat(request)
+        result = eval_starter_chat(request)
     path = artifact_dir / f"{request.environment_key}_latest.json"
     result.artifact_path = str(path)
     path.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return result
 
 
-def run_believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
+def run_starter_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
     available_modules = {
         name: importlib.util.find_spec(name) is not None
         for name in ("torch", "transformers", "peft")
@@ -267,13 +267,13 @@ def run_believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
     state = BrainSpaState()
     models = {item["key"]: item for item in state.load()["models"]}
     model = models[request.model_key]
-    adapter_dir = runtime_root() / "artifacts" / "training" / request.project_key / "believer_adapter"
+    adapter_dir = runtime_root() / "artifacts" / "training" / request.project_key / "starter_adapter"
     if not adapter_dir.exists():
         missing.append("adapter_artifact")
 
     artifact_dir = runtime_root() / "artifacts" / "evals"
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    artifact_path = artifact_dir / "believer_acceptance.json"
+    artifact_path = artifact_dir / "starter_acceptance.json"
     if missing:
         result = AcceptanceRunResult(
             state="blocked",
@@ -290,8 +290,8 @@ def run_believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
 
     cases: list[AcceptanceCase] = []
     flagged_count = 0
-    for prompt in BELIEVER_ACCEPTANCE_PROMPTS:
-        answer, eval_result, generation_notes = _generate_believer_answer(
+    for prompt in STARTER_ACCEPTANCE_PROMPTS:
+        answer, eval_result, generation_notes = _generate_starter_answer(
             model["base_model"],
             adapter_dir,
             prompt,
@@ -316,7 +316,7 @@ def run_believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
         missing_requirements=[],
         artifact_path=str(artifact_path),
         notes=[
-            "Ran the fixed 10-question Believer acceptance harness against the local SmolLM2 runtime.",
+            "Ran the fixed 10-question Starter acceptance harness against the local SmolLM2 runtime.",
             f"Raw adapter generations with harness warnings: {flagged_count}.",
         ],
     )
@@ -327,18 +327,18 @@ def run_believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
 def project_key_for_model(model_key: str) -> str:
     for project in BrainSpaState().load().get("projects", []):
         if project.get("active_model") == model_key:
-            return str(project.get("key") or "believer_validation")
-    return "believer_validation"
+            return str(project.get("key") or "starter_validation")
+    return "starter_validation"
 
 
 def adapter_dir_for_model(model_key: str, project_key: str | None = None) -> Path:
     resolved_project = project_key or project_key_for_model(model_key)
-    return runtime_root() / "artifacts" / "training" / resolved_project / "believer_adapter"
+    return runtime_root() / "artifacts" / "training" / resolved_project / "starter_adapter"
 
 
-def believer_runtime_reply(
+def starter_runtime_reply(
     message: str,
-    model_key: str = "persona_small",
+    model_key: str = "starter_model",
     *,
     history: list[dict[str, str]] | None = None,
     project_key: str | None = None,
@@ -356,9 +356,9 @@ def believer_runtime_reply(
             answer="",
             eval=None,
             missing_requirements=["adapter_artifact"],
-            notes=["Build the Believer adapter before serving Telegram model replies."],
+            notes=["Build the Starter adapter before serving Telegram model replies."],
         )
-    answer, eval_result, generation_notes = _generate_believer_answer(
+    answer, eval_result, generation_notes = _generate_starter_answer(
         model["base_model"],
         adapter_dir,
         message,
@@ -372,7 +372,7 @@ def believer_runtime_reply(
         answer=answer,
         eval=eval_result,
         missing_requirements=[],
-        notes=["Generated through the local SmolLM2 Believer runtime.", *generation_notes],
+        notes=["Generated through the local SmolLM2 Starter runtime.", *generation_notes],
     )
 
 
@@ -497,7 +497,7 @@ def _chipmunk_dataset_action(lowered: str) -> ChipmunkChatResult:
     preview_only = "preview" in lowered
     grounded = "ungrounded" not in lowered and not preview_only
     try:
-        result = generate_believer_dataset(
+        result = generate_starter_dataset(
             DatasetGenerateRequest(
                 example_count=4 if preview_only else 24,
                 ground_in_evidence=grounded,
@@ -556,7 +556,7 @@ def _chipmunk_worker_action(lowered: str, original: str) -> ChipmunkChatResult:
 def _chipmunk_eval_action(message: str) -> ChipmunkChatResult:
     result = run_environment_eval(
         EvalRunRequest(
-            environment_key="coding_cli" if "coding" in message.lower() else "chat_believer",
+            environment_key="coding_cli" if "coding" in message.lower() else "chat_starter",
             prompt=message,
             answer=message,
         )
@@ -776,7 +776,7 @@ def _encode_supervised_batch(tokenizer: Any, rows: list[dict[str, Any]], max_len
 
 
 def _format_chat_generation_prompt(user_prompt: str, history: list[dict[str, str]] | None = None) -> str:
-    parts = [f"system: {BELIEVER_SYSTEM_PROMPT}"]
+    parts = [f"system: {STARTER_SYSTEM_PROMPT}"]
     for turn in (history or [])[-3:]:
         parts.append(f"user: {turn['user']}")
         parts.append(f"assistant: {turn['assistant']}")
@@ -802,7 +802,7 @@ def _generate_from_adapter(
     base_model = AutoModelForCausalLM.from_pretrained(model_name, dtype=torch.float32)
     model = PeftModel.from_pretrained(base_model, adapter_dir)
     model.eval()
-    text = formatted_prompt or format_generation_prompt(BELIEVER_SYSTEM_PROMPT, prompt)
+    text = formatted_prompt or format_generation_prompt(STARTER_SYSTEM_PROMPT, prompt)
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=320)
     with torch.no_grad():
         output = model.generate(
@@ -818,7 +818,7 @@ def _generate_from_adapter(
     return generated or "(adapter produced an empty answer)"
 
 
-def _generate_believer_answer(
+def _generate_starter_answer(
     model_name: str,
     adapter_dir: Path,
     prompt: str,
@@ -832,7 +832,7 @@ def _generate_believer_answer(
         notes.append("Adapter returned an empty generation.")
     elif has_repetition_artifact(answer) or has_fluency_artifact(answer):
         notes.append("Raw generation kept as-is; harness flagged repetition or fluency artifacts.")
-    eval_result = eval_believer_chat(EvalRunRequest(environment_key="chat_believer", prompt=prompt, answer=answer))
+    eval_result = eval_starter_chat(EvalRunRequest(environment_key="chat_starter", prompt=prompt, answer=answer))
     return answer, eval_result, notes
 
 

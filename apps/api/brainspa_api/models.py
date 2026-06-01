@@ -272,11 +272,11 @@ class TelegramPollerStatus(BaseModel):
 
 
 class DatasetGenerateRequest(BaseModel):
-    project_key: str = "believer_validation"
-    goal: str = "Create a Believer dataset for SmolLM2 validation."
+    project_key: str = "starter_validation"
+    goal: str = "Create a Starter dataset for small-model validation."
     example_count: int = Field(default=24, ge=4, le=96)
     scenarios: list[str] = Field(
-        default_factory=lambda: ["counsel", "advice", "witness", "daily-word"],
+        default_factory=lambda: ["counsel", "advice", "daily-word", "review"],
     )
     scenario_weights: dict[str, int] = Field(default_factory=dict)
     mix_even: bool = True
@@ -284,7 +284,7 @@ class DatasetGenerateRequest(BaseModel):
     preview_only: bool = False
     pack: str | None = Field(
         default=None,
-        description="Quick pack: witness-heavy | import-feedback-only",
+        description="Quick pack: review-heavy | import-feedback-only",
     )
 
 
@@ -367,9 +367,9 @@ TrainingPreset = Literal["fast", "standard", "quality"]
 
 
 class TrainingDryRunRequest(BaseModel):
-    project_key: str = "believer_validation"
-    dataset_key: str = "believer_seed"
-    model_key: str = "persona_small"
+    project_key: str = "starter_validation"
+    dataset_key: str = "starter_seed"
+    model_key: str = "starter_model"
     preferred_backend: str | None = None
     training_preset: TrainingPreset = "standard"
 
@@ -399,9 +399,9 @@ class TrainingAdapterBuildResult(BaseModel):
 
 
 class EvalRunRequest(BaseModel):
-    environment_key: str = "chat_believer"
-    prompt: str = "What should I do when I feel spiritually weak?"
-    answer: str = "Pray, read Scripture, and ask for help from your church."
+    environment_key: str = "chat_starter"
+    prompt: str = "What should I do when I do not know enough yet?"
+    answer: str = "Name the missing fact, resolve it, and state the next concrete action."
     workspace_hint: str | None = None
 
 
@@ -420,9 +420,9 @@ class EvalRunResult(BaseModel):
 
 
 class AdapterTestRequest(BaseModel):
-    project_key: str = "believer_validation"
-    model_key: str = "persona_small"
-    prompt: str = "What should I do when I feel spiritually weak?"
+    project_key: str = "starter_validation"
+    model_key: str = "starter_model"
+    prompt: str = "What should I do when I do not know enough yet?"
 
 
 class AdapterTestResult(BaseModel):
@@ -673,7 +673,7 @@ class ChipmunkHermesUpdate(BaseModel):
 
 
 class ChipmunkSettings(BaseModel):
-    default_model_key: str = "persona_small"
+    default_model_key: str = "starter_model"
     default_telegram_bot_name: str | None = None
     voice_model: str = "grok-voice-think-fast-1.0"
     xai_configured: bool = False

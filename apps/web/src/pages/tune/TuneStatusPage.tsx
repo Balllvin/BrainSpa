@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
-import { fetchTuneModelStatus, runBelieverAcceptance } from "@/lib/backend";
+import { fetchTuneModelStatus, runStarterAcceptance } from "@/lib/backend";
 import { datasetDisplayLabel } from "@/lib/datasetsRoutes";
 import { testModelPath } from "@/lib/testRoutes";
 import { canonicalModelSlug, modelKeyFromSlug, tuneBuildPath, tuneModelPath } from "@/lib/tuneRoutes";
@@ -41,7 +41,7 @@ export function TuneStatusPage() {
   async function handleAcceptance() {
     setBusy(true);
     setError(null);
-    const response = await runBelieverAcceptance(modelKey);
+    const response = await runStarterAcceptance(modelKey);
     setBusy(false);
     if (!response.ok || !response.data) {
       setError(response.error ?? "Acceptance check failed.");
@@ -58,7 +58,7 @@ export function TuneStatusPage() {
     acceptance?.passed ??
     (acceptanceSummary?.passed != null ? acceptanceSummary.passed : null);
 
-  const datasetSlug = status?.dataset_key === "believer_seed" ? "believer" : status?.dataset_key ?? "believer";
+  const datasetSlug = status?.dataset_key === "starter_seed" ? "starter" : status?.dataset_key ?? "starter";
   const buildDatasetLabel = status?.build_dataset_key
     ? datasetDisplayLabel(status.build_dataset_key)
     : "—";

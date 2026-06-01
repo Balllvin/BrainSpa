@@ -12,11 +12,12 @@ if (args.length === 0) {
 const requested = [process.env.PYTHON_BIN, process.env.PYTHON].filter(Boolean);
 const candidates = [
   ...requested,
+  'python',
+  'python3',
   'python3.14',
   'python3.13',
   'python3.12',
   'python3.11',
-  'python3',
 ];
 
 function parseVersion(output) {
