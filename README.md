@@ -51,7 +51,7 @@ brain-spa/
   .cursor/agents/     Optional Cursor review subagents
 ```
 
-Runtime data lives outside the repo under `~/.brain-spa` (or `BRAIN_SPA_HOME`).
+Runtime data lives outside the repo under `~/.brain-spa` (or `BRAIN_SPA_HOME`). The GitHub repo is the reusable app shell only; generated evidence, datasets, adapters, evals, transcripts, local model configs, and secrets must stay outside git. See [docs/public-shell-boundary.md](docs/public-shell-boundary.md).
 
 ## Four-stage loop
 
