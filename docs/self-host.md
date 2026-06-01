@@ -76,7 +76,7 @@ curl -s http://127.0.0.1:8000/api/health
 - Telegram bot tokens: Settings UI → `~/.brain-spa/secrets/telegram-bots.json` (mode `600`)
 - xAI key: Settings → Chipmunk or `~/.brain-spa/secrets/xai-api-key`
 
-Never commit secrets or `BRAIN_SPA_HOME` contents.
+Never commit secrets or `BRAIN_SPA_HOME` contents. The public GitHub repo is only the reusable Brain Spa shell; keep generated evidence, datasets, adapters, eval outputs, transcripts, and local model configuration outside git. See [docs/public-shell-boundary.md](public-shell-boundary.md).
 
 ## Four-stage loop (user routes)
 

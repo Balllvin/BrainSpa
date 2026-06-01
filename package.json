@@ -13,8 +13,9 @@
     "api": "node scripts/run-python.mjs -m apps.api.brainspa_api",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "check:public-shell": "node scripts/check-public-shell.mjs",
     "test:api": "BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 node scripts/run-python.mjs -m pytest apps/api/tests -q",
-    "verify": "npm run build && npm run test:api"
+    "verify": "npm run check:public-shell && npm run build && npm run test:api"
   },
   "dependencies": {
     "react": "^19.0.0",
