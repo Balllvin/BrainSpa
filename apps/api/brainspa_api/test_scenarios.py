@@ -57,7 +57,7 @@ SNAKE_SCENARIOS = [
         key="autonomous-train",
         label="AUTONOMOUS TRAIN",
         mode="interactive_train",
-        hint="Run the RL loop at max speed and log every reward component.",
+        hint="Run simulation: parallel boards train one shared policy in real time.",
     ),
     TestScenarioPublic(
         key="autonomous-watch",

@@ -4246,3 +4246,53 @@ select:focus {
 .snake-coach-card {
   border-color: var(--accent);
 }
+
+.snake-lab-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.snake-lab-grid {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.snake-lab-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.snake-lab-grid--4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.snake-lab-grid--5 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.snake-lab-grid--6 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.snake-lab-panel {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 8px;
+}
+
+.snake-lab-panel-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.snake-lab-panel .snake-stage {
+  align-items: center;
+}

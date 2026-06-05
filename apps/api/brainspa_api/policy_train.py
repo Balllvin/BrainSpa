@@ -46,11 +46,25 @@ def start_policy_train(
     env_profiles: list[str] | None = None,
     policy_backend: str = "dqn",
 ) -> dict[str, Any]:
+    from .snake_train_lab import read_snake_lab
+
     project_key = SNAKE_PROJECT_KEY
     with _TRAIN_LOCK:
         existing = read_policy_train_job()
         if existing and existing.get("state") == "running":
             return existing
+        if read_snake_lab().get("running"):
+            return {
+                "state": "failed",
+                "phase": "blocked",
+                "error": "Simulation lab is running. Stop the lab before headless training.",
+                "model_key": SNAKE_MODEL_KEY,
+                "dataset_key": SNAKE_DATASET_KEY,
+                "episodes_target": episodes,
+                "episode": 0,
+                "epsilon": 0.0,
+                "mean_reward": 0.0,
+            }
 
         _STOP_FLAGS[project_key] = False
         _write_job(

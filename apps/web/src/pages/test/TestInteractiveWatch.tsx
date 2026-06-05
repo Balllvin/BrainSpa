@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { closeSnakeSession, createSnakeSession, stepSnakeSession, type SnakeSession } from "@/lib/snakeBackend";
+import {
+  closeSnakeSession,
+  createSnakeSession,
+  SNAKE_WATCH_TICKS_PER_SEC,
+  stepSnakeSession,
+  type SnakeSession,
+} from "@/lib/snakeBackend";
 import { testModelPath } from "@/lib/testRoutes";
 
 import { TestShell } from "./TestShell";
@@ -14,7 +20,7 @@ export function TestInteractiveWatch({
   scenarioKey: string;
 }) {
   const [session, setSession] = useState<SnakeSession | null>(null);
-  const [speed, setSpeed] = useState(10);
+  const [speed, setSpeed] = useState(SNAKE_WATCH_TICKS_PER_SEC);
   const sessionRef = useRef<string | null>(null);
 
   const tick = useCallback(async () => {

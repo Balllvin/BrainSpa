@@ -70,9 +70,25 @@ class SnakeDQNAgent:
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=lr)
         self._torch = torch
         self._nn = nn
+        self.input_dim = input_dim
+
+    def _align_state(self, state: list[float]) -> list[float]:
+        if len(state) < self.input_dim:
+            return state + [0.0] * (self.input_dim - len(state))
+        if len(state) > self.input_dim:
+            return state[: self.input_dim]
+        return state
 
     def remember(self, state: list[float], action: int, reward: float, next_state: list[float], done: bool) -> None:
-        self.memory.append((state, action, reward, next_state, done))
+        self.memory.append(
+            (
+                self._align_state(state),
+                action,
+                reward,
+                self._align_state(next_state),
+                done,
+            )
+        )
 
     def act(self, state: list[float], epsilon: float) -> int:
         if random.random() < epsilon:
@@ -80,7 +96,7 @@ class SnakeDQNAgent:
         torch = self._torch
         self.policy.eval()
         with torch.no_grad():
-            tensor = torch.tensor([state], dtype=torch.float32, device=self.device)
+            tensor = torch.tensor([self._align_state(state)], dtype=torch.float32, device=self.device)
             q = self.policy(tensor)
             return int(q.argmax(dim=1).item())
 

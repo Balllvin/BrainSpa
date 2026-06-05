@@ -740,6 +740,15 @@ class SnakeStepRequest(BaseModel):
     actor: Literal["player", "opponent", "auto"] = "auto"
 
 
+SnakeLabPace = Literal["human", "watch", "train"]
+
+
+class SnakeLabStartRequest(BaseModel):
+    slots: int = Field(default=6, ge=1, le=6)
+    episodes: int = Field(default=200, ge=10, le=10_000)
+    pace: SnakeLabPace = "train"
+
+
 PolicyBackend = Literal["dqn", "sb3"]
 
 

@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   closeSnakeSession,
   createSnakeSession,
+  SNAKE_HUMAN_TICKS_PER_SEC,
+  SNAKE_WATCH_TICKS_PER_SEC,
   stepSnakeSession,
   type SnakeSession,
 } from "@/lib/snakeBackend";
@@ -31,7 +33,7 @@ export function TestInteractiveArena({
 }) {
   const dualAi = scenarioKey === "dual-arena";
   const [session, setSession] = useState<SnakeSession | null>(null);
-  const [speed, setSpeed] = useState(dualAi ? 12 : 8);
+  const [speed, setSpeed] = useState(dualAi ? SNAKE_WATCH_TICKS_PER_SEC : SNAKE_HUMAN_TICKS_PER_SEC);
   const sessionRef = useRef<string | null>(null);
 
   const tick = useCallback(async () => {

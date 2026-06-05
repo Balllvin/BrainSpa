@@ -34,7 +34,7 @@ export type SnakeSession = {
 
 export type PolicyTrainJob = {
   state: string;
-  phase: string;
+  phase?: string;
   episode: number;
   episodes_target: number;
   epsilon: number;
@@ -67,6 +67,37 @@ export type ArchivedSnakeSession = {
   steps: number;
   outcome: string | null;
 };
+
+export type SnakeLabPace = "human" | "watch" | "train";
+
+export type SnakeLabSlot = {
+  index: number;
+  profile: string;
+  world_state: SnakeWorldState;
+  episode_reward: number;
+  last_outcome: string | null;
+};
+
+export type SnakeLabFrame = {
+  running: boolean;
+  pace: SnakeLabPace;
+  slots: SnakeLabSlot[];
+  slot_count: number;
+  episode: number;
+  episodes_target: number;
+  epsilon: number;
+  mean_reward: number;
+  mean_length: number;
+  mean_apples: number;
+  curriculum_stage: string;
+  checkpoint_ready: boolean;
+};
+
+/** Human play / vs-AI: comfortable reaction time (~8 ticks/s). */
+export const SNAKE_HUMAN_TICKS_PER_SEC = 8;
+
+/** Policy watch: faster than human, still readable. */
+export const SNAKE_WATCH_TICKS_PER_SEC = 14;
 
 export type CoachDiff = {
   found: boolean;
@@ -205,4 +236,36 @@ export async function fetchCoachStep(sessionId: string, step: number) {
 
 export function policyTrainStreamUrl() {
   return backendUrl("/api/policy/snake/train-stream");
+}
+
+export async function startSnakeLab(
+  slots = 6,
+  episodes = 200,
+  pace: SnakeLabPace = "train",
+) {
+  return postJson<{ ok: boolean; lab: SnakeLabFrame; message?: string }>("/api/env/snake/lab/start", {
+    slots,
+    episodes,
+    pace,
+  });
+}
+
+export async function stopSnakeLab() {
+  return postJson<{ ok: boolean; lab: SnakeLabFrame }>("/api/env/snake/lab/stop", {});
+}
+
+export async function fetchSnakeLab() {
+  try {
+    const response = await fetch(backendUrl("/api/env/snake/lab"), { cache: "no-store" });
+    if (!response.ok) {
+      return { ok: false, lab: null as SnakeLabFrame | null, error: `Status ${response.status}` };
+    }
+    return { ok: true, lab: (await response.json()) as SnakeLabFrame, error: null };
+  } catch {
+    return { ok: false, lab: null, error: "Backend offline" };
+  }
+}
+
+export function snakeLabStreamUrl() {
+  return backendUrl("/api/env/snake/lab/stream");
 }

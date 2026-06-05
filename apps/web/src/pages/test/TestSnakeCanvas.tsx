@@ -5,11 +5,21 @@ type Props = {
   highlight?: [number, number] | null;
   suggestedDirection?: string | null;
   opponentDirection?: string | null;
+  cellSize?: number;
+  compact?: boolean;
 };
 
-const CELL = 28;
+const DEFAULT_CELL = 28;
 
-export function TestSnakeCanvas({ world, highlight, suggestedDirection, opponentDirection }: Props) {
+export function TestSnakeCanvas({
+  world,
+  highlight,
+  suggestedDirection,
+  opponentDirection,
+  cellSize,
+  compact = false,
+}: Props) {
+  const CELL = cellSize ?? (compact ? 16 : DEFAULT_CELL);
   const gridSize = world.grid_size;
   const size = gridSize * CELL;
   const isArena = "mode" in world && world.mode === "arena" && world.player && world.opponent;
@@ -71,7 +81,7 @@ export function TestSnakeCanvas({ world, highlight, suggestedDirection, opponent
       {opponentDirection ? (
         <p className="snake-coach-hint snake-coach-hint--ai">AI: {opponentDirection.toUpperCase()}</p>
       ) : null}
-      {!isArena ? <SoloStats world={world} /> : <ArenaStats world={world} />}
+      {!compact && (!isArena ? <SoloStats world={world} /> : <ArenaStats world={world} />)}
     </div>
   );
 }

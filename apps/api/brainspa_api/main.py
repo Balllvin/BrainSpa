@@ -62,6 +62,7 @@ from .models import (
     TuneStatusResponse,
     SnakeSessionCreate,
     SnakeStepRequest,
+    SnakeLabStartRequest,
     PolicyTrainRequest,
     PolicyTrainJob,
     PolicyEvalRequest,
@@ -150,7 +151,9 @@ from .snake_api import (
     step_session,
 )
 from .snake_session_store import list_archived_sessions
+from .snake_train_lab import read_snake_lab, start_snake_lab, stop_snake_lab, tick_snake_lab
 from .policy_train import read_policy_train_job, request_stop_training, start_policy_train
+from packages.brainspa_training.snake_lab import get_snake_train_lab
 from .policy_eval import run_policy_eval
 from .policy_datasets import read_snake_dataset_summary, list_transitions, SNAKE_DATASET_KEY
 
@@ -564,6 +567,41 @@ def create_app() -> FastAPI:
     @app.get("/api/env/snake/sessions/archived")
     def snake_archived_sessions() -> list[dict]:
         return list_archived_sessions()
+
+    @app.post("/api/env/snake/lab/start")
+    def snake_lab_start(body: SnakeLabStartRequest) -> dict:
+        return start_snake_lab(slots=body.slots, episodes=body.episodes, pace=body.pace)
+
+    @app.post("/api/env/snake/lab/stop")
+    def snake_lab_stop() -> dict:
+        return stop_snake_lab()
+
+    @app.get("/api/env/snake/lab")
+    def snake_lab_status() -> dict:
+        return read_snake_lab()
+
+    @app.post("/api/env/snake/lab/tick")
+    def snake_lab_tick() -> dict:
+        return tick_snake_lab()
+
+    @app.get("/api/env/snake/lab/stream")
+    def snake_lab_stream():
+        import asyncio
+
+        lab = get_snake_train_lab()
+
+        async def event_stream():
+            while lab.running:
+                frame = lab.tick()
+                payload = json.dumps({"type": "frame", "lab": frame})
+                yield f"data: {payload}\n\n"
+                if not lab.running:
+                    break
+                await asyncio.sleep(lab.stream_interval_sec())
+            done = lab.snapshot()
+            yield f"data: {json.dumps({'type': 'done', 'lab': done})}\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
 
     @app.get("/api/env/snake/coach/{session_id}")
     def snake_coach(session_id: str, step: int | None = None) -> dict:
