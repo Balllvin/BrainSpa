@@ -3,11 +3,13 @@
 const MODEL_SLUG_TO_KEY: Record<string, string> = {
   believer: "persona_small",
   "coding-worker": "coding_small",
+  snake: "snake_policy",
 };
 
 const MODEL_KEY_TO_SLUG: Record<string, string> = {
   persona_small: "believer",
   coding_small: "coding-worker",
+  snake_policy: "snake",
 };
 
 const LEGACY_MODEL_SLUGS: Record<string, string> = {

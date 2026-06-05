@@ -40,19 +40,28 @@ export function DatasetsHomePage() {
           {active.map((dataset) => {
             const slug = datasetSlugFromKey(dataset.key);
             const label = datasetDisplayLabel(dataset.key, dataset.label);
-            const summary =
-              dataset.row_count > 0
+            const isPolicy = dataset.key === "snake_rollout";
+            const summary = isPolicy
+              ? dataset.row_count > 0
+                ? `${dataset.row_count} transitions · ${dataset.state}`
+                : `No rollouts yet · ${dataset.state}`
+              : dataset.row_count > 0
                 ? `${dataset.row_count} rows · ${dataset.state}${dataset.warnings.length ? ` · ${dataset.warnings.length} warning(s)` : ""}`
                 : `No rows yet · ${dataset.state}`;
+            const mainPath = isPolicy ? "/datasets/snake/rollout" : datasetRowsPath(slug);
             return (
               <article key={dataset.key} className="datasets-picker-card">
-                <Link className="datasets-picker-card-main" to={datasetRowsPath(slug)}>
+                <Link className="datasets-picker-card-main" to={mainPath}>
                   <strong>{label}</strong>
                   <span className="datasets-picker-meta">{summary}</span>
                 </Link>
                 <div className="datasets-picker-actions">
-                  <Link to={datasetGeneratePath(slug)}>Generate</Link>
-                  <Link to={datasetRowsPath(slug)}>Review rows</Link>
+                  {isPolicy ? (
+                    <Link to="/test/snake/autonomous-train">Autonomous train</Link>
+                  ) : (
+                    <Link to={datasetGeneratePath(slug)}>Generate</Link>
+                  )}
+                  <Link to={mainPath}>{isPolicy ? "View rollouts" : "Review rows"}</Link>
                 </div>
               </article>
             );

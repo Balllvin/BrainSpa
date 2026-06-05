@@ -83,7 +83,7 @@ def test_overview_seeds_core_state(monkeypatch, tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["product_name"] == "Brain Spa"
-    assert {model["key"] for model in payload["models"]} == {"persona_small", "coding_small"}
+    assert {model["key"] for model in payload["models"]} == {"persona_small", "coding_small", "snake_policy"}
     assert {agent["key"] for agent in payload["agents"]} == {"chipmunk"}
     assert {harness["key"] for harness in payload["harnesses"]} == {"evidence", "datasets", "tune", "test"}
     assert "coding_cli" in {environment["key"] for environment in payload["environments"]}

@@ -16,6 +16,7 @@ import type { TuneModelStatus } from "@/lib/types";
 import { adapterStatusLabel } from "./tuneDisplay";
 import { TuneShell } from "./TuneShell";
 import { TuneStaleBanner } from "./TuneStaleBanner";
+import { TunePolicyPage } from "./TunePolicyPage";
 
 type HubCard = {
   key: string;
@@ -72,6 +73,10 @@ export function TuneModelPage() {
 
   if (modelSlug !== canonicalSlug) {
     return <Navigate replace to={tuneModelPath(canonicalSlug)} />;
+  }
+
+  if (canonicalSlug === "snake") {
+    return <TunePolicyPage modelSlug={canonicalSlug} />;
   }
 
   const datasetSlug = status?.dataset_key === "believer_seed" ? "believer" : status?.dataset_key ?? "believer";

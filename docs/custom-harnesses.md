@@ -15,6 +15,8 @@ Each stage harness defines:
 
 This follows the harness document's model-driven rule: keep the harness simple, make tool descriptions and artifacts explicit, log decisions, and let the operator sequence the work instead of hardcoding a brittle pipeline.
 
+For interactive game environments and non-LLM policy training, see [environment-harness-spec.md](./environment-harness-spec.md) and [ml-model-types.md](./ml-model-types.md). Snake 10×10 is the reference policy implementation.
+
 ## Stage Defaults
 
 | Stage | Owner | Default backend | Job |

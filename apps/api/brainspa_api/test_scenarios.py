@@ -52,9 +52,49 @@ CODING_SCENARIOS = [
     ),
 ]
 
+SNAKE_SCENARIOS = [
+    TestScenarioPublic(
+        key="autonomous-train",
+        label="AUTONOMOUS TRAIN",
+        mode="interactive_train",
+        hint="Run the RL loop at max speed and log every reward component.",
+    ),
+    TestScenarioPublic(
+        key="autonomous-watch",
+        label="AUTONOMOUS WATCH",
+        mode="interactive_watch",
+        hint="Watch the trained policy play at human speed.",
+    ),
+    TestScenarioPublic(
+        key="human-play",
+        label="HUMAN PLAY",
+        mode="interactive_play",
+        hint="Play on the keyboard; sessions log to datasets.",
+    ),
+    TestScenarioPublic(
+        key="coach-replay",
+        label="COACH REPLAY",
+        mode="interactive_coach",
+        hint="See where your moves diverged from the policy.",
+    ),
+    TestScenarioPublic(
+        key="human-vs-ai",
+        label="HUMAN VS AI",
+        mode="interactive_arena",
+        hint="You versus the policy on one board.",
+    ),
+    TestScenarioPublic(
+        key="dual-arena",
+        label="DUAL ARENA",
+        mode="interactive_arena",
+        hint="Two snakes, one policy checkpoint.",
+    ),
+]
+
 SCENARIOS_BY_MODEL: dict[str, list[TestScenarioPublic]] = {
     "persona_small": PERSONA_SCENARIOS,
     "coding_small": CODING_SCENARIOS,
+    "snake_policy": SNAKE_SCENARIOS,
 }
 
 

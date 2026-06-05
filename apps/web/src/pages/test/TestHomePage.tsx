@@ -36,7 +36,9 @@ export function TestHomePage() {
           {testable.map((model) => (
             <Link key={model.key} className="test-picker-card" to={testModelPath(model.key)}>
               <strong>{modelDisplayName(model.key, model.label)}</strong>
-              <span className="test-picker-meta test-picker-meta--muted">{model.base_model}</span>
+              <span className="test-picker-meta test-picker-meta--muted">
+                {model.model_kind === "policy" ? model.policy_arch ?? "policy" : model.base_model}
+              </span>
             </Link>
           ))}
         </div>

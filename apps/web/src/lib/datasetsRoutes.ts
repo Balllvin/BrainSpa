@@ -2,10 +2,12 @@
 
 const DATASET_SLUG_TO_KEY: Record<string, string> = {
   believer: "believer_seed",
+  snake: "snake_rollout",
 };
 
 const DATASET_KEY_TO_SLUG: Record<string, string> = {
   believer_seed: "believer",
+  snake_rollout: "snake",
 };
 
 const LEGACY_DATASET_SLUGS: Record<string, string> = {
@@ -36,6 +38,9 @@ export function canonicalDatasetSlug(slugOrKey: string): string {
 export function datasetDisplayLabel(datasetKey: string, registryLabel?: string): string {
   if (datasetKey === "believer_seed") {
     return "Believer training set";
+  }
+  if (datasetKey === "snake_rollout") {
+    return "Snake rollout";
   }
   return registryLabel ?? datasetKey;
 }

@@ -44,16 +44,23 @@ class HarnessProfile(BaseModel):
     template_artifacts: list[str]
 
 
+ModelKind = Literal["causal_lm", "policy"]
+
+
 class ModelProfile(BaseModel):
     key: str
     label: str
-    base_model: str
+    base_model: str = ""
     role: str
     state: ModelState
     parameter_count: str
     hardware_fit: str
     strengths: list[str]
     known_failures: list[str] = Field(default_factory=list)
+    model_kind: ModelKind = "causal_lm"
+    policy_arch: str | None = None
+    input_dim: int | None = None
+    output_dim: int | None = None
 
 
 class DatasetProfile(BaseModel):
@@ -463,14 +470,20 @@ class TuneAcceptanceSummary(BaseModel):
     artifact_path: str | None = None
 
 
+PolicyState = Literal["missing", "training", "ready", "stale", "blocked"]
+
+
 class TuneModelStatus(BaseModel):
     model_key: str
     slug: str
     label: str
     display_name: str
     project_key: str
+    model_kind: ModelKind = "causal_lm"
     adapter_path: str
     adapter_state: Literal["missing", "ready", "blocked", "stale"]
+    policy_path: str | None = None
+    policy_state: PolicyState | None = None
     dataset_key: str | None = None
     dataset_row_count: int = 0
     build_dataset_key: str | None = None
@@ -713,3 +726,66 @@ class Overview(BaseModel):
     datasets: list[DatasetProfile]
     environments: list[EnvironmentProfile]
     telegram_bots: list[TelegramBotPublic]
+
+
+class SnakeSessionCreate(BaseModel):
+    scenario_key: str = "autonomous-watch"
+    mode: str = "interactive_watch"
+    seed: int | None = None
+
+
+class SnakeStepRequest(BaseModel):
+    session_id: str
+    action: str | int | None = None
+
+
+class PolicyTrainRequest(BaseModel):
+    model_key: str = "snake_policy"
+    episodes: int = 100
+    env_profiles: list[str] = Field(default_factory=lambda: ["solo", "wrapped_v2"])
+
+
+class PolicyTrainJob(BaseModel):
+    state: Literal["idle", "running", "complete", "failed"]
+    phase: str = "idle"
+    model_key: str = "snake_policy"
+    dataset_key: str = "snake_rollout"
+    episodes_target: int = 100
+    episode: int = 0
+    epsilon: float = 1.0
+    mean_reward: float = 0.0
+    mean_length: float | None = None
+    mean_apples: float | None = None
+    curriculum_stage: str | None = None
+    last_outcome: str | None = None
+    error: str | None = None
+
+
+class PolicyEvalRequest(BaseModel):
+    model_key: str = "snake_policy"
+    episodes: int = 100
+    scenario_key: str = "autonomous-watch"
+
+
+class PolicyEvalResult(BaseModel):
+    episodes: int
+    mean_length: float
+    mean_apples: float
+    mean_coverage: float
+    full_board_count: int
+    full_board_rate: float
+    consecutive_full_board_max: int
+    death_breakdown: dict[str, int]
+    oracle_agreement_rate: float
+    passed: bool
+    north_star: str
+    artifact_path: str
+
+
+class SnakeDatasetSummary(BaseModel):
+    dataset_key: str
+    trajectory_count: int
+    transition_count: int
+    manifest_path: str
+    trajectories_path: str
+    transitions_path: str

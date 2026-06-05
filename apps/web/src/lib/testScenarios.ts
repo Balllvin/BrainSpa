@@ -1,4 +1,11 @@
-export type TestScenarioMode = "chat" | "generate";
+export type TestScenarioMode =
+  | "chat"
+  | "generate"
+  | "interactive_train"
+  | "interactive_watch"
+  | "interactive_play"
+  | "interactive_coach"
+  | "interactive_arena";
 
 export interface TestScenario {
   key: string;
@@ -40,6 +47,36 @@ export const FALLBACK_SCENARIOS: Record<string, TestScenario[]> = {
       hint: "Answer a challenge to faith.",
     },
   ],
+  snake_policy: [
+    {
+      key: "autonomous-train",
+      label: "AUTONOMOUS TRAIN",
+      mode: "interactive_train",
+      placeholder: "",
+      hint: "Run RL at max speed.",
+    },
+    {
+      key: "autonomous-watch",
+      label: "AUTONOMOUS WATCH",
+      mode: "interactive_watch",
+      placeholder: "",
+      hint: "Watch the policy play.",
+    },
+    {
+      key: "human-play",
+      label: "HUMAN PLAY",
+      mode: "interactive_play",
+      placeholder: "",
+      hint: "Arrow keys to play.",
+    },
+    {
+      key: "coach-replay",
+      label: "COACH REPLAY",
+      mode: "interactive_coach",
+      placeholder: "",
+      hint: "Compare to policy moves.",
+    },
+  ],
   coding_small: [
     {
       key: "cli-task",
@@ -61,6 +98,7 @@ export { testModelPath as modelPath, testScenarioPath as scenarioPath } from "@/
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
   persona_small: "Believer",
   coding_small: "Coding Worker",
+  snake_policy: "Snake Policy",
 };
 
 export function modelDisplayName(modelKey: string, apiLabel?: string | null): string {

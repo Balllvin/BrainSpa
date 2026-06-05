@@ -65,6 +65,8 @@ Runtime data lives outside the repo under `~/.brain-spa` (or `BRAIN_SPA_HOME`).
 
 Handoffs are **files + API state** under `~/.brain-spa/artifacts/`. See [docs/loop-pipeline-and-feedback.md](docs/loop-pipeline-and-feedback.md).
 
+Brain Spa trains **LLM adapters and non-LLM policies** (e.g. Snake DQN on a 10×10 grid). See [docs/ml-model-types.md](docs/ml-model-types.md) and [docs/environment-harness-spec.md](docs/environment-harness-spec.md).
+
 ## Local API
 
 Default: `http://127.0.0.1:8000`
@@ -81,6 +83,9 @@ Default: `http://127.0.0.1:8000`
 | `POST /api/training/dry-run` | Training readiness |
 | `POST /api/training/build-adapter` | LoRA build |
 | `GET /api/harness/scenarios/{model_key}` | Test environments |
+| `POST /api/policy/train` | Start Snake RL training job |
+| `POST /api/policy/snake/eval` | Run 100-episode policy eval |
+| `POST /api/env/snake/session` | Interactive Snake session |
 
 ## Optional integrations
 

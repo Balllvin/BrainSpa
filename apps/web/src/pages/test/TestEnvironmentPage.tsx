@@ -8,6 +8,10 @@ import type { TestScenarioMode } from "@/lib/testScenarios";
 
 import { TestChatEnvironment } from "./TestChatEnvironment";
 import { TestGenerateEnvironment } from "./TestGenerateEnvironment";
+import { TestInteractiveTrain } from "./TestInteractiveTrain";
+import { TestInteractiveWatch } from "./TestInteractiveWatch";
+import { TestInteractivePlay } from "./TestInteractivePlay";
+import { TestInteractiveCoach } from "./TestInteractiveCoach";
 
 export function TestEnvironmentPage() {
   const { modelSlug = "", scenarioKey = "" } = useParams();
@@ -37,6 +41,22 @@ export function TestEnvironmentPage() {
 
   if (mode === "generate") {
     return <TestGenerateEnvironment modelKey={modelKey} scenarioKey={scenarioKey} />;
+  }
+
+  if (mode === "interactive_train") {
+    return <TestInteractiveTrain modelKey={modelKey} />;
+  }
+
+  if (mode === "interactive_watch") {
+    return <TestInteractiveWatch modelKey={modelKey} scenarioKey={scenarioKey} />;
+  }
+
+  if (mode === "interactive_play" || mode === "interactive_arena") {
+    return <TestInteractivePlay modelKey={modelKey} scenarioKey={scenarioKey} />;
+  }
+
+  if (mode === "interactive_coach") {
+    return <TestInteractiveCoach modelKey={modelKey} />;
   }
 
   return <TestChatEnvironment modelKey={modelKey} scenarioKey={scenarioKey} />;

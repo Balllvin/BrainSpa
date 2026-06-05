@@ -172,6 +172,21 @@ def seed_state() -> dict[str, Any]:
                 "strengths": ["Code-specialized", "Small", "Strong candidate for worker datasets"],
                 "known_failures": ["Less suitable as the default persona model"],
             },
+            {
+                "key": "snake_policy",
+                "label": "Snake Policy",
+                "base_model": "",
+                "role": "Autonomous grid-world policy trained from environment rollouts",
+                "state": "candidate",
+                "parameter_count": "DQN MLP",
+                "hardware_fit": "CPU-friendly; trains in background while API runs.",
+                "strengths": ["Rich reward logging", "Multi-environment reuse", "No LLM required"],
+                "known_failures": ["Full-board mastery on 10x10 is hard; needs curriculum"],
+                "model_kind": "policy",
+                "policy_arch": "snake_dqn_v1",
+                "input_dim": 11,
+                "output_dim": 4,
+            },
         ],
         "datasets": [
             {
@@ -181,7 +196,15 @@ def seed_state() -> dict[str, Any]:
                 "state": "draft",
                 "quality_notes": ["Needs source material", "Needs split-safe eval set", "Needs failure labels"],
                 "warnings": ["Not ready for training"],
-            }
+            },
+            {
+                "key": "snake_rollout",
+                "label": "Snake rollout",
+                "goal": "Autonomous RL trajectories and transitions from Snake environments.",
+                "state": "draft",
+                "quality_notes": ["Fed by training, not Evidence"],
+                "warnings": ["No transitions until autonomous train runs"],
+            },
         ],
         "projects": [
             {
@@ -199,6 +222,14 @@ def seed_state() -> dict[str, Any]:
                 "active_model": "coding_small",
                 "active_dataset": None,
                 "environment": "coding_cli",
+            },
+            {
+                "key": "snake_rl_validation",
+                "label": "Snake RL Validation",
+                "goal": "Train and evaluate a DQN policy on 10x10 Snake with autonomous rollouts.",
+                "active_model": "snake_policy",
+                "active_dataset": "snake_rollout",
+                "environment": "snake_10x10",
             },
         ],
         "sources": [
@@ -245,6 +276,18 @@ def seed_state() -> dict[str, Any]:
                 "harness": "Repository workspace with shell, file operations, tests, and strict allowed-action boundaries",
                 "scoring": ["Patch correctness", "Test evidence", "Command safety", "Failure explanation"],
             },
+            {
+                "key": "snake_10x10",
+                "label": "Snake 10x10",
+                "goal": "Autonomous RL on a 10x10 grid with decomposed rewards and policy checkpoints.",
+                "harness": "Interactive game with train, watch, play, coach, and arena scenarios",
+                "scoring": [
+                    "Mean apples per episode",
+                    "Mean length",
+                    "Full-board rate",
+                    "10 consecutive full-board wins",
+                ],
+            },
         ],
     }
 
@@ -280,6 +323,13 @@ class BrainSpaState:
             if seed_item and "feeds_models" not in item:
                 item["feeds_models"] = list(seed_item.get("feeds_models", []))
                 changed = True
+        for collection in ("models", "datasets", "projects"):
+            seed_items = {item["key"]: item for item in seed.get(collection, [])}
+            existing_keys = {item["key"] for item in payload.get(collection, [])}
+            for key, item in seed_items.items():
+                if key not in existing_keys:
+                    payload.setdefault(collection, []).append(item)
+                    changed = True
         for key, value in seed.items():
             if key not in payload:
                 payload[key] = value

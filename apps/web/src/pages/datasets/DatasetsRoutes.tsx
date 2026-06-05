@@ -5,6 +5,7 @@ import { canonicalDatasetSlug, datasetRowsPath, datasetsHomePath } from "@/lib/d
 import { DatasetsGeneratePage } from "./DatasetsGeneratePage";
 import { DatasetsHomePage } from "./DatasetsHomePage";
 import { DatasetsRowsPage } from "./DatasetsRowsPage";
+import { DatasetsSnakePage } from "./DatasetsSnakePage";
 
 export function DatasetsRoutes() {
   return (
@@ -12,6 +13,7 @@ export function DatasetsRoutes() {
       <Route index element={<DatasetsHomePage />} />
       <Route path=":datasetSlug/generate" element={<DatasetsGeneratePage />} />
       <Route path=":datasetSlug/rows" element={<DatasetsRowsPage />} />
+      <Route path="snake/rollout" element={<DatasetsSnakePage />} />
       <Route path=":datasetSlug" element={<DatasetSlugRedirect />} />
       <Route path="*" element={<Navigate replace to={datasetsHomePath()} />} />
     </Routes>

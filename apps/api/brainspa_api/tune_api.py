@@ -41,11 +41,13 @@ AdapterState = Literal["missing", "ready", "blocked", "stale"]
 _DISPLAY_NAMES: dict[str, str] = {
     "persona_small": "Believer",
     "coding_small": "Coding Worker",
+    "snake_policy": "Snake Policy",
 }
 
 _SLUGS: dict[str, str] = {
     "persona_small": "believer",
     "coding_small": "coding-worker",
+    "snake_policy": "snake",
 }
 
 
@@ -109,6 +111,47 @@ def _default_dataset_key(model_key: str, projects: list[dict[str, Any]], dataset
     return next(iter(datasets), "believer_seed")
 
 
+def _policy_status(model_key: str, model: dict[str, Any], datasets: dict[str, Any]) -> TuneModelStatus:
+    from .policy_paths import snake_checkpoint_path, snake_train_job_path
+    from .policy_paths import snake_acceptance_path
+
+    project_key = "snake_rl_validation"
+    dataset_key = "snake_rollout"
+    dataset = datasets.get(dataset_key, {})
+    job = _read_json(snake_train_job_path())
+    checkpoint = snake_checkpoint_path()
+    policy_state: Literal["missing", "training", "ready", "stale", "blocked"] = "missing"
+    if job and job.get("state") == "running":
+        policy_state = "training"
+    elif checkpoint.exists():
+        policy_state = "ready"
+    acceptance_payload = _read_json(snake_acceptance_path())
+    acceptance = None
+    if acceptance_payload:
+        acceptance = TuneAcceptanceSummary(
+            state="complete",
+            passed=acceptance_payload.get("passed"),
+            cases_passed=int(acceptance_payload.get("consecutive_full_board_max") or 0),
+            cases_total=10,
+            artifact_path=str(acceptance_payload.get("artifact_path") or snake_acceptance_path()),
+        )
+    return TuneModelStatus(
+        model_key=model_key,
+        slug=_slug(model_key),
+        label=str(model.get("label") or model_key),
+        display_name=_display_name(model_key, str(model.get("label") or "")),
+        project_key=project_key,
+        model_kind="policy",
+        adapter_path=str(checkpoint),
+        adapter_state="missing",
+        policy_path=str(checkpoint),
+        policy_state=policy_state,
+        dataset_key=dataset_key,
+        dataset_row_count=int(dataset.get("row_count") or 0),
+        acceptance=acceptance,
+    )
+
+
 def tune_status_for_model(model_key: str) -> TuneModelStatus:
     state = BrainSpaState()
     payload = state.load()
@@ -118,6 +161,9 @@ def tune_status_for_model(model_key: str) -> TuneModelStatus:
         raise KeyError(model_key)
 
     model = models[model_key]
+    if model.get("model_kind") == "policy":
+        return _policy_status(model_key, model, datasets)
+
     project_key = project_key_for_model(model_key)
     adapter_dir = adapter_dir_for_model(model_key, project_key)
     adapter_path = str(adapter_dir)
@@ -176,6 +222,7 @@ def tune_status_for_model(model_key: str) -> TuneModelStatus:
         label=str(model.get("label") or model_key),
         display_name=_display_name(model_key, str(model.get("label") or "")),
         project_key=project_key,
+        model_kind="causal_lm",
         adapter_path=adapter_path,
         adapter_state=adapter_state,
         dataset_key=dataset_key,

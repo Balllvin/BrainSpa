@@ -4161,3 +4161,72 @@ select:focus {
   color: var(--text);
   font: inherit;
 }
+
+/* Snake interactive environments */
+.snake-stage {
+  display: grid;
+  gap: 12px;
+}
+
+.snake-canvas {
+  border: 1px solid var(--grid);
+  background: #050505;
+}
+
+.snake-canvas-bg {
+  fill: #0a0a0a;
+}
+
+.snake-cell-head {
+  fill: #c44;
+}
+
+.snake-cell-body {
+  fill: #8a3a2a;
+}
+
+.snake-cell-apple {
+  fill: #e8a020;
+}
+
+.snake-cell-highlight {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.snake-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.snake-stats dt {
+  color: var(--muted);
+  margin: 0;
+}
+
+.snake-stats dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.snake-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.snake-job-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.snake-coach-hint {
+  color: var(--accent);
+  font-size: 0.85rem;
+}

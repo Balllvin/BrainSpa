@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import platform
 import subprocess
@@ -59,6 +60,13 @@ from .models import (
     TuneBuildPreview,
     TuneModelStatus,
     TuneStatusResponse,
+    SnakeSessionCreate,
+    SnakeStepRequest,
+    PolicyTrainRequest,
+    PolicyTrainJob,
+    PolicyEvalRequest,
+    PolicyEvalResult,
+    SnakeDatasetSummary,
     WorkerRunRequest,
     WorkerRunResult,
     HarnessChatSendRequest,
@@ -133,6 +141,11 @@ from .datasets_workflows import (
 from .datasets_workflows import generate_believer_dataset as generate_dataset_for_key
 from .tune_api import list_tune_status, tune_build_preview, tune_status_for_slug
 from .tune_build import read_build_job_for_slug, start_build_job
+from .snake_api import close_session, coach_diff, create_session, get_session, step_session
+from .policy_train import read_policy_train_job, request_stop_training, start_policy_train
+from .policy_eval import run_policy_eval
+from .policy_datasets import read_snake_dataset_summary, list_transitions, SNAKE_DATASET_KEY
+
 from .workflows import (
     chipmunk_reply,
     generate_believer_dataset,
@@ -517,6 +530,98 @@ def create_app() -> FastAPI:
     @app.post("/api/evals/run", response_model=EvalRunResult)
     def run_eval(request: EvalRunRequest) -> EvalRunResult:
         return run_environment_eval(request)
+
+    @app.post("/api/env/snake/session")
+    def snake_create_session(body: SnakeSessionCreate) -> dict:
+        return create_session(scenario_key=body.scenario_key, mode=body.mode, seed=body.seed)
+
+    @app.get("/api/env/snake/session/{session_id}")
+    def snake_get_session(session_id: str) -> dict:
+        try:
+            return get_session(session_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="Unknown snake session") from error
+
+    @app.post("/api/env/snake/step")
+    def snake_step(body: SnakeStepRequest) -> dict:
+        try:
+            return step_session(body.session_id, body.action)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="Unknown snake session") from error
+
+    @app.post("/api/env/snake/session/{session_id}/close")
+    def snake_close_session(session_id: str) -> dict:
+        return close_session(session_id)
+
+    @app.get("/api/env/snake/coach/{session_id}/{human_session_id}")
+    def snake_coach(session_id: str, human_session_id: str) -> dict:
+        return coach_diff(session_id, human_session_id)
+
+    @app.post("/api/policy/train", response_model=PolicyTrainJob)
+    def policy_train(body: PolicyTrainRequest) -> PolicyTrainJob:
+        payload = start_policy_train(episodes=body.episodes, env_profiles=body.env_profiles)
+        return PolicyTrainJob(**{k: v for k, v in payload.items() if k in PolicyTrainJob.model_fields})
+
+    @app.post("/api/policy/train/stop")
+    def policy_train_stop() -> dict[str, bool]:
+        request_stop_training()
+        return {"stopped": True}
+
+    @app.get("/api/policy/{model_slug}/train-job", response_model=PolicyTrainJob)
+    def policy_train_job(model_slug: str) -> PolicyTrainJob:
+        job = read_policy_train_job()
+        if not job:
+            return PolicyTrainJob(state="idle", phase="idle")
+        return PolicyTrainJob(**{k: v for k, v in job.items() if k in PolicyTrainJob.model_fields})
+
+    @app.get("/api/policy/{model_slug}/train-stream")
+    def policy_train_stream(model_slug: str):
+        import asyncio
+        import time
+
+        async def event_stream():
+            last_episode = -1
+            while True:
+                job = read_policy_train_job() or {}
+                episode = int(job.get("episode") or 0)
+                if episode != last_episode:
+                    last_episode = episode
+                    payload = json.dumps({"type": "progress", "job": job})
+                    yield f"data: {payload}\n\n"
+                if job.get("state") in {"complete", "failed", "idle"}:
+                    yield f"data: {json.dumps({'type': 'done', 'job': job})}\n\n"
+                    break
+                await asyncio.sleep(0.5)
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    @app.post("/api/policy/{model_slug}/eval", response_model=PolicyEvalResult)
+    def policy_eval_route(model_slug: str, body: PolicyEvalRequest) -> PolicyEvalResult:
+        result = run_policy_eval(episodes=body.episodes, scenario_key=body.scenario_key)
+        return PolicyEvalResult(**result)
+
+    @app.get("/api/policy/{model_slug}/eval/latest", response_model=PolicyEvalResult | None)
+    def policy_eval_latest(model_slug: str) -> PolicyEvalResult | None:
+        from .policy_paths import snake_acceptance_path
+
+        path = snake_acceptance_path()
+        if not path.exists():
+            return None
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return PolicyEvalResult(**payload)
+
+    @app.get("/api/datasets/{dataset_key}/policy-summary", response_model=SnakeDatasetSummary)
+    def snake_dataset_summary(dataset_key: str) -> SnakeDatasetSummary:
+        if dataset_key != SNAKE_DATASET_KEY and dataset_key != "snake":
+            raise HTTPException(status_code=404, detail="Not a policy dataset")
+        summary = read_snake_dataset_summary(SNAKE_DATASET_KEY)
+        return SnakeDatasetSummary(**summary)
+
+    @app.get("/api/datasets/{dataset_key}/transitions")
+    def snake_dataset_transitions(dataset_key: str, limit: int = 50, offset: int = 0) -> dict:
+        if dataset_key not in {SNAKE_DATASET_KEY, "snake"}:
+            raise HTTPException(status_code=404, detail="Not a policy dataset")
+        return list_transitions(SNAKE_DATASET_KEY, limit=limit, offset=offset)
 
     @app.get("/api/evidence/sources", response_model=list[EvidenceSourceSummary])
     def evidence_sources() -> list[EvidenceSourceSummary]:
