@@ -18,6 +18,7 @@ export function TestInteractiveTrain({ modelKey }: { modelKey: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [episodes, setEpisodes] = useState(100);
+  const [backend, setBackend] = useState<"dqn" | "sb3">("dqn");
 
   useEffect(() => {
     void fetchPolicyTrainJob().then((response) => {
@@ -48,7 +49,7 @@ export function TestInteractiveTrain({ modelKey }: { modelKey: string }) {
   async function handleTrain() {
     setBusy(true);
     setError(null);
-    const response = await startPolicyTrain(episodes);
+    const response = await startPolicyTrain(episodes, backend);
     setBusy(false);
     if (!response.ok || !response.data) {
       setError(response.error ?? "Train failed");
@@ -81,6 +82,13 @@ export function TestInteractiveTrain({ modelKey }: { modelKey: string }) {
             value={episodes}
             onChange={(event) => setEpisodes(Number(event.target.value) || 100)}
           />
+        </label>
+        <label className="field">
+          <span>Backend</span>
+          <select value={backend} onChange={(event) => setBackend(event.target.value as "dqn" | "sb3")}>
+            <option value="dqn">DQN (PyTorch, default)</option>
+            <option value="sb3">Stable-Baselines3</option>
+          </select>
         </label>
         <button className="primary" type="button" disabled={busy || job?.state === "running"} onClick={handleTrain}>
           Start training

@@ -4230,3 +4230,19 @@ select:focus {
   color: var(--accent);
   font-size: 0.85rem;
 }
+
+.snake-coach-hint--ai {
+  color: #6ab4ff;
+}
+
+.snake-cell-opponent-head {
+  fill: #4a6ab4;
+}
+
+.snake-cell-opponent {
+  fill: #2a3a5a;
+}
+
+.snake-coach-card {
+  border-color: var(--accent);
+}

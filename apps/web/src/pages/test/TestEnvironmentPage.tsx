@@ -12,6 +12,7 @@ import { TestInteractiveTrain } from "./TestInteractiveTrain";
 import { TestInteractiveWatch } from "./TestInteractiveWatch";
 import { TestInteractivePlay } from "./TestInteractivePlay";
 import { TestInteractiveCoach } from "./TestInteractiveCoach";
+import { TestInteractiveArena } from "./TestInteractiveArena";
 
 export function TestEnvironmentPage() {
   const { modelSlug = "", scenarioKey = "" } = useParams();
@@ -51,8 +52,12 @@ export function TestEnvironmentPage() {
     return <TestInteractiveWatch modelKey={modelKey} scenarioKey={scenarioKey} />;
   }
 
-  if (mode === "interactive_play" || mode === "interactive_arena") {
+  if (mode === "interactive_play") {
     return <TestInteractivePlay modelKey={modelKey} scenarioKey={scenarioKey} />;
+  }
+
+  if (mode === "interactive_arena") {
+    return <TestInteractiveArena modelKey={modelKey} scenarioKey={scenarioKey} />;
   }
 
   if (mode === "interactive_coach") {

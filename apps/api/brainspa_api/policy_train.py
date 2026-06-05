@@ -5,8 +5,6 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from packages.brainspa_training.policy_trainer import train_snake_policy
-
 from .policy_datasets import SNAKE_DATASET_KEY, append_episode
 from .policy_paths import (
     SNAKE_MODEL_KEY,
@@ -46,6 +44,7 @@ def start_policy_train(
     *,
     episodes: int = 100,
     env_profiles: list[str] | None = None,
+    policy_backend: str = "dqn",
 ) -> dict[str, Any]:
     project_key = SNAKE_PROJECT_KEY
     with _TRAIN_LOCK:
@@ -114,14 +113,28 @@ def start_policy_train(
                 )
 
             try:
-                summary = train_snake_policy(
-                    checkpoint_path=checkpoint,
-                    episodes=episodes,
-                    env_profiles=env_profiles or ["solo", "wrapped_v2"],
-                    on_episode=on_episode,
-                    should_stop=should_stop,
-                    start_episode=start_episode,
-                )
+                profiles = env_profiles or ["solo", "wrapped_v2", "arena"]
+                if policy_backend == "sb3":
+                    from packages.brainspa_training.policy_sb3 import train_snake_sb3
+
+                    summary = train_snake_sb3(
+                        checkpoint_path=checkpoint.parent / "policy_sb3",
+                        episodes=episodes,
+                        env_profile=profiles[0],
+                        on_episode=on_episode,
+                        should_stop=should_stop,
+                    )
+                else:
+                    from packages.brainspa_training.policy_trainer import train_snake_policy
+
+                    summary = train_snake_policy(
+                        checkpoint_path=checkpoint,
+                        episodes=episodes,
+                        env_profiles=profiles,
+                        on_episode=on_episode,
+                        should_stop=should_stop,
+                        start_episode=start_episode,
+                    )
                 snake_train_result_path().write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
                 _write_job(
                     {

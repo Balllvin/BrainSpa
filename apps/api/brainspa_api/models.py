@@ -737,12 +737,17 @@ class SnakeSessionCreate(BaseModel):
 class SnakeStepRequest(BaseModel):
     session_id: str
     action: str | int | None = None
+    actor: Literal["player", "opponent", "auto"] = "auto"
+
+
+PolicyBackend = Literal["dqn", "sb3"]
 
 
 class PolicyTrainRequest(BaseModel):
     model_key: str = "snake_policy"
     episodes: int = 100
-    env_profiles: list[str] = Field(default_factory=lambda: ["solo", "wrapped_v2"])
+    env_profiles: list[str] = Field(default_factory=lambda: ["solo", "wrapped_v2", "arena"])
+    policy_backend: PolicyBackend = "dqn"
 
 
 class PolicyTrainJob(BaseModel):

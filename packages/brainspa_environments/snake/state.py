@@ -8,7 +8,9 @@ SOLO_STATE_DIM = 11
 
 def state_dim_for_profile(env_profile: str) -> int:
     if env_profile == "arena":
-        return SOLO_STATE_DIM + 4
+        from .arena_state import ARENA_STATE_DIM
+
+        return ARENA_STATE_DIM
     if env_profile == "wrapped_v2":
         return SOLO_STATE_DIM + 2
     return SOLO_STATE_DIM

@@ -10,11 +10,14 @@ from packages.brainspa_environments.snake import (
     ACTION_COUNT,
     ACTION_NAMES,
     RewardDecomposer,
+    SnakeArenaSim,
     SnakeSim,
+    encode_arena_opponent,
+    encode_arena_player,
     encode_state,
     state_dim_for_profile,
 )
-from packages.brainspa_environments.snake.wrappers import ENV_PROFILES
+from packages.brainspa_environments.snake.wrappers import ENV_PROFILES, make_arena_sim
 
 
 @dataclass
@@ -123,6 +126,87 @@ class SnakeDQNAgent:
         self.target.load_state_dict(payload.get("target", payload["policy"]))
 
 
+def run_arena_training_episode(
+    agent: SnakeDQNAgent,
+    *,
+    epsilon: float = 0.2,
+    seed: int | None = None,
+) -> dict[str, Any]:
+    arena = make_arena_sim(seed=seed)
+    arena.reset(seed=seed)
+    decomposer = RewardDecomposer(curriculum_stage="B")
+    decomposer.reset(_arena_pseudo_snake_state(arena, "player"))
+    transitions: list[dict[str, Any]] = []
+    total_reward = 0.0
+    reward_totals: dict[str, float] = {"arena_win": 0.0, "arena_loss": 0.0}
+
+    while not arena.state.done:
+        p_vec = encode_arena_player(arena)
+        o_vec = encode_arena_opponent(arena)
+        p_idx = agent.act(p_vec, epsilon)
+        o_idx = agent.act(o_vec, epsilon)
+        pseudo_before = _arena_pseudo_snake_state(arena, "player")
+        step = arena.step(p_idx, o_idx)
+        pseudo_after = _arena_pseudo_snake_state(arena, "player")
+        breakdown = decomposer.step(
+            pseudo_before,
+            pseudo_after,
+            ate_apple=step.player_ate,
+        )
+        next_vec = encode_arena_player(arena)
+        agent.remember(p_vec, p_idx, breakdown.total, next_vec, arena.state.done)
+        transitions.append(
+            {
+                "state_vector": p_vec,
+                "action": ACTION_NAMES[p_idx],
+                "action_index": p_idx,
+                "reward_components": breakdown.to_dict(),
+                "total_reward": breakdown.total,
+                "done": arena.state.done,
+                "env_profile": "arena",
+            }
+        )
+        total_reward += breakdown.total
+
+    if arena.state.winner == "player":
+        bonus = 15.0
+        reward_totals["arena_win"] = bonus
+        total_reward += bonus
+    elif arena.state.winner == "opponent":
+        penalty = -15.0
+        reward_totals["arena_loss"] = penalty
+        total_reward += penalty
+
+    s = arena.state
+    return {
+        "steps": s.steps,
+        "score": s.player.score,
+        "length": len(s.player.segments),
+        "coverage": len(s.player.segments) / (s.grid_size * s.grid_size),
+        "outcome": s.outcome,
+        "total_reward": total_reward,
+        "reward_totals": reward_totals,
+        "transitions": transitions,
+    }
+
+
+def _arena_pseudo_snake_state(arena: SnakeArenaSim, role: str):
+    from packages.brainspa_environments.snake.sim import SnakeState
+
+    s = arena.state
+    snake = s.player if role == "player" else s.opponent
+    return SnakeState(
+        grid_size=s.grid_size,
+        snake=snake.segments,
+        direction=snake.direction,
+        apple=s.apple,
+        score=snake.score,
+        steps=s.steps,
+        done=s.done,
+        outcome="in_progress",
+    )
+
+
 def run_training_episode(
     agent: SnakeDQNAgent,
     *,
@@ -210,13 +294,16 @@ def train_snake_policy(
         if episode > episodes * 0.75:
             curriculum = "C"
         profile = profiles[episode % len(profiles)]
-        result = run_training_episode(
-            agent,
-            env_profile=profile,
-            epsilon=epsilon,
-            seed=episode,
-            curriculum_stage=curriculum,
-        )
+        if profile == "arena":
+            result = run_arena_training_episode(agent, epsilon=epsilon, seed=episode)
+        else:
+            result = run_training_episode(
+                agent,
+                env_profile=profile,
+                epsilon=epsilon,
+                seed=episode,
+                curriculum_stage=curriculum,
+            )
         loss = agent.replay()
         if episode % 10 == 0:
             agent.sync_target()

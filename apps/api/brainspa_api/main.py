@@ -141,7 +141,15 @@ from .datasets_workflows import (
 from .datasets_workflows import generate_believer_dataset as generate_dataset_for_key
 from .tune_api import list_tune_status, tune_build_preview, tune_status_for_slug
 from .tune_build import read_build_job_for_slug, start_build_job
-from .snake_api import close_session, coach_diff, create_session, get_session, step_session
+from .snake_api import (
+    close_session,
+    coach_diff_for_session,
+    coach_step_replay,
+    create_session,
+    get_session,
+    step_session,
+)
+from .snake_session_store import list_archived_sessions
 from .policy_train import read_policy_train_job, request_stop_training, start_policy_train
 from .policy_eval import run_policy_eval
 from .policy_datasets import read_snake_dataset_summary, list_transitions, SNAKE_DATASET_KEY
@@ -545,7 +553,7 @@ def create_app() -> FastAPI:
     @app.post("/api/env/snake/step")
     def snake_step(body: SnakeStepRequest) -> dict:
         try:
-            return step_session(body.session_id, body.action)
+            return step_session(body.session_id, body.action, actor=getattr(body, "actor", "auto"))
         except KeyError as error:
             raise HTTPException(status_code=404, detail="Unknown snake session") from error
 
@@ -553,13 +561,27 @@ def create_app() -> FastAPI:
     def snake_close_session(session_id: str) -> dict:
         return close_session(session_id)
 
-    @app.get("/api/env/snake/coach/{session_id}/{human_session_id}")
-    def snake_coach(session_id: str, human_session_id: str) -> dict:
-        return coach_diff(session_id, human_session_id)
+    @app.get("/api/env/snake/sessions/archived")
+    def snake_archived_sessions() -> list[dict]:
+        return list_archived_sessions()
+
+    @app.get("/api/env/snake/coach/{session_id}")
+    def snake_coach(session_id: str, step: int | None = None) -> dict:
+        if step is not None:
+            return coach_step_replay(session_id, step)
+        return coach_diff_for_session(session_id)
+
+    @app.get("/api/env/snake/coach/{session_id}/diff")
+    def snake_coach_diff(session_id: str, step: int | None = None) -> dict:
+        return coach_diff_for_session(session_id, step=step)
 
     @app.post("/api/policy/train", response_model=PolicyTrainJob)
     def policy_train(body: PolicyTrainRequest) -> PolicyTrainJob:
-        payload = start_policy_train(episodes=body.episodes, env_profiles=body.env_profiles)
+        payload = start_policy_train(
+            episodes=body.episodes,
+            env_profiles=body.env_profiles,
+            policy_backend=body.policy_backend,
+        )
         return PolicyTrainJob(**{k: v for k, v in payload.items() if k in PolicyTrainJob.model_fields})
 
     @app.post("/api/policy/train/stop")

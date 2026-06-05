@@ -13,6 +13,10 @@ export type SnakeWorldState = {
   coverage: number;
   done: boolean;
   outcome: string;
+  mode?: string;
+  player?: { snake: [number, number][]; score: number; alive: boolean };
+  opponent?: { snake: [number, number][]; score: number; alive: boolean };
+  winner?: string;
 };
 
 export type SnakeSession = {
@@ -22,6 +26,7 @@ export type SnakeSession = {
   episode_id: string;
   world_state: SnakeWorldState;
   policy_action: string | null;
+  opponent_action?: string | null;
   transition_count: number;
   checkpoint_ready: boolean;
   last_reward?: Record<string, number>;
@@ -56,6 +61,24 @@ export type PolicyEvalResult = {
   artifact_path: string;
 };
 
+export type ArchivedSnakeSession = {
+  session_id: string;
+  scenario_key: string;
+  steps: number;
+  outcome: string | null;
+};
+
+export type CoachDiff = {
+  found: boolean;
+  message?: string;
+  step?: number;
+  total_steps?: number;
+  human_action?: string;
+  policy_action?: string;
+  head?: [number, number];
+  session_id?: string;
+};
+
 async function postJson<T>(path: string, body: unknown): Promise<{ ok: boolean; data: T | null; error: string | null }> {
   try {
     const response = await fetch(backendUrl(path), {
@@ -85,11 +108,12 @@ export async function closeSnakeSession(sessionId: string) {
   return postJson<{ closed: boolean }>(`/api/env/snake/session/${encodeURIComponent(sessionId)}/close`, {});
 }
 
-export async function startPolicyTrain(episodes = 100) {
+export async function startPolicyTrain(episodes = 100, policyBackend: "dqn" | "sb3" = "dqn") {
   return postJson<PolicyTrainJob>("/api/policy/train", {
     model_key: "snake_policy",
     episodes,
-    env_profiles: ["solo", "wrapped_v2"],
+    env_profiles: ["solo", "wrapped_v2", "arena"],
+    policy_backend: policyBackend,
   });
 }
 
@@ -116,7 +140,7 @@ export async function runPolicyEval(episodes = 100) {
 export async function fetchPolicyEvalLatest() {
   try {
     const response = await fetch(backendUrl("/api/policy/snake/eval/latest"), { cache: "no-store" });
-    if (response.status === 204 || !response.ok) {
+    if (!response.ok) {
       return { ok: false, data: null, error: null };
     }
     return { ok: true, data: (await response.json()) as PolicyEvalResult, error: null };
@@ -134,6 +158,48 @@ export async function fetchSnakeDatasetSummary() {
     return { ok: true, summary: await response.json(), error: null };
   } catch {
     return { ok: false, summary: null, error: "Backend offline" };
+  }
+}
+
+export async function fetchArchivedSnakeSessions() {
+  try {
+    const response = await fetch(backendUrl("/api/env/snake/sessions/archived"), { cache: "no-store" });
+    if (!response.ok) {
+      return { ok: false, sessions: [] as ArchivedSnakeSession[], error: `Status ${response.status}` };
+    }
+    return { ok: true, sessions: (await response.json()) as ArchivedSnakeSession[], error: null };
+  } catch {
+    return { ok: false, sessions: [], error: "Backend offline" };
+  }
+}
+
+export async function fetchCoachDiff(sessionId: string, step?: number) {
+  try {
+    const query = step !== undefined ? `?step=${step}` : "";
+    const response = await fetch(backendUrl(`/api/env/snake/coach/${encodeURIComponent(sessionId)}/diff${query}`), {
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      return { ok: false, diff: null, error: `Status ${response.status}` };
+    }
+    return { ok: true, diff: (await response.json()) as CoachDiff, error: null };
+  } catch {
+    return { ok: false, diff: null, error: "Backend offline" };
+  }
+}
+
+export async function fetchCoachStep(sessionId: string, step: number) {
+  try {
+    const response = await fetch(
+      backendUrl(`/api/env/snake/coach/${encodeURIComponent(sessionId)}?step=${step}`),
+      { cache: "no-store" },
+    );
+    if (!response.ok) {
+      return { ok: false, data: null, error: `Status ${response.status}` };
+    }
+    return { ok: true, data: await response.json(), error: null };
+  } catch {
+    return { ok: false, data: null, error: "Backend offline" };
   }
 }
 

@@ -76,6 +76,20 @@ export const FALLBACK_SCENARIOS: Record<string, TestScenario[]> = {
       placeholder: "",
       hint: "Compare to policy moves.",
     },
+    {
+      key: "human-vs-ai",
+      label: "HUMAN VS AI",
+      mode: "interactive_arena",
+      placeholder: "",
+      hint: "You versus the policy on one board.",
+    },
+    {
+      key: "dual-arena",
+      label: "DUAL ARENA",
+      mode: "interactive_arena",
+      placeholder: "",
+      hint: "Two snakes, one policy checkpoint.",
+    },
   ],
   coding_small: [
     {
