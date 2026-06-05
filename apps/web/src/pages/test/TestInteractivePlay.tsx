@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { closeSnakeSession, createSnakeSession, stepSnakeSession, type SnakeSession } from "@/lib/snakeBackend";
 import { testModelPath } from "@/lib/testRoutes";
 
-import { TestShell } from "./TestShell";
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
+import { SnakeShell } from "./snake/SnakeShell";
 
 const KEY_TO_ACTION: Record<string, string> = {
   ArrowUp: "up",
@@ -69,16 +69,11 @@ export function TestInteractivePlay({
   }, [scenarioKey]);
 
   return (
-    <TestShell backTo={testModelPath(modelKey)} backLabel="Snake Policy" title="Human play">
-      <p className="test-scenario-hint">Arrow keys or WASD. Session logs to datasets on close.</p>
-      {session ? (
-        <TestSnakeCanvas
-          world={session.world_state}
-          suggestedDirection={session.policy_action}
-        />
-      ) : (
-        <p className="test-empty">Loading…</p>
-      )}
-    </TestShell>
+    <SnakeShell backTo={testModelPath(modelKey)}>
+      <div className="snake-focus">
+        {session ? <TestSnakeCanvas world={session.world_state} /> : <p className="snake-wait">···</p>}
+        <kbd className="snake-keys">↑ ← ↓ →</kbd>
+      </div>
+    </SnakeShell>
   );
 }

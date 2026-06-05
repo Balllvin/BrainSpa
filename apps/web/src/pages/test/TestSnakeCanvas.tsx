@@ -1,39 +1,46 @@
+import type { ReactNode } from "react";
+
 import type { SnakeWorldState } from "@/lib/snakeBackend";
 
 type Props = {
   world: SnakeWorldState;
   highlight?: [number, number] | null;
-  suggestedDirection?: string | null;
-  opponentDirection?: string | null;
   cellSize?: number;
   compact?: boolean;
 };
 
 const DEFAULT_CELL = 28;
 
-export function TestSnakeCanvas({
-  world,
-  highlight,
-  suggestedDirection,
-  opponentDirection,
-  cellSize,
-  compact = false,
-}: Props) {
+export function TestSnakeCanvas({ world, highlight, cellSize, compact = false }: Props) {
   const CELL = cellSize ?? (compact ? 16 : DEFAULT_CELL);
   const gridSize = world.grid_size;
   const size = gridSize * CELL;
   const isArena = "mode" in world && world.mode === "arena" && world.player && world.opponent;
 
-  const playerSnake = isArena ? world.player!.snake : (world as SnakeWorldState).snake;
+  const playerSnake = isArena ? world.player!.snake : world.snake;
   const opponentSnake = isArena ? world.opponent!.snake : [];
   const apple = world.apple;
   const playerAlive = isArena ? world.player!.alive : true;
   const opponentAlive = isArena ? world.opponent!.alive : false;
 
+  const gridLines: ReactNode[] = [];
+  for (let i = 1; i < gridSize; i += 1) {
+    const pos = i * CELL;
+    gridLines.push(
+      <line key={`v-${i}`} x1={pos} y1={0} x2={pos} y2={size} className="snake-grid-line" />,
+      <line key={`h-${i}`} x1={0} y1={pos} x2={size} y2={pos} className="snake-grid-line" />,
+    );
+  }
+
+  const scoreLabel = isArena
+    ? `${world.player?.score ?? 0} · ${world.opponent?.score ?? 0}`
+    : String(world.score);
+
   return (
-    <div className="snake-stage">
+    <figure className={`snake-board${compact ? " snake-board--compact" : ""}`}>
       <svg width={size} height={size} className="snake-canvas" role="img" aria-label="Snake board">
         <rect width={size} height={size} className="snake-canvas-bg" />
+        <g className="snake-grid">{gridLines}</g>
         {opponentSnake.map((segment, index) =>
           opponentAlive ? (
             <rect
@@ -74,56 +81,17 @@ export function TestSnakeCanvas({
             className="snake-cell-highlight"
           />
         ) : null}
+        <text x={size - 6} y={12} className="snake-score-label" textAnchor="end">
+          {scoreLabel}
+        </text>
       </svg>
-      {suggestedDirection ? (
-        <p className="snake-coach-hint">You: {suggestedDirection.toUpperCase()}</p>
+      {!compact ? (
+        <figcaption className="snake-legend">
+          <span className="snake-legend-swatch snake-legend-swatch--you" title="You" />
+          <span className="snake-legend-swatch snake-legend-swatch--apple" title="Apple" />
+          {isArena ? <span className="snake-legend-swatch snake-legend-swatch--ai" title="AI" /> : null}
+        </figcaption>
       ) : null}
-      {opponentDirection ? (
-        <p className="snake-coach-hint snake-coach-hint--ai">AI: {opponentDirection.toUpperCase()}</p>
-      ) : null}
-      {!compact && (!isArena ? <SoloStats world={world} /> : <ArenaStats world={world} />)}
-    </div>
-  );
-}
-
-function SoloStats({ world }: { world: SnakeWorldState }) {
-  return (
-    <dl className="snake-stats">
-      <div>
-        <dt>Score</dt>
-        <dd>{world.score}</dd>
-      </div>
-      <div>
-        <dt>Length</dt>
-        <dd>{world.length}</dd>
-      </div>
-      <div>
-        <dt>Coverage</dt>
-        <dd>{Math.round(world.coverage * 100)}%</dd>
-      </div>
-      <div>
-        <dt>Outcome</dt>
-        <dd>{world.done ? world.outcome : "playing"}</dd>
-      </div>
-    </dl>
-  );
-}
-
-function ArenaStats({ world }: { world: SnakeWorldState }) {
-  return (
-    <dl className="snake-stats">
-      <div>
-        <dt>You</dt>
-        <dd>{world.player?.score ?? 0}</dd>
-      </div>
-      <div>
-        <dt>AI</dt>
-        <dd>{world.opponent?.score ?? 0}</dd>
-      </div>
-      <div>
-        <dt>Result</dt>
-        <dd>{world.done ? `${world.outcome} (${world.winner})` : "playing"}</dd>
-      </div>
-    </dl>
+    </figure>
   );
 }

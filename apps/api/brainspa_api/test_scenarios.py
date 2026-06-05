@@ -57,37 +57,37 @@ SNAKE_SCENARIOS = [
         key="autonomous-train",
         label="AUTONOMOUS TRAIN",
         mode="interactive_train",
-        hint="Run simulation: parallel boards train one shared policy in real time.",
+        hint="Parallel boards.",
     ),
     TestScenarioPublic(
         key="autonomous-watch",
         label="AUTONOMOUS WATCH",
         mode="interactive_watch",
-        hint="Watch the trained policy play at human speed.",
+        hint="Policy only.",
     ),
     TestScenarioPublic(
         key="human-play",
         label="HUMAN PLAY",
         mode="interactive_play",
-        hint="Play on the keyboard; sessions log to datasets.",
+        hint="Keys.",
     ),
     TestScenarioPublic(
         key="coach-replay",
         label="COACH REPLAY",
         mode="interactive_coach",
-        hint="See where your moves diverged from the policy.",
+        hint="Replay.",
     ),
     TestScenarioPublic(
         key="human-vs-ai",
         label="HUMAN VS AI",
         mode="interactive_arena",
-        hint="You versus the policy on one board.",
+        hint="Vs AI.",
     ),
     TestScenarioPublic(
         key="dual-arena",
         label="DUAL ARENA",
         mode="interactive_arena",
-        hint="Two snakes, one policy checkpoint.",
+        hint="Dual AI.",
     ),
 ]
 

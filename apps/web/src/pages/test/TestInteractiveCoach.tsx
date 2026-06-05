@@ -4,14 +4,15 @@ import {
   fetchArchivedSnakeSessions,
   fetchCoachDiff,
   fetchCoachStep,
-  type CoachDiff,
   type ArchivedSnakeSession,
+  type CoachDiff,
+  type SnakeWorldState,
 } from "@/lib/snakeBackend";
 import { testModelPath } from "@/lib/testRoutes";
 
-import { TestShell } from "./TestShell";
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
-import type { SnakeWorldState } from "@/lib/snakeBackend";
+import { SnakeBar, SnakeBarBtn, SnakeBarGroup, SnakeTelemetry } from "./snake/SnakeBar";
+import { SnakeShell } from "./snake/SnakeShell";
 
 export function TestInteractiveCoach({ modelKey }: { modelKey: string }) {
   const [sessions, setSessions] = useState<ArchivedSnakeSession[]>([]);
@@ -59,60 +60,61 @@ export function TestInteractiveCoach({ modelKey }: { modelKey: string }) {
     });
   }, [selectedId, step]);
 
+  const total = diff?.total_steps ?? 0;
+
   return (
-    <TestShell backTo={testModelPath(modelKey)} backLabel="Snake Policy" title="Coach replay">
-      <p className="test-scenario-hint">
-        Pick a saved human session. Step through moves; the policy shows where you diverged.
-      </p>
+    <SnakeShell backTo={testModelPath(modelKey)}>
       {!sessions.length ? (
-        <p className="test-empty">No archived sessions. Play Human play or Human vs AI first.</p>
+        <p className="snake-wait">Play first — session saves here.</p>
       ) : (
         <>
-          <label className="field">
-            <span>Session</span>
-            <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-              {sessions.map((item) => (
-                <option key={item.session_id} value={item.session_id}>
-                  {item.scenario_key} · {item.steps} steps · {item.outcome ?? "—"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="snake-controls">
-            <button className="secondary" type="button" disabled={step <= 0} onClick={() => setStep((s) => s - 1)}>
-              Previous
-            </button>
-            <span>
-              Step {step + 1} / {diff?.total_steps ?? "?"}
-            </span>
-            <button
-              className="secondary"
-              type="button"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={diff?.total_steps != null && step >= diff.total_steps - 1}
-            >
-              Next
-            </button>
-          </div>
+          <SnakeBar>
+            <SnakeBarGroup>
+              <select
+                className="snake-bar-select"
+                value={selectedId}
+                onChange={(event) => {
+                  setSelectedId(event.target.value);
+                  setStep(0);
+                }}
+                aria-label="Session"
+              >
+                {sessions.map((item) => (
+                  <option key={item.session_id} value={item.session_id}>
+                    {item.scenario_key} / {item.steps}
+                  </option>
+                ))}
+              </select>
+            </SnakeBarGroup>
+            <SnakeBarGroup>
+              <SnakeBarBtn disabled={step <= 0} onClick={() => setStep((s) => s - 1)} title="Previous">
+                ←
+              </SnakeBarBtn>
+              <SnakeBarBtn
+                disabled={total > 0 && step >= total - 1}
+                onClick={() => setStep((s) => s + 1)}
+                title="Next"
+              >
+                →
+              </SnakeBarBtn>
+            </SnakeBarGroup>
+          </SnakeBar>
           {diff?.found ? (
-            <article className="run-card snake-coach-card">
-              <strong>Wrong at step {(diff.step ?? 0) + 1}</strong>
-              <p>
-                You chose {String(diff.human_action).toUpperCase()}. Policy wants {String(diff.policy_action).toUpperCase()}.
-              </p>
-            </article>
+            <SnakeTelemetry>
+              {step + 1}/{total} · you {String(diff.human_action)} · policy {String(diff.policy_action)}
+            </SnakeTelemetry>
           ) : (
-            <p className="test-scenario-hint">{diff?.message ?? "Loading diff…"}</p>
+            <SnakeTelemetry>{diff?.message ?? "···"}</SnakeTelemetry>
           )}
-          {replayWorld ? (
-            <TestSnakeCanvas
-              world={replayWorld}
-              highlight={diff?.head ?? null}
-              suggestedDirection={diff?.policy_action ?? null}
-            />
-          ) : null}
+          <div className="snake-focus">
+            {replayWorld ? (
+              <TestSnakeCanvas world={replayWorld} highlight={diff?.head ?? null} />
+            ) : (
+              <p className="snake-wait">···</p>
+            )}
+          </div>
         </>
       )}
-    </TestShell>
+    </SnakeShell>
   );
 }

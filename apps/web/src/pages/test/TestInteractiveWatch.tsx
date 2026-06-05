@@ -3,14 +3,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   closeSnakeSession,
   createSnakeSession,
-  SNAKE_WATCH_TICKS_PER_SEC,
   stepSnakeSession,
   type SnakeSession,
 } from "@/lib/snakeBackend";
 import { testModelPath } from "@/lib/testRoutes";
 
-import { TestShell } from "./TestShell";
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
+import { SnakeBar, SnakeBarGroup, SnakeBarSegment } from "./snake/SnakeBar";
+import { SnakeShell } from "./snake/SnakeShell";
+
+type WatchPace = "slow" | "mid" | "fast";
+
+const PACE_TICKS: Record<WatchPace, number> = {
+  slow: 6,
+  mid: 14,
+  fast: 22,
+};
 
 export function TestInteractiveWatch({
   modelKey,
@@ -20,7 +28,7 @@ export function TestInteractiveWatch({
   scenarioKey: string;
 }) {
   const [session, setSession] = useState<SnakeSession | null>(null);
-  const [speed, setSpeed] = useState(SNAKE_WATCH_TICKS_PER_SEC);
+  const [pace, setPace] = useState<WatchPace>("mid");
   const sessionRef = useRef<string | null>(null);
 
   const tick = useCallback(async () => {
@@ -61,35 +69,31 @@ export function TestInteractiveWatch({
     if (!session || session.world_state.done) {
       return;
     }
-    const delay = Math.max(50, 1000 / speed);
+    const delay = Math.max(40, 1000 / PACE_TICKS[pace]);
     const handle = window.setInterval(() => {
       void tick();
     }, delay);
     return () => window.clearInterval(handle);
-  }, [session, speed, tick]);
+  }, [session, pace, tick]);
 
   return (
-    <TestShell backTo={testModelPath(modelKey)} backLabel="Snake Policy" title="Autonomous watch">
-      <label className="field">
-        <span>Speed (ticks/s)</span>
-        <input
-          type="range"
-          min={2}
-          max={24}
-          value={speed}
-          onChange={(event) => setSpeed(Number(event.target.value))}
-        />
-      </label>
-      {session ? (
-        <>
-          <TestSnakeCanvas world={session.world_state} />
-          {session.policy_action ? (
-            <p className="test-scenario-hint">Policy: {session.policy_action}</p>
-          ) : null}
-        </>
-      ) : (
-        <p className="test-empty">Loading board…</p>
-      )}
-    </TestShell>
+    <SnakeShell backTo={testModelPath(modelKey)}>
+      <SnakeBar>
+        <SnakeBarGroup>
+          <SnakeBarSegment
+            value={pace}
+            options={[
+              { value: "slow", label: "I", title: "Slow" },
+              { value: "mid", label: "II", title: "Medium" },
+              { value: "fast", label: "III", title: "Fast" },
+            ]}
+            onChange={setPace}
+          />
+        </SnakeBarGroup>
+      </SnakeBar>
+      <div className="snake-focus">
+        {session ? <TestSnakeCanvas world={session.world_state} /> : <p className="snake-wait">···</p>}
+      </div>
+    </SnakeShell>
   );
 }

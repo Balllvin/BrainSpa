@@ -7,7 +7,8 @@ import { testScenarioPath } from "@/lib/testRoutes";
 import { tuneModelPath } from "@/lib/tuneRoutes";
 import type { TuneModelStatus } from "@/lib/types";
 
-import { TestShell } from "../test/TestShell";
+import { SnakeBar, SnakeBarBtn, SnakeBarGroup, SnakeTelemetry } from "../test/snake/SnakeBar";
+import { SnakeShell } from "../test/snake/SnakeShell";
 
 export function TunePolicyPage({ modelSlug }: { modelSlug: string }) {
   const [status, setStatus] = useState<TuneModelStatus | null>(null);
@@ -43,25 +44,27 @@ export function TunePolicyPage({ modelSlug }: { modelSlug: string }) {
   }
 
   return (
-    <TestShell backTo={tuneModelPath(modelSlug)} backLabel="Tune" title="Snake policy">
+    <SnakeShell backTo={tuneModelPath(modelSlug)}>
       {status ? (
-        <article className="run-card">
-          <span>Checkpoint</span>
-          <strong>{status.policy_state ?? status.adapter_state}</strong>
-          <p>{status.dataset_row_count} transitions logged</p>
-        </article>
+        <SnakeTelemetry>
+          {status.policy_state ?? status.adapter_state} · {status.dataset_row_count} rows
+        </SnakeTelemetry>
       ) : null}
-      <div className="btn-row">
-        <button className="primary" type="button" disabled={busy} onClick={train}>
-          Train policy (100+ episodes)
-        </button>
-        <button className="secondary" type="button" disabled={busy} onClick={evaluate}>
-          Eval 100 episodes
-        </button>
-        <Link className="secondary" to={testScenarioPath("snake", "autonomous-watch")}>
-          Watch in Test
-        </Link>
-      </div>
-    </TestShell>
+      <SnakeBar>
+        <SnakeBarGroup>
+          <SnakeBarBtn disabled={busy} onClick={() => void train()} title="Headless train">
+            ▶
+          </SnakeBarBtn>
+          <SnakeBarBtn disabled={busy} onClick={() => void evaluate()} title="Eval">
+            ✓
+          </SnakeBarBtn>
+        </SnakeBarGroup>
+        <SnakeBarGroup>
+          <Link className="snake-bar-btn" to={testScenarioPath("snake", "autonomous-train")} title="Live lab">
+            ◫
+          </Link>
+        </SnakeBarGroup>
+      </SnakeBar>
+    </SnakeShell>
   );
 }

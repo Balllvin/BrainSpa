@@ -10,8 +10,9 @@ import {
 } from "@/lib/snakeBackend";
 import { testModelPath } from "@/lib/testRoutes";
 
-import { TestShell } from "./TestShell";
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
+import { SnakeBar, SnakeBarGroup, SnakeBarSegment } from "./snake/SnakeBar";
+import { SnakeShell } from "./snake/SnakeShell";
 
 const KEY_TO_ACTION: Record<string, string> = {
   ArrowUp: "up",
@@ -24,6 +25,8 @@ const KEY_TO_ACTION: Record<string, string> = {
   d: "right",
 };
 
+type ArenaPace = "human" | "fast";
+
 export function TestInteractiveArena({
   modelKey,
   scenarioKey,
@@ -33,7 +36,7 @@ export function TestInteractiveArena({
 }) {
   const dualAi = scenarioKey === "dual-arena";
   const [session, setSession] = useState<SnakeSession | null>(null);
-  const [speed, setSpeed] = useState(dualAi ? SNAKE_WATCH_TICKS_PER_SEC : SNAKE_HUMAN_TICKS_PER_SEC);
+  const [pace, setPace] = useState<ArenaPace>(dualAi ? "fast" : "human");
   const sessionRef = useRef<string | null>(null);
 
   const tick = useCallback(async () => {
@@ -41,7 +44,7 @@ export function TestInteractiveArena({
     if (!id) {
       return;
     }
-    const response = await stepSnakeSession(id, dualAi ? undefined : undefined);
+    const response = await stepSnakeSession(id);
     if (response.ok && response.data) {
       setSession(response.data);
       if (response.data.world_state.done) {
@@ -53,7 +56,7 @@ export function TestInteractiveArena({
         }
       }
     }
-  }, [dualAi, scenarioKey]);
+  }, [scenarioKey]);
 
   useEffect(() => {
     void (async () => {
@@ -74,12 +77,13 @@ export function TestInteractiveArena({
     if (!dualAi || !session || session.world_state.done) {
       return;
     }
-    const delay = Math.max(50, 1000 / speed);
+    const tps = pace === "human" ? SNAKE_HUMAN_TICKS_PER_SEC : SNAKE_WATCH_TICKS_PER_SEC;
+    const delay = Math.max(40, 1000 / tps);
     const handle = window.setInterval(() => {
       void tick();
     }, delay);
     return () => window.clearInterval(handle);
-  }, [dualAi, session, speed, tick]);
+  }, [dualAi, session, pace, tick]);
 
   useEffect(() => {
     if (dualAi) {
@@ -110,36 +114,26 @@ export function TestInteractiveArena({
     return () => window.removeEventListener("keydown", onKey);
   }, [dualAi, scenarioKey]);
 
-  const title = dualAi ? "Dual arena" : "Human vs AI";
-
   return (
-    <TestShell backTo={testModelPath(modelKey)} backLabel="Snake Policy" title={title}>
-      <p className="test-scenario-hint">
-        {dualAi
-          ? "Both snakes use the same policy checkpoint. Adjust speed to watch."
-          : "Arrow keys or WASD. AI uses the trained policy."}
-      </p>
+    <SnakeShell backTo={testModelPath(modelKey)}>
       {dualAi ? (
-        <label className="field">
-          <span>Speed (ticks/s)</span>
-          <input
-            type="range"
-            min={4}
-            max={24}
-            value={speed}
-            onChange={(event) => setSpeed(Number(event.target.value))}
-          />
-        </label>
+        <SnakeBar>
+          <SnakeBarGroup>
+            <SnakeBarSegment
+              value={pace}
+              options={[
+                { value: "human", label: "I", title: "Human pace" },
+                { value: "fast", label: "III", title: "Fast" },
+              ]}
+              onChange={setPace}
+            />
+          </SnakeBarGroup>
+        </SnakeBar>
       ) : null}
-      {session ? (
-        <TestSnakeCanvas
-          world={session.world_state}
-          suggestedDirection={dualAi ? null : session.policy_action}
-          opponentDirection={session.opponent_action}
-        />
-      ) : (
-        <p className="test-empty">Loading…</p>
-      )}
-    </TestShell>
+      <div className="snake-focus">
+        {session ? <TestSnakeCanvas world={session.world_state} /> : <p className="snake-wait">···</p>}
+        {!dualAi ? <kbd className="snake-keys">↑ ← ↓ →</kbd> : null}
+      </div>
+    </SnakeShell>
   );
 }
