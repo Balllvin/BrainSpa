@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 
 import { fetchTestScenarios } from "@/lib/backend";
-import { fallbackScenarios } from "@/lib/testScenarios";
+import { mergeTestScenarios } from "@/lib/testScenarios";
 import { canonicalModelSlug, modelKeyFromSlug, testScenarioPath } from "@/lib/testRoutes";
 import type { TestScenarioMode } from "@/lib/testScenarios";
 
@@ -23,10 +23,7 @@ export function TestEnvironmentPage() {
   useEffect(() => {
     void (async () => {
       const response = await fetchTestScenarios(modelKey);
-      const list =
-        response.ok && response.scenarios.length
-          ? response.scenarios
-          : fallbackScenarios(modelKey);
+      const list = mergeTestScenarios(modelKey, response.ok ? response.scenarios : []);
       const scenario = list.find((item) => item.key === scenarioKey);
       setMode(scenario?.mode ?? "chat");
     })();

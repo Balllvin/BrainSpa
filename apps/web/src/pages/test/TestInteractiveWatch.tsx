@@ -9,7 +9,8 @@ import {
 import { testModelPath } from "@/lib/testRoutes";
 
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
-import { SnakeBar, SnakeBarGroup, SnakeBarSegment } from "./snake/SnakeBar";
+import { SnakeBar, SnakeBarGroup, SnakeBarSegment, SnakeTelemetry } from "./snake/SnakeBar";
+import { SnakePlaceholderBoard, sessionMetrics } from "./snake/SnakeTestUtils";
 import { SnakeShell } from "./snake/SnakeShell";
 
 type WatchPace = "slow" | "mid" | "fast";
@@ -83,16 +84,23 @@ export function TestInteractiveWatch({
           <SnakeBarSegment
             value={pace}
             options={[
-              { value: "slow", label: "I", title: "Slow" },
-              { value: "mid", label: "II", title: "Medium" },
-              { value: "fast", label: "III", title: "Fast" },
+              { value: "slow", label: "Slow" },
+              { value: "mid", label: "Mid" },
+              { value: "fast", label: "Fast" },
             ]}
             onChange={setPace}
           />
         </SnakeBarGroup>
+        <SnakeTelemetry>
+          {session ? sessionMetrics(session, "policy plays") : "Loading policy session…"}
+        </SnakeTelemetry>
       </SnakeBar>
       <div className="snake-focus">
-        {session ? <TestSnakeCanvas world={session.world_state} /> : <p className="snake-wait">···</p>}
+        {session ? (
+          <TestSnakeCanvas world={session.world_state} policyAction={session.policy_action} />
+        ) : (
+          <SnakePlaceholderBoard />
+        )}
       </div>
     </SnakeShell>
   );

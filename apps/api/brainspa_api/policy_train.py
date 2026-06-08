@@ -91,23 +91,24 @@ def start_policy_train(
                 return _STOP_FLAGS.get(project_key, False)
 
             def on_episode(progress: Any, result: dict[str, Any]) -> None:
-                episode_id = new_episode_id()
-                append_episode(
-                    {
-                        "episode_id": episode_id,
-                        "scenario_key": "autonomous-train",
-                        "steps": result["steps"],
-                        "outcome": result["outcome"],
-                        "reward_totals_by_component": result["reward_totals"],
-                        "max_length": result["length"],
-                        "apples_eaten": result["score"],
-                        "coverage": result["coverage"],
-                    },
-                    [
-                        {**row, "episode_id": episode_id, "policy_version": str(checkpoint)}
-                        for row in result.get("transitions", [])
-                    ],
-                )
+                if "reward_totals" in result:
+                    episode_id = new_episode_id()
+                    append_episode(
+                        {
+                            "episode_id": episode_id,
+                            "scenario_key": "autonomous-train",
+                            "steps": result["steps"],
+                            "outcome": result["outcome"],
+                            "reward_totals_by_component": result["reward_totals"],
+                            "max_length": result["length"],
+                            "apples_eaten": result["score"],
+                            "coverage": result["coverage"],
+                        },
+                        [
+                            {**row, "episode_id": episode_id, "policy_version": str(checkpoint)}
+                            for row in result.get("transitions", [])
+                        ],
+                    )
                 _write_job(
                     {
                         "state": "running",
@@ -127,7 +128,7 @@ def start_policy_train(
                 )
 
             try:
-                profiles = env_profiles or ["solo", "wrapped_v2", "arena"]
+                profiles = env_profiles or ["coords"]
                 if policy_backend == "sb3":
                     from packages.brainspa_training.policy_sb3 import train_snake_sb3
 

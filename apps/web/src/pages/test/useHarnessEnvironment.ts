@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchBrainSpaOverview, fetchHarnessChat, fetchTestScenarios, sendHarnessChatMessage } from "@/lib/backend";
-import { fallbackScenarios, modelDisplayName } from "@/lib/testScenarios";
+import { fallbackScenarios, mergeTestScenarios, modelDisplayName } from "@/lib/testScenarios";
 import type { HarnessChatMessage, TestScenario } from "@/lib/types";
 
 export function useHarnessEnvironment(modelKey: string, scenarioKey: string) {
@@ -39,10 +39,7 @@ export function useHarnessEnvironment(modelKey: string, scenarioKey: string) {
     });
     void (async () => {
       const response = await fetchTestScenarios(modelKey);
-      const list =
-        response.ok && response.scenarios.length
-          ? response.scenarios
-          : fallbackScenarios(modelKey);
+      const list = mergeTestScenarios(modelKey, response.ok ? response.scenarios : []);
       setScenario(list.find((item) => item.key === scenarioKey) ?? null);
     })();
     void load();

@@ -13,7 +13,7 @@ from .config import model_feedback_path, runtime_root, telegram_config_path, wri
 from .model_feedback import append_model_feedback_record
 from .models import EvalRunRequest, TelegramPollResult, TelegramPollerStatus
 from .state import authorize_telegram_message, log_event, migrate_legacy_telegram_bots
-from .workflows import believer_runtime_reply, chipmunk_reply, looks_like_loop_request, run_environment_eval
+from .workflows import chipmunk_reply, looks_like_loop_request, run_environment_eval
 
 RESERVED_HERMES_BOT_NAMES = {"chipmunk"}
 
@@ -189,7 +189,7 @@ def _handle_message(bot: dict[str, Any], message: dict[str, Any], client: Telegr
     if _find_model_message_by_inbound(bot_name, chat_id, message_id):
         return {"sent": 0, "feedback": 0, "skipped": 1}
 
-    answer, routed_to, model_name = _build_telegram_reply(bot_name, str(bot.get("model_key") or "persona_small"), text)
+    answer, routed_to, model_name = _build_telegram_reply(bot_name, str(bot.get("model_key") or ""), text)
     response = client.send_message(str(bot["bot_token"]), chat_id, answer, reply_to_message_id=message_id)
     bot_message_id = _int_or_none(response.get("result", {}).get("message_id"))
     if bot_message_id is not None and not _is_chipmunk_bot(bot_name) and routed_to == str(bot.get("model_key") or "") and model_name:
@@ -199,7 +199,7 @@ def _handle_message(bot: dict[str, Any], message: dict[str, Any], client: Telegr
                 "chat_id": chat_id,
                 "user_message_id": message_id,
                 "bot_message_id": bot_message_id,
-                "model_key": str(bot.get("model_key") or "persona_small"),
+                "model_key": str(bot.get("model_key") or ""),
                 "model": model_name,
                 "routed_to": routed_to,
                 "prompt": text,
@@ -212,11 +212,17 @@ def _handle_message(bot: dict[str, Any], message: dict[str, Any], client: Telegr
 
 def _build_telegram_reply(bot_name: str, model_key: str, text: str) -> tuple[str, str, str | None]:
     if not _is_chipmunk_bot(bot_name) and model_key and not looks_like_loop_request(text):
-        result = believer_runtime_reply(text, model_key)
-        if result.state == "complete":
-            return result.answer, model_key, result.model
-        reason = ", ".join(result.missing_requirements) or "runtime blocked"
-        return f"Model is configured but blocked locally: {reason}.", model_key, result.model
+        if model_key == "snake_policy":
+            return (
+                "Snake Policy is an environment policy, not a shipped chat model. Use the Snake Test pages to run or train it.",
+                "test",
+                None,
+            )
+        return (
+            "This public shell does not ship a text model runtime. Route loop work through Chipmunk or configure a local runtime.",
+            "chipmunk",
+            None,
+        )
     route = chipmunk_reply(text)
     return route.reply, route.routed_to, None
 
@@ -251,7 +257,7 @@ def _save_feedback_if_model_reply(
     }
     feedback_path = append_model_feedback_record(payload)
     eval_result = run_environment_eval(
-        EvalRunRequest(environment_key="chat_believer", prompt=str(record.get("prompt") or ""), answer=str(record.get("answer") or ""))
+        EvalRunRequest(environment_key="snake_10x10", prompt=str(record.get("prompt") or ""), answer=str(record.get("answer") or ""))
     )
     log_event(
         "evidence.telegram_feedback",

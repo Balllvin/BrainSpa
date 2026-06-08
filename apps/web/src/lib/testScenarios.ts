@@ -17,101 +17,78 @@ export interface TestScenario {
 
 /** Mirrors `apps/api/brainspa_api/test_scenarios.py` when API is offline or stale. */
 export const FALLBACK_SCENARIOS: Record<string, TestScenario[]> = {
-  persona_small: [
-    {
-      key: "counsel",
-      label: "COUNSEL",
-      mode: "chat",
-      placeholder: "What weighs on you?",
-      hint: "Talk through something on your mind.",
-    },
-    {
-      key: "advice",
-      label: "ADVICE",
-      mode: "chat",
-      placeholder: "What should I do when…",
-      hint: "Ask what to do in a situation.",
-    },
-    {
-      key: "daily-word",
-      label: "DAILY WORD",
-      mode: "generate",
-      placeholder: "",
-      hint: "One short encouragement for today.",
-    },
-    {
-      key: "witness",
-      label: "WITNESS",
-      mode: "chat",
-      placeholder: "Someone said faith is only coping…",
-      hint: "Answer a challenge to faith.",
-    },
-  ],
   snake_policy: [
     {
       key: "autonomous-train",
       label: "AUTONOMOUS TRAIN",
       mode: "interactive_train",
       placeholder: "",
-      hint: "Parallel boards.",
+      hint: "Six boards train in parallel.",
     },
     {
       key: "autonomous-watch",
       label: "AUTONOMOUS WATCH",
       mode: "interactive_watch",
       placeholder: "",
-      hint: "Policy only.",
+      hint: "Policy plays solo — pick speed.",
     },
     {
       key: "human-play",
       label: "HUMAN PLAY",
       mode: "interactive_play",
       placeholder: "",
-      hint: "Keys.",
+      hint: "You control the snake.",
     },
     {
       key: "coach-replay",
       label: "COACH REPLAY",
       mode: "interactive_coach",
       placeholder: "",
-      hint: "Replay.",
+      hint: "Step through a saved game.",
     },
     {
       key: "human-vs-ai",
       label: "HUMAN VS AI",
       mode: "interactive_arena",
       placeholder: "",
-      hint: "Vs AI.",
+      hint: "You vs policy on one board.",
     },
     {
       key: "dual-arena",
       label: "DUAL ARENA",
       mode: "interactive_arena",
       placeholder: "",
-      hint: "Dual AI.",
-    },
-  ],
-  coding_small: [
-    {
-      key: "cli-task",
-      label: "CLI TASK",
-      mode: "chat",
-      placeholder: "What should the worker do?",
-      hint: "Describe a repo task to run.",
+      hint: "Two policies head to head.",
     },
   ],
 };
 
 export function fallbackScenarios(modelKey: string): TestScenario[] {
-  return FALLBACK_SCENARIOS[modelKey] ?? FALLBACK_SCENARIOS.persona_small;
+  return FALLBACK_SCENARIOS[modelKey] ?? [];
+}
+
+/** Prefer API scenarios only when they match this model's registry harness. */
+export function mergeTestScenarios(modelKey: string, apiScenarios: TestScenario[]): TestScenario[] {
+  const expected = fallbackScenarios(modelKey);
+  if (!expected.length) {
+    return apiScenarios;
+  }
+  if (!apiScenarios.length) {
+    return expected;
+  }
+  const expectedKeys = new Set(expected.map((scenario) => scenario.key));
+  const overlap = apiScenarios.filter((scenario) => expectedKeys.has(scenario.key)).length;
+  const minimum = Math.min(2, expectedKeys.size);
+  if (overlap >= minimum) {
+    return apiScenarios;
+  }
+  return expected;
 }
 
 export { testModelPath as modelPath, testScenarioPath as scenarioPath } from "@/lib/testRoutes";
 
 /** User-facing tuned model name (not registry key). */
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
-  persona_small: "Believer",
-  coding_small: "Coding Worker",
   snake_policy: "Snake Policy",
 };
 

@@ -279,19 +279,17 @@ class TelegramPollerStatus(BaseModel):
 
 
 class DatasetGenerateRequest(BaseModel):
-    project_key: str = "believer_validation"
-    goal: str = "Create a Believer dataset for SmolLM2 validation."
+    project_key: str = "snake_rl_validation"
+    goal: str = "Create Snake rollout data by running the environment."
     example_count: int = Field(default=24, ge=4, le=96)
-    scenarios: list[str] = Field(
-        default_factory=lambda: ["counsel", "advice", "witness", "daily-word"],
-    )
+    scenarios: list[str] = Field(default_factory=list)
     scenario_weights: dict[str, int] = Field(default_factory=dict)
     mix_even: bool = True
     ground_in_evidence: bool = True
     preview_only: bool = False
     pack: str | None = Field(
         default=None,
-        description="Quick pack: witness-heavy | import-feedback-only",
+        description="Optional dataset generation pack.",
     )
 
 
@@ -308,7 +306,7 @@ class DatasetPreferencePairCreate(BaseModel):
     chosen: str
     rejected: str
     failure_labels: list[str] = Field(default_factory=list)
-    scenario_key: str = "counsel"
+    scenario_key: str = "autonomous-train"
 
 
 class DatasetEvidenceGate(BaseModel):
@@ -374,9 +372,9 @@ TrainingPreset = Literal["fast", "standard", "quality"]
 
 
 class TrainingDryRunRequest(BaseModel):
-    project_key: str = "believer_validation"
-    dataset_key: str = "believer_seed"
-    model_key: str = "persona_small"
+    project_key: str = "snake_rl_validation"
+    dataset_key: str = "snake_rollout"
+    model_key: str = "snake_policy"
     preferred_backend: str | None = None
     training_preset: TrainingPreset = "standard"
 
@@ -406,9 +404,9 @@ class TrainingAdapterBuildResult(BaseModel):
 
 
 class EvalRunRequest(BaseModel):
-    environment_key: str = "chat_believer"
-    prompt: str = "What should I do when I feel spiritually weak?"
-    answer: str = "Pray, read Scripture, and ask for help from your church."
+    environment_key: str = "snake_10x10"
+    prompt: str = "Run a Snake policy check."
+    answer: str = "The policy should survive longer, collect apples, and avoid loops."
     workspace_hint: str | None = None
 
 
@@ -427,9 +425,9 @@ class EvalRunResult(BaseModel):
 
 
 class AdapterTestRequest(BaseModel):
-    project_key: str = "believer_validation"
-    model_key: str = "persona_small"
-    prompt: str = "What should I do when I feel spiritually weak?"
+    project_key: str = "snake_rl_validation"
+    model_key: str = "snake_policy"
+    prompt: str = "Run a Snake policy check."
 
 
 class AdapterTestResult(BaseModel):
@@ -577,13 +575,13 @@ class HarnessChatMessage(BaseModel):
 
 class HarnessChatThread(BaseModel):
     model_key: str
-    scenario_key: str = "counsel"
+    scenario_key: str = "autonomous-train"
     messages: list[HarnessChatMessage] = Field(default_factory=list)
 
 
 class HarnessChatSendRequest(BaseModel):
     model_key: str
-    scenario_key: str = "counsel"
+    scenario_key: str = "autonomous-train"
     text: str = Field(min_length=1)
     reply_to_message_id: int | None = None
 
@@ -686,7 +684,7 @@ class ChipmunkHermesUpdate(BaseModel):
 
 
 class ChipmunkSettings(BaseModel):
-    default_model_key: str = "persona_small"
+    default_model_key: str = "snake_policy"
     default_telegram_bot_name: str | None = None
     voice_model: str = "grok-voice-think-fast-1.0"
     xai_configured: bool = False
@@ -745,8 +743,17 @@ SnakeLabPace = Literal["human", "watch", "train"]
 
 class SnakeLabStartRequest(BaseModel):
     slots: int = Field(default=6, ge=1, le=6)
-    episodes: int = Field(default=200, ge=10, le=10_000)
+    episodes: int = Field(default=100, ge=10, le=10_000)
     pace: SnakeLabPace = "train"
+    speed_multiplier: float = Field(default=1.0, ge=0.25, le=32.0)
+
+
+class SnakeLabSpeedRequest(BaseModel):
+    speed_multiplier: float = Field(ge=0.25, le=32.0)
+
+
+class SnakeLabEpisodesRequest(BaseModel):
+    episodes: int = Field(ge=10, le=10_000)
 
 
 PolicyBackend = Literal["dqn", "sb3"]
@@ -755,7 +762,7 @@ PolicyBackend = Literal["dqn", "sb3"]
 class PolicyTrainRequest(BaseModel):
     model_key: str = "snake_policy"
     episodes: int = 100
-    env_profiles: list[str] = Field(default_factory=lambda: ["solo", "wrapped_v2", "arena"])
+    env_profiles: list[str] = Field(default_factory=lambda: ["coords"])
     policy_backend: PolicyBackend = "dqn"
 
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-export function SnakeBar({ children }: { children: ReactNode }) {
-  return <div className="snake-bar">{children}</div>;
+export function SnakeBar({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={className ? `snake-bar ${className}` : "snake-bar"}>{children}</div>;
 }
 
 export function SnakeBarGroup({ children }: { children: ReactNode }) {

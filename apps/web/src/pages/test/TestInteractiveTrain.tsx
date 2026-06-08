@@ -2,43 +2,37 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   fetchSnakeLab,
-  runPolicyEval,
+  idleLabSlots,
+  SNAKE_LAB_BOARD_COUNT,
   snakeLabStreamUrl,
+  setSnakeLabEpisodes,
+  setSnakeLabSpeed,
   startSnakeLab,
   stopSnakeLab,
-  type PolicyEvalResult,
   type SnakeLabFrame,
-  type SnakeLabPace,
+  type SnakeLabRuns,
+  type SnakeLabSlot,
+  type SnakeLabSpeed,
 } from "@/lib/snakeBackend";
 import { testModelPath } from "@/lib/testRoutes";
 
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
-import { SnakeBar, SnakeBarBtn, SnakeBarGroup, SnakeBarSegment, SnakeTelemetry } from "./snake/SnakeBar";
+import { SnakeLabHeaderControls } from "./snake/SnakeLabHeaderControls";
+import { SnakeLabToolbar } from "./snake/SnakeLabToolbar";
+import { labTrainingStats } from "./snake/SnakeTestUtils";
 import { SnakeShell } from "./snake/SnakeShell";
-
-const SLOT_OPTIONS = [4, 5, 6] as const;
 
 export function TestInteractiveTrain({ modelKey }: { modelKey: string }) {
   const [lab, setLab] = useState<SnakeLabFrame | null>(null);
-  const [evalResult, setEvalResult] = useState<PolicyEvalResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const [slots, setSlots] = useState<number>(6);
-  const [pace, setPace] = useState<SnakeLabPace>("train");
+  const [speed, setSpeed] = useState<SnakeLabSpeed>(1);
+  const [runs, setRuns] = useState<SnakeLabRuns>(100);
   const streamRef = useRef<EventSource | null>(null);
 
   const closeStream = useCallback(() => {
     streamRef.current?.close();
     streamRef.current = null;
   }, []);
-
-  useEffect(() => {
-    void fetchSnakeLab().then((response) => {
-      if (response.ok && response.lab) {
-        setLab(response.lab);
-      }
-    });
-    return () => closeStream();
-  }, [closeStream]);
 
   const attachLabStream = useCallback(() => {
     closeStream();
@@ -60,10 +54,28 @@ export function TestInteractiveTrain({ modelKey }: { modelKey: string }) {
     source.onerror = () => closeStream();
   }, [closeStream]);
 
+  useEffect(() => {
+    void fetchSnakeLab().then((response) => {
+      if (response.ok && response.lab) {
+        setLab(response.lab);
+        if (response.lab.speed_multiplier) {
+          setSpeed(normalizeLabSpeed(response.lab.speed_multiplier));
+        }
+        if (response.lab.episodes_target) {
+          setRuns(normalizeLabRuns(response.lab.episodes_target));
+        }
+        if (response.lab.running) {
+          attachLabStream();
+        }
+      }
+    });
+    return () => closeStream();
+  }, [attachLabStream, closeStream]);
+
   async function handleRun() {
     setBusy(true);
     closeStream();
-    const response = await startSnakeLab(slots, 200, pace);
+    const response = await startSnakeLab(SNAKE_LAB_BOARD_COUNT, runs, speed);
     setBusy(false);
     if (!response.ok || !response.data?.ok) {
       return;
@@ -83,71 +95,74 @@ export function TestInteractiveTrain({ modelKey }: { modelKey: string }) {
     setBusy(false);
   }
 
-  async function handleEval() {
-    setBusy(true);
-    const response = await runPolicyEval(100);
-    setBusy(false);
-    if (response.ok && response.data) {
-      setEvalResult(response.data);
+  const running = lab?.running ?? false;
+  const slots: SnakeLabSlot[] =
+    lab?.slots?.length === SNAKE_LAB_BOARD_COUNT ? lab.slots : idleLabSlots();
+  const stats = labTrainingStats(lab, slots);
+
+  async function handleSpeedChange(next: SnakeLabSpeed) {
+    setSpeed(next);
+    if (!running) {
+      return;
+    }
+    const response = await setSnakeLabSpeed(next);
+    if (response.ok && response.data?.lab) {
+      setLab(response.data.lab);
     }
   }
 
-  const running = lab?.running ?? false;
+  async function handleRunsChange(next: SnakeLabRuns) {
+    setRuns(next);
+    const response = await setSnakeLabEpisodes(next);
+    if (response.ok && response.data?.lab) {
+      setLab(response.data.lab);
+    }
+  }
 
   return (
-    <SnakeShell backTo={testModelPath(modelKey)}>
-      <SnakeBar>
-        <SnakeBarGroup>
-          <SnakeBarBtn disabled={busy || running} onClick={() => void handleRun()} title="Run">
-            ▶
-          </SnakeBarBtn>
-          <SnakeBarBtn disabled={busy || !running} onClick={() => void handleStop()} title="Stop">
-            ■
-          </SnakeBarBtn>
-        </SnakeBarGroup>
-        <SnakeBarGroup>
-          <SnakeBarSegment
-            value={slots}
-            options={SLOT_OPTIONS.map((n) => ({ value: n, label: String(n) }))}
-            onChange={setSlots}
-            disabled={running}
-          />
-        </SnakeBarGroup>
-        <SnakeBarGroup>
-          <SnakeBarSegment
-            value={pace}
-            options={[
-              { value: "human", label: "I", title: "Human pace" },
-              { value: "watch", label: "II", title: "Watch" },
-              { value: "train", label: "III", title: "Train" },
-            ]}
-            onChange={setPace}
-            disabled={running}
-          />
-        </SnakeBarGroup>
-        <SnakeBarGroup>
-          <SnakeBarBtn disabled={busy} onClick={() => void handleEval()} title="Eval 100">
-            ✓
-          </SnakeBarBtn>
-        </SnakeBarGroup>
-      </SnakeBar>
+    <SnakeShell
+      variant="lab"
+      backTo={testModelPath(modelKey)}
+      headerAside={
+        <SnakeLabHeaderControls
+          speed={speed}
+          runs={runs}
+          onSpeedChange={(next) => void handleSpeedChange(next)}
+          onRunsChange={(next) => void handleRunsChange(next)}
+        />
+      }
+    >
+      <SnakeLabToolbar
+        stats={stats}
+        running={running}
+        busy={busy}
+        episode={lab?.episode ?? 0}
+        target={lab?.episodes_target ?? runs}
+        draining={lab?.draining}
+        onToggle={() => void (running ? handleStop() : handleRun())}
+      />
 
-      {lab ? (
-        <SnakeTelemetry>
-          {running ? "●" : "○"} {lab.episode}/{lab.episodes_target} · ε{lab.epsilon} · {lab.mean_reward.toFixed(1)}
-          {evalResult ? ` · ${evalResult.passed ? "PASS" : "—"}` : ""}
-        </SnakeTelemetry>
-      ) : null}
-
-      {lab && lab.slots.length ? (
-        <div className={`snake-lab-grid snake-lab-grid--${lab.slot_count}`}>
-          {lab.slots.map((slot) => (
-            <TestSnakeCanvas key={slot.index} world={slot.world_state} compact cellSize={16} />
-          ))}
-        </div>
-      ) : (
-        <p className="snake-wait">▶</p>
-      )}
+      <div className="snake-lab-grid snake-lab-grid--6">
+        {slots.map((slot) => (
+          <div key={slot.index} className="snake-lab-slot">
+            <TestSnakeCanvas world={slot.world_state} compact cellSize={18} />
+          </div>
+        ))}
+      </div>
     </SnakeShell>
+  );
+}
+
+function normalizeLabSpeed(value: number): SnakeLabSpeed {
+  const options: SnakeLabSpeed[] = [1, 2, 4, 8, 16];
+  return options.reduce((best, option) =>
+    Math.abs(option - value) < Math.abs(best - value) ? option : best,
+  );
+}
+
+function normalizeLabRuns(value: number): SnakeLabRuns {
+  const options: SnakeLabRuns[] = [10, 100, 200, 500, 1000];
+  return options.reduce((best, option) =>
+    Math.abs(option - value) < Math.abs(best - value) ? option : best,
   );
 }

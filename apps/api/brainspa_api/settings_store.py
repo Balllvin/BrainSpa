@@ -27,7 +27,7 @@ def default_settings() -> dict[str, Any]:
         "backend_auth": {},
         "model_telegram": {},
         "chipmunk": {
-            "default_model_key": "persona_small",
+            "default_model_key": "snake_policy",
             "default_telegram_bot_name": None,
             "voice_model": "grok-voice-think-fast-1.0",
         },

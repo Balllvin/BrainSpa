@@ -53,7 +53,8 @@ import type {
   EvidenceClaimStatus,
 } from "@/lib/types";
 
-const DEFAULT_BACKEND = "http://127.0.0.1:8000";
+/** In dev, use same origin so Vite proxies /api → :8000 (avoids CORS when port is 5174+). */
+const DEFAULT_BACKEND = import.meta.env.DEV ? "" : "http://127.0.0.1:8000";
 const REQUEST_TIMEOUT_MS = 8000;
 const MODEL_REQUEST_TIMEOUT_MS = 300_000;
 
@@ -163,7 +164,7 @@ export async function generateDatasetForKey(
 ): Promise<{ ok: boolean; data: DatasetGenerateResult | null; error: string | null }> {
   const payload: DatasetGenerateOptions = {
     example_count: options.example_count ?? 24,
-    scenarios: options.scenarios ?? ["counsel", "advice", "witness", "daily-word"],
+    scenarios: options.scenarios ?? [],
     scenario_weights: options.scenario_weights ?? {},
     mix_even: options.mix_even ?? true,
     ground_in_evidence: options.ground_in_evidence ?? true,
@@ -289,7 +290,7 @@ export async function fetchTuneModelStatus(modelSlug: string): Promise<{
   }
 }
 
-export function runTrainingDryRun(modelKey = "persona_small", datasetKey = "believer_seed") {
+export function runTrainingDryRun(modelKey: string, datasetKey: string) {
   return postJson<TrainingDryRunResult>("/api/tune/dry-run", { model_key: modelKey, dataset_key: datasetKey });
 }
 
@@ -332,8 +333,8 @@ export async function fetchTuneBuildJob(modelSlug: string): Promise<{
 }
 
 export function startTuneBuild(
-  modelKey = "persona_small",
-  datasetKey = "believer_seed",
+  modelKey: string,
+  datasetKey: string,
   trainingPreset: TrainingPreset = "standard",
 ) {
   return postJson<TuneBuildJob>("/api/tune/build", {
@@ -345,8 +346,8 @@ export function startTuneBuild(
 
 /** @deprecated Use startTuneBuild + fetchTuneBuildJob polling */
 export function buildTrainingAdapter(
-  modelKey = "persona_small",
-  datasetKey = "believer_seed",
+  modelKey: string,
+  datasetKey: string,
   trainingPreset: TrainingPreset = "standard",
 ) {
   return startTuneBuild(modelKey, datasetKey, trainingPreset);
@@ -374,7 +375,7 @@ async function postJsonWithTimeout<T>(
   }
 }
 
-export function testTrainingAdapter(prompt: string, modelKey = "persona_small") {
+export function testTrainingAdapter(prompt: string, modelKey: string) {
   return postJsonWithTimeout<AdapterTestResult>(
     "/api/tune/test-adapter",
     { prompt, model_key: modelKey },
@@ -446,7 +447,7 @@ export function sendHarnessChatMessage(
   );
 }
 
-export function runBelieverAcceptance(modelKey = "persona_small") {
+export function runAcceptanceCheck(modelKey: string) {
   return postJsonWithTimeout<AcceptanceRunResult>(
     "/api/tune/acceptance",
     { model_key: modelKey },

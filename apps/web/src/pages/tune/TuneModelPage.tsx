@@ -29,13 +29,13 @@ const HUB_CARDS: HubCard[] = [
   {
     key: "build",
     name: "Build",
-    hint: "Dry-run, then train the adapter",
+    hint: "Dry-run, then train",
     path: (slug) => tuneBuildPath(slug),
   },
   {
     key: "status",
     name: "Status & acceptance",
-    hint: "Last build and 10-question check",
+    hint: "Last build and acceptance check",
     path: (slug) => tuneStatusPath(slug),
   },
   {
@@ -47,7 +47,7 @@ const HUB_CARDS: HubCard[] = [
   {
     key: "test",
     name: "Test environments",
-    hint: "Counsel, advice, witness, daily word",
+    hint: "Run environment scenarios",
     path: (slug) => testModelPath(slug),
   },
 ];
@@ -79,13 +79,13 @@ export function TuneModelPage() {
     return <TunePolicyPage modelSlug={canonicalSlug} />;
   }
 
-  const datasetSlug = status?.dataset_key === "believer_seed" ? "believer" : status?.dataset_key ?? "believer";
+  const datasetSlug = status?.dataset_key ?? "snake";
 
   return (
     <TuneShell
       backTo={tuneHomePath()}
       backLabel="Tune"
-      title={status?.display_name ?? (canonicalSlug === "believer" ? "Believer" : canonicalSlug)}
+      title={status?.display_name ?? canonicalSlug}
     >
       {!ready ? <p className="tune-empty">Loading…</p> : null}
       {ready && error ? <p className="tune-error">{error}</p> : null}

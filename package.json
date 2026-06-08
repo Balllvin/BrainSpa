@@ -9,6 +9,7 @@
   },
   "type": "module",
   "scripts": {
+    "start": "node scripts/dev-all.mjs",
     "dev": "vite",
     "api": "node scripts/run-python.mjs -m apps.api.brainspa_api",
     "build": "tsc --noEmit && vite build",

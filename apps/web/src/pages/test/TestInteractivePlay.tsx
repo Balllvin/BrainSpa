@@ -4,18 +4,9 @@ import { closeSnakeSession, createSnakeSession, stepSnakeSession, type SnakeSess
 import { testModelPath } from "@/lib/testRoutes";
 
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
+import { SnakeBar, SnakeTelemetry } from "./snake/SnakeBar";
+import { KEY_TO_ACTION, SNAKE_CONTROL_HINT, SnakePlaceholderBoard, sessionMetrics } from "./snake/SnakeTestUtils";
 import { SnakeShell } from "./snake/SnakeShell";
-
-const KEY_TO_ACTION: Record<string, string> = {
-  ArrowUp: "up",
-  ArrowDown: "down",
-  ArrowLeft: "left",
-  ArrowRight: "right",
-  w: "up",
-  s: "down",
-  a: "left",
-  d: "right",
-};
 
 export function TestInteractivePlay({
   modelKey,
@@ -70,9 +61,13 @@ export function TestInteractivePlay({
 
   return (
     <SnakeShell backTo={testModelPath(modelKey)}>
+      <SnakeBar>
+        <SnakeTelemetry>
+          {session ? sessionMetrics(session, SNAKE_CONTROL_HINT) : `Loading board · ${SNAKE_CONTROL_HINT}`}
+        </SnakeTelemetry>
+      </SnakeBar>
       <div className="snake-focus">
-        {session ? <TestSnakeCanvas world={session.world_state} /> : <p className="snake-wait">···</p>}
-        <kbd className="snake-keys">↑ ← ↓ →</kbd>
+        {session ? <TestSnakeCanvas world={session.world_state} /> : <SnakePlaceholderBoard />}
       </div>
     </SnakeShell>
   );

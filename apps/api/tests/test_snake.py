@@ -43,6 +43,52 @@ def test_state_vector_dimension():
     assert len(vector) == 11
 
 
+def test_coords_state_dim():
+    sim = SnakeSim(seed=3)
+    state = sim.reset(seed=3)
+    vector = encode_state(sim, state, env_profile="coords")
+    assert len(vector) == 33
+
+
+def test_legacy_coords_profile_alias():
+    sim = SnakeSim(seed=3)
+    state = sim.reset(seed=3)
+    assert encode_state(sim, state, env_profile="coords_v1") == encode_state(sim, state, env_profile="coords")
+
+
+def test_sparse_rewards():
+    sim = SnakeSim(seed=4)
+    state = sim.reset(seed=4)
+    decomposer = RewardDecomposer(reward_mode="sparse")
+    decomposer.reset(state)
+    step = sim.step(0)
+    breakdown = decomposer.step(state, step.state, ate_apple=step.ate_apple)
+    assert breakdown.survival == 0.0
+    assert breakdown.distance_to_apple_delta == 0.0
+    if step.ate_apple:
+        assert breakdown.apple == 1.0
+        assert breakdown.total == 1.0
+
+
+def test_tail_move_into_tail_allowed():
+    """Moving into the vacated tail cell should not count as self-collision."""
+    sim = SnakeSim(seed=1)
+    sim.reset(seed=1)
+    sim._state = sim._state.__class__(
+        grid_size=10,
+        snake=[(5, 5), (5, 6), (5, 7)],
+        direction="up",
+        apple=(0, 0),
+        score=0,
+        steps=0,
+        done=False,
+        outcome="in_progress",
+    )
+    result = sim.step("up")
+    assert not result.state.done
+    assert result.state.outcome == "in_progress"
+
+
 def test_snake_scenarios_listed(client):
     response = client.get("/api/harness/scenarios/snake_policy")
     assert response.status_code == 200

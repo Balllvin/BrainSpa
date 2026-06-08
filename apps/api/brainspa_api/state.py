@@ -121,7 +121,7 @@ def seed_state() -> dict[str, Any]:
                 "tools": ["codex", "transformers", "TRL", "PEFT", "MLX recipe writer", "artifact registry"],
                 "scoring_rules": ["dry-run complete", "requirements explicit", "adapter saved", "base model unchanged"],
                 "failure_comments": ["missing trainer module", "dataset handoff invalid", "adapter artifact missing", "loss unavailable"],
-                "template_artifacts": ["dry_run.json", "trainer_recipes", "adapter_build_result.json", "believer_adapter"],
+                "template_artifacts": ["dry_run.json", "trainer_recipes", "adapter_build_result.json", "policy checkpoint"],
             },
             {
                 "key": "test",
@@ -151,28 +151,6 @@ def seed_state() -> dict[str, Any]:
         ],
         "models": [
             {
-                "key": "persona_small",
-                "label": "Believer",
-                "base_model": "HuggingFaceTB/SmolLM2-360M-Instruct",
-                "role": "Small persona and chatbot fine-tunes",
-                "state": "candidate",
-                "parameter_count": "360M",
-                "hardware_fit": "Recommended for the current local-first target.",
-                "strengths": ["Small", "Apache licensed", "Practical for fast local iteration"],
-                "known_failures": ["Needs task-specific data for strong domain behavior"],
-            },
-            {
-                "key": "coding_small",
-                "label": "Coding Small",
-                "base_model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
-                "role": "Small coding-worker experiments",
-                "state": "candidate",
-                "parameter_count": "0.5B",
-                "hardware_fit": "Useful when the goal is code-specific behavior under a small-model budget.",
-                "strengths": ["Code-specialized", "Small", "Strong candidate for worker datasets"],
-                "known_failures": ["Less suitable as the default persona model"],
-            },
-            {
                 "key": "snake_policy",
                 "label": "Snake Policy",
                 "base_model": "",
@@ -183,20 +161,12 @@ def seed_state() -> dict[str, Any]:
                 "strengths": ["Rich reward logging", "Multi-environment reuse", "No LLM required"],
                 "known_failures": ["Full-board mastery on 10x10 is hard; needs curriculum"],
                 "model_kind": "policy",
-                "policy_arch": "snake_dqn_v1",
-                "input_dim": 11,
+                "policy_arch": "snake_coords",
+                "input_dim": 33,
                 "output_dim": 4,
             },
         ],
         "datasets": [
-            {
-                "key": "believer_seed",
-                "label": "Believer training set",
-                "goal": "Validate the full Brain Spa loop with a small model that answers from explicit Christian conviction.",
-                "state": "draft",
-                "quality_notes": ["Needs source material", "Needs split-safe eval set", "Needs failure labels"],
-                "warnings": ["Not ready for training"],
-            },
             {
                 "key": "snake_rollout",
                 "label": "Snake rollout",
@@ -208,22 +178,6 @@ def seed_state() -> dict[str, Any]:
         ],
         "projects": [
             {
-                "key": "believer_validation",
-                "label": "Believer Validation",
-                "goal": "End-to-end local validation for dataset generation, training handoff, model registry, and Telegram chat.",
-                "active_model": "persona_small",
-                "active_dataset": "believer_seed",
-                "environment": "chat_believer",
-            },
-            {
-                "key": "coding_environment",
-                "label": "Coding Environment",
-                "goal": "Validate CLI and file-editing behavior for models intended to operate in a coding harness.",
-                "active_model": "coding_small",
-                "active_dataset": None,
-                "environment": "coding_cli",
-            },
-            {
                 "key": "snake_rl_validation",
                 "label": "Snake RL Validation",
                 "goal": "Train and evaluate a DQN policy on 10x10 Snake with autonomous rollouts.",
@@ -232,50 +186,8 @@ def seed_state() -> dict[str, Any]:
                 "environment": "snake_10x10",
             },
         ],
-        "sources": [
-            {
-                "key": "believer_voice_refs",
-                "label": "Believer Voice References",
-                "kind": "web",
-                "provenance": "Faith-forward interviews, sermons, and blunt pastoral tone references",
-                "summary": "Ground Believer persona in cited faith voice—not generic assistant hedging.",
-                "active": True,
-                "feeds_models": ["persona_small", "believer"],
-            },
-            {
-                "key": "composer_training_interview",
-                "label": "Composer Training Interview",
-                "kind": "transcript",
-                "provenance": "docs/Composer 2 and 2.5 training interview.docx",
-                "summary": "Guidance source for fine-grained training comments, environment loops, and reward design.",
-                "active": True,
-                "feeds_models": [],
-            },
-            {
-                "key": "recovery_commits",
-                "label": "Recovered Repository History",
-                "kind": "source_recovery",
-                "provenance": "GitHub commit history for Brain Spa source, data workflows, training source, and harness recovery.",
-                "summary": "Source map for transcript ingestion, training handoff validation, Telegram persona running, and custom harnesses.",
-                "active": True,
-                "feeds_models": [],
-            },
-        ],
+        "sources": [],
         "environments": [
-            {
-                "key": "chat_believer",
-                "label": "Believer Chat Harness",
-                "goal": "Test whether the model answers from the intended conviction without generic or evasive phrasing.",
-                "harness": "Single-turn and short multi-turn chat",
-                "scoring": ["Conviction fit", "Grounding", "Boundary clarity", "Non-generic wording"],
-            },
-            {
-                "key": "coding_cli",
-                "label": "Coding CLI Harness",
-                "goal": "Test whether a coder model can inspect files, edit safely, run commands, and explain failures.",
-                "harness": "Repository workspace with shell, file operations, tests, and strict allowed-action boundaries",
-                "scoring": ["Patch correctness", "Test evidence", "Command safety", "Failure explanation"],
-            },
             {
                 "key": "snake_10x10",
                 "label": "Snake 10x10",
@@ -303,6 +215,16 @@ class BrainSpaState:
         payload = json.loads(self.path.read_text(encoding="utf-8"))
         seed = seed_state()
         changed = False
+        current_seed_keys = {
+            collection: {item.get("key") for item in seed.get(collection, []) if item.get("key")}
+            for collection in ("models", "datasets", "projects", "sources", "environments")
+        }
+        for collection, allowed_keys in current_seed_keys.items():
+            before = payload.get(collection, [])
+            after = [item for item in before if item.get("key") in allowed_keys]
+            if after != before:
+                payload[collection] = after
+                changed = True
         if payload.get("agents") != seed["agents"]:
             payload["agents"] = seed["agents"]
             changed = True
@@ -482,9 +404,7 @@ def migrate_legacy_telegram_bots() -> int:
                     continue
                 label = str(item.get("project_name") or item.get("name") or f"bot-{_id}")
                 name = _slug_bot_name(label)
-                model_key = "persona_small"
-                if "coding" in label.lower():
-                    model_key = "coding_small"
+                model_key = "snake_policy" if "snake" in label.lower() else ""
                 imported.append(
                     {
                         "name": name,
@@ -527,7 +447,7 @@ def read_telegram_bots() -> list[TelegramBotPublic]:
         bots.append(
             TelegramBotPublic(
                 name=item["name"],
-                model_key=item.get("model_key", "persona_small"),
+                model_key=item.get("model_key", ""),
                 allowed_chat_id_configured=bool(item.get("allowed_chat_id")),
                 enabled=bool(item.get("enabled", True)),
                 live_verified=bool(item.get("live_verified")),
@@ -617,7 +537,7 @@ def telegram_bot_model_key(bot_name: str) -> str | None:
     data = json.loads(path.read_text(encoding="utf-8"))
     for item in data.get("bots", []):
         if item.get("name") == bot_name:
-            return str(item.get("model_key") or "persona_small")
+            return str(item.get("model_key") or "")
     return None
 
 

@@ -14,9 +14,10 @@ from packages.brainspa_environments.snake import (
     encode_state,
 )
 from packages.brainspa_environments.snake.sim import SnakeState, new_episode_id
-from packages.brainspa_environments.snake.state import state_dim_for_profile
+from packages.brainspa_environments.snake.state import hidden_dim_for_profile, state_dim_for_profile
 from packages.brainspa_environments.snake.wrappers import (
     env_profile_for_scenario,
+    normalize_env_profile,
     is_arena_scenario,
     make_arena_sim,
     make_sim,
@@ -56,7 +57,7 @@ def _load_agent(profile: str) -> SnakeDQNAgent | None:
     if not path.exists():
         return None
     dim = state_dim_for_profile(profile)
-    agent = SnakeDQNAgent(input_dim=dim)
+    agent = SnakeDQNAgent(input_dim=dim, hidden=hidden_dim_for_profile(profile))
     try:
         agent.load(path)
     except Exception:
@@ -162,6 +163,7 @@ def _step_arena(
         p_idx = _resolve_action(session, action)
         o_idx = 0
 
+    world_before = arena.to_public_dict()
     prev_player = _arena_pseudo(arena, "player")
     step = arena.step(p_idx, o_idx)
     pseudo_after = _arena_pseudo(arena, "player")
@@ -177,6 +179,7 @@ def _step_arena(
         {
             "state_vector": vector,
             "head": list(prev_player.head),
+            "world_state": world_before,
             "action": ACTION_NAMES[p_idx],
             "action_index": p_idx,
             "opponent_action": ACTION_NAMES[o_idx],
@@ -209,6 +212,21 @@ def _resolve_action(session: SnakeSession, action: str | int | None) -> int:
     return ACTION_NAMES.index(action) if action in ACTION_NAMES else 0
 
 
+def _solo_world_from_state(state: SnakeState) -> dict[str, Any]:
+    return {
+        "grid_size": state.grid_size,
+        "snake": [list(segment) for segment in state.snake],
+        "direction": state.direction,
+        "apple": list(state.apple),
+        "score": state.score,
+        "steps": state.steps,
+        "length": state.length,
+        "coverage": round(state.coverage, 4),
+        "done": state.done,
+        "outcome": state.outcome,
+    }
+
+
 def _record_transition(
     session: SnakeSession,
     sim: SnakeSim,
@@ -221,6 +239,7 @@ def _record_transition(
         {
             "state_vector": encode_state(sim, prev, env_profile=session.env_profile),
             "head": list(prev.head),
+            "world_state": _solo_world_from_state(prev),
             "action": ACTION_NAMES[action_idx],
             "action_index": action_idx,
             "reward_components": breakdown.to_dict(),
@@ -274,24 +293,26 @@ def coach_diff_for_session(session_id: str, *, step: int | None = None) -> dict[
     if not archived and session_id in _SESSIONS:
         transitions = _SESSIONS[session_id].transitions
 
-    profile = "solo"
+    profile = "coords"
     if transitions:
-        profile = str(transitions[0].get("env_profile") or "solo")
+        profile = normalize_env_profile(str(transitions[0].get("env_profile") or "coords"))
     agent = _load_agent(profile)
-    if not agent and profile != "solo":
-        agent = _load_agent("solo")
+    if not agent and profile != "coords":
+        agent = _load_agent("coords")
     if not agent or not transitions:
         return {"found": False, "message": "No transitions or checkpoint unavailable."}
 
-    start = step if step is not None else 0
-    for index in range(start, len(transitions)):
+    indices = range(len(transitions)) if step is None else [step]
+    for index in indices:
+        if index < 0 or index >= len(transitions):
+            continue
         row = transitions[index]
         vector = row.get("state_vector") or []
         policy_idx = greedy_action(agent, vector)
         human_action = row.get("action")
         policy_action = ACTION_NAMES[policy_idx]
+        head = row.get("head")
         if human_action != policy_action:
-            head = row.get("head")
             return {
                 "found": True,
                 "step": index,
@@ -301,11 +322,40 @@ def coach_diff_for_session(session_id: str, *, step: int | None = None) -> dict[
                 "head": head,
                 "session_id": session_id,
             }
+    message = (
+        "Policy agrees at this step."
+        if step is not None
+        else "Policy agrees with all recorded steps."
+    )
     return {
         "found": False,
-        "message": "Policy agrees with all recorded steps.",
+        "message": message,
         "total_steps": len(transitions),
         "session_id": session_id,
+    }
+
+
+def _world_state_for_replay(row: dict[str, Any]) -> dict[str, Any] | None:
+    stored = row.get("world_state")
+    if isinstance(stored, dict):
+        if stored.get("snake") is not None:
+            return stored
+        if stored.get("mode") == "arena" and stored.get("player"):
+            return stored
+    head = row.get("head")
+    if not head:
+        return None
+    return {
+        "grid_size": 10,
+        "snake": [list(head)],
+        "direction": "up",
+        "apple": [5, 5],
+        "score": 0,
+        "steps": 0,
+        "length": 1,
+        "coverage": 0.01,
+        "done": False,
+        "outcome": "in_progress",
     }
 
 
@@ -321,6 +371,7 @@ def coach_step_replay(session_id: str, step_index: int) -> dict[str, Any]:
         "step": step_index,
         "transition": row,
         "diff": diff,
+        "world_state": _world_state_for_replay(row),
         "total_steps": len(transitions),
     }
 

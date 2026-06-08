@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import {
   fetchArchivedSnakeSessions,
@@ -8,10 +9,11 @@ import {
   type CoachDiff,
   type SnakeWorldState,
 } from "@/lib/snakeBackend";
-import { testModelPath } from "@/lib/testRoutes";
+import { testModelPath, testScenarioPath } from "@/lib/testRoutes";
 
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
 import { SnakeBar, SnakeBarBtn, SnakeBarGroup, SnakeTelemetry } from "./snake/SnakeBar";
+import { archivedSessionLabel, SnakePlaceholderBoard } from "./snake/SnakeTestUtils";
 import { SnakeShell } from "./snake/SnakeShell";
 
 export function TestInteractiveCoach({ modelKey }: { modelKey: string }) {
@@ -40,22 +42,8 @@ export function TestInteractiveCoach({ modelKey }: { modelKey: string }) {
       }
     });
     void fetchCoachStep(selectedId, step).then((response) => {
-      if (response.ok && response.data?.transition) {
-        const head = response.data.transition.head as [number, number] | undefined;
-        if (head) {
-          setReplayWorld({
-            grid_size: 10,
-            snake: [head],
-            direction: "up",
-            apple: [5, 5],
-            score: 0,
-            steps: step,
-            length: 1,
-            coverage: 0.01,
-            done: false,
-            outcome: "in_progress",
-          });
-        }
+      if (response.ok && response.data?.world_state) {
+        setReplayWorld(response.data.world_state as SnakeWorldState);
       }
     });
   }, [selectedId, step]);
@@ -65,7 +53,16 @@ export function TestInteractiveCoach({ modelKey }: { modelKey: string }) {
   return (
     <SnakeShell backTo={testModelPath(modelKey)}>
       {!sessions.length ? (
-        <p className="snake-wait">Play first — session saves here.</p>
+        <>
+          <p className="snake-empty">
+            No saved games yet.{" "}
+            <Link to={testScenarioPath(modelKey, "human-play")}>Play a round</Link> first — it saves here for
+            replay.
+          </p>
+          <div className="snake-focus">
+            <SnakePlaceholderBoard />
+          </div>
+        </>
       ) : (
         <>
           <SnakeBar>
@@ -77,40 +74,38 @@ export function TestInteractiveCoach({ modelKey }: { modelKey: string }) {
                   setSelectedId(event.target.value);
                   setStep(0);
                 }}
-                aria-label="Session"
+                aria-label="Saved game"
               >
                 {sessions.map((item) => (
                   <option key={item.session_id} value={item.session_id}>
-                    {item.scenario_key} / {item.steps}
+                    {archivedSessionLabel(item)}
                   </option>
                 ))}
               </select>
             </SnakeBarGroup>
             <SnakeBarGroup>
-              <SnakeBarBtn disabled={step <= 0} onClick={() => setStep((s) => s - 1)} title="Previous">
-                ←
+              <SnakeBarBtn disabled={step <= 0} onClick={() => setStep((s) => s - 1)}>
+                Prev
               </SnakeBarBtn>
-              <SnakeBarBtn
-                disabled={total > 0 && step >= total - 1}
-                onClick={() => setStep((s) => s + 1)}
-                title="Next"
-              >
-                →
+              <SnakeBarBtn disabled={total > 0 && step >= total - 1} onClick={() => setStep((s) => s + 1)}>
+                Next
               </SnakeBarBtn>
             </SnakeBarGroup>
-          </SnakeBar>
-          {diff?.found ? (
             <SnakeTelemetry>
-              {step + 1}/{total} · you {String(diff.human_action)} · policy {String(diff.policy_action)}
+              {diff?.found
+                ? `Step ${step + 1}/${total} · you ${String(diff.human_action)} · policy ${String(diff.policy_action)}`
+                : (diff?.message ?? "Loading replay…")}
             </SnakeTelemetry>
-          ) : (
-            <SnakeTelemetry>{diff?.message ?? "···"}</SnakeTelemetry>
-          )}
+          </SnakeBar>
           <div className="snake-focus">
             {replayWorld ? (
-              <TestSnakeCanvas world={replayWorld} highlight={diff?.head ?? null} />
+              <TestSnakeCanvas
+                world={replayWorld}
+                highlight={diff?.head ?? null}
+                policyAction={diff?.found && diff.step === step ? diff.policy_action : null}
+              />
             ) : (
-              <p className="snake-wait">···</p>
+              <SnakePlaceholderBoard />
             )}
           </div>
         </>

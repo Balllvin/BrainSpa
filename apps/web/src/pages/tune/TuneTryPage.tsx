@@ -9,7 +9,7 @@ import type { AdapterTestResult, TuneModelStatus } from "@/lib/types";
 import { formatMissingRequirements } from "./tuneDisplay";
 import { TuneShell } from "./TuneShell";
 
-const DEFAULT_PROMPT = "What should I do when fear starts steering my choices?";
+const DEFAULT_PROMPT = "Describe the next policy check.";
 
 export function TuneTryPage() {
   const { modelSlug = "" } = useParams();
@@ -32,6 +32,10 @@ export function TuneTryPage() {
 
   if (modelSlug !== canonicalSlug) {
     return <Navigate replace to={`${tuneModelPath(canonicalSlug)}/try`} />;
+  }
+
+  if (canonicalSlug === "snake") {
+    return <Navigate replace to={tuneModelPath(canonicalSlug)} />;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -87,11 +91,11 @@ export function TuneTryPage() {
           </div>
           <div className="tune-next-links">
             <span className="tune-picker-meta--muted">Continue in Test:</span>
-            <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "witness")}>
-              Witness
+            <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "autonomous-watch")}>
+              Watch
             </Link>
-            <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "counsel")}>
-              Counsel
+            <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "autonomous-train")}>
+              Train
             </Link>
           </div>
         </>

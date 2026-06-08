@@ -11,51 +11,22 @@ from pathlib import Path
 from typing import Any
 
 from packages.brainspa_agents.protocol import WorkerPreview
-from packages.brainspa_training.handoff import validate_handoff
 
-from .believer import (
-    BELIEVER_ACCEPTANCE_PROMPTS,
-    BELIEVER_CONTEXTS,
-    BELIEVER_FAILURE_PRESSURES,
-    BELIEVER_SYSTEM_PROMPT,
-    BELIEVER_TOPICS,
-    audit_believer_examples,
-    believer_training_answer,
-    build_believer_preference_pairs,
-    clean_generated_answer,
-    eval_believer_chat,
-    format_generation_prompt,
-    has_fluency_artifact,
-    has_repetition_artifact,
-)
 from .config import runtime_root
 from .models import (
-    AcceptanceCase,
-    AcceptanceRunResult,
     AdapterTestRequest,
     AdapterTestResult,
     ChipmunkChatResult,
-    DatasetGenerateRequest,
-    DatasetGenerateResult,
-    DatasetProfile,
+    EvalComment,
     EvalRunRequest,
     EvalRunResult,
-    EvalComment,
+    TrainingAdapterBuildResult,
     TrainingDryRunRequest,
     TrainingDryRunResult,
-    TrainingAdapterBuildResult,
     WorkerRunRequest,
     WorkerRunResult,
 )
 from .state import BrainSpaState
-
-
-def generate_believer_dataset(request: DatasetGenerateRequest) -> DatasetGenerateResult:
-    from . import datasets_workflows
-
-    return datasets_workflows.generate_believer_dataset(request)
-
-
 
 
 def training_dry_run(request: TrainingDryRunRequest) -> TrainingDryRunResult:
@@ -92,14 +63,6 @@ def training_dry_run(request: TrainingDryRunRequest) -> TrainingDryRunResult:
     return result
 
 
-def _training_preset_config(preset: str | None) -> tuple[int, int]:
-    if preset == "fast":
-        return 1, 40
-    if preset == "quality":
-        return 5, 100
-    return 3, 100
-
-
 def build_training_adapter(
     request: TrainingDryRunRequest,
     *,
@@ -107,97 +70,30 @@ def build_training_adapter(
     on_phase: Callable[[str], None] | None = None,
 ) -> TrainingAdapterBuildResult:
     preset = request.training_preset or "standard"
+    if on_phase:
+        on_phase("blocked")
+    if progress_path:
+        progress_path.parent.mkdir(parents=True, exist_ok=True)
+        progress_path.write_text(
+            json.dumps({"state": "blocked", "phase": "not_shipped", "training_preset": preset}, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
-    def set_phase(phase: str) -> None:
-        if on_phase:
-            on_phase(phase)
-        if progress_path:
-            progress_path.parent.mkdir(parents=True, exist_ok=True)
-            progress_path.write_text(
-                json.dumps(
-                    {
-                        "state": "running",
-                        "phase": phase,
-                        "training_preset": preset,
-                    },
-                    indent=2,
-                )
-                + "\n",
-                encoding="utf-8",
-            )
-    available_modules = {
-        name: importlib.util.find_spec(name) is not None
-        for name in ("torch", "transformers", "peft")
-    }
-    missing = [name for name, available in available_modules.items() if not available]
     state = BrainSpaState()
     models = {item["key"]: item for item in state.load()["models"]}
-    datasets = {item["key"]: item for item in state.load()["datasets"]}
     model = models[request.model_key]
-    dataset = datasets[request.dataset_key]
-    output_dir = runtime_root() / "artifacts" / "training" / request.project_key / "believer_adapter"
+    output_dir = runtime_root() / "artifacts" / "training" / request.project_key
     output_dir.mkdir(parents=True, exist_ok=True)
-    set_phase("checking_requirements")
-    if missing:
-        result = TrainingAdapterBuildResult(
-            state="blocked",
-            model=model["base_model"],
-            dataset_key=request.dataset_key,
-            rows_used=0,
-            steps=0,
-            loss=None,
-            output_dir=str(output_dir),
-            missing_requirements=missing,
-            notes=["Install missing trainer modules before building a local adapter."],
-            training_preset=preset,
-        )
-        (output_dir / "adapter_build_result.json").write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        return result
-
-    dataset_path = _dataset_train_path(dataset)
-    if not dataset_path or not dataset_path.exists():
-        result = TrainingAdapterBuildResult(
-            state="blocked",
-            model=model["base_model"],
-            dataset_key=request.dataset_key,
-            rows_used=0,
-            steps=0,
-            loss=None,
-            output_dir=str(output_dir),
-            missing_requirements=["generated_dataset"],
-            notes=["Generate the dataset before building an adapter."],
-            training_preset=preset,
-        )
-        (output_dir / "adapter_build_result.json").write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        return result
-
-    epochs, max_rows = _training_preset_config(preset)
-    set_phase("loading_model")
-    set_phase("training")
-    loss, rows_used, steps = _run_lora_adapter_build(
-        model["base_model"],
-        dataset_path,
-        output_dir,
-        epochs=epochs,
-        max_rows=max_rows,
-    )
-    set_phase("saving")
-    preset_note = f"Preset: {preset} ({epochs} passes over up to {max_rows} rows)."
     result = TrainingAdapterBuildResult(
-        state="complete",
+        state="blocked",
         model=model["base_model"],
         dataset_key=request.dataset_key,
-        rows_used=rows_used,
-        steps=steps,
-        loss=loss,
+        rows_used=0,
+        steps=0,
+        loss=None,
         output_dir=str(output_dir),
-        missing_requirements=[],
-        notes=[
-            "Loaded the base model locally.",
-            "Trained LoRA adapter on generated rows.",
-            "Saved adapter artifacts.",
-            preset_note,
-        ],
+        missing_requirements=["policy_training_uses_snake_test_pages"],
+        notes=["This public shell does not ship a text adapter build. Use Snake Test autonomous train for the reference policy."],
         training_preset=preset,
     )
     (output_dir / "adapter_build_result.json").write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
@@ -205,175 +101,30 @@ def build_training_adapter(
 
 
 def test_training_adapter(request: AdapterTestRequest) -> AdapterTestResult:
-    available_modules = {
-        name: importlib.util.find_spec(name) is not None
-        for name in ("torch", "transformers", "peft")
-    }
-    missing = [name for name, available in available_modules.items() if not available]
     state = BrainSpaState()
     models = {item["key"]: item for item in state.load()["models"]}
     model = models[request.model_key]
-    adapter_dir = runtime_root() / "artifacts" / "training" / request.project_key / "believer_adapter"
-    if not adapter_dir.exists():
-        missing.append("adapter_artifact")
-    if missing:
-        return AdapterTestResult(
-            state="blocked",
-            model=model["base_model"],
-            adapter_path=str(adapter_dir),
-            prompt=request.prompt,
-            answer="",
-            eval=None,
-            missing_requirements=missing,
-            notes=["Build the adapter before testing model output."],
-        )
-
-    answer, eval_result, generation_notes = _generate_believer_answer(
-        model["base_model"],
-        adapter_dir,
-        request.prompt,
-    )
+    adapter_dir = runtime_root() / "artifacts" / "training" / request.project_key
     return AdapterTestResult(
-        state="complete",
+        state="blocked",
         model=model["base_model"],
         adapter_path=str(adapter_dir),
         prompt=request.prompt,
-        answer=answer,
-        eval=eval_result,
-        missing_requirements=[],
-        notes=["Generated through the local SmolLM2 Believer runtime.", "Scored by the active harness.", *generation_notes],
+        answer="",
+        eval=None,
+        missing_requirements=["no_shipped_chat_adapter"],
+        notes=["Snake Policy is tested through environment routes, not chat adapter prompts."],
     )
 
 
 def run_environment_eval(request: EvalRunRequest) -> EvalRunResult:
     artifact_dir = runtime_root() / "artifacts" / "evals"
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    if request.environment_key == "coding_cli":
-        result = _eval_coding_cli(request)
-    else:
-        result = eval_believer_chat(request)
+    result = _eval_snake_environment(request) if request.environment_key == "snake_10x10" else _eval_generic_environment(request)
     path = artifact_dir / f"{request.environment_key}_latest.json"
     result.artifact_path = str(path)
     path.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return result
-
-
-def run_believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
-    available_modules = {
-        name: importlib.util.find_spec(name) is not None
-        for name in ("torch", "transformers", "peft")
-    }
-    missing = [name for name, available in available_modules.items() if not available]
-    state = BrainSpaState()
-    models = {item["key"]: item for item in state.load()["models"]}
-    model = models[request.model_key]
-    adapter_dir = runtime_root() / "artifacts" / "training" / request.project_key / "believer_adapter"
-    if not adapter_dir.exists():
-        missing.append("adapter_artifact")
-
-    artifact_dir = runtime_root() / "artifacts" / "evals"
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-    artifact_path = artifact_dir / "believer_acceptance.json"
-    if missing:
-        result = AcceptanceRunResult(
-            state="blocked",
-            model=model["base_model"],
-            adapter_path=str(adapter_dir),
-            cases=[],
-            passed=False,
-            missing_requirements=missing,
-            artifact_path=str(artifact_path),
-            notes=["Build the adapter before running the 10-question acceptance check."],
-        )
-        artifact_path.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        return result
-
-    cases: list[AcceptanceCase] = []
-    flagged_count = 0
-    for prompt in BELIEVER_ACCEPTANCE_PROMPTS:
-        answer, eval_result, generation_notes = _generate_believer_answer(
-            model["base_model"],
-            adapter_dir,
-            prompt,
-        )
-        if generation_notes:
-            flagged_count += 1
-        cases.append(
-            AcceptanceCase(
-                prompt=prompt,
-                answer=answer,
-                score=eval_result.score,
-                passed=eval_result.passed,
-                comments=eval_result.comments,
-            )
-        )
-    result = AcceptanceRunResult(
-        state="complete",
-        model=model["base_model"],
-        adapter_path=str(adapter_dir),
-        cases=cases,
-        passed=all(case.passed for case in cases),
-        missing_requirements=[],
-        artifact_path=str(artifact_path),
-        notes=[
-            "Ran the fixed 10-question Believer acceptance harness against the local SmolLM2 runtime.",
-            f"Raw adapter generations with harness warnings: {flagged_count}.",
-        ],
-    )
-    artifact_path.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
-    return result
-
-
-def project_key_for_model(model_key: str) -> str:
-    for project in BrainSpaState().load().get("projects", []):
-        if project.get("active_model") == model_key:
-            return str(project.get("key") or "believer_validation")
-    return "believer_validation"
-
-
-def adapter_dir_for_model(model_key: str, project_key: str | None = None) -> Path:
-    resolved_project = project_key or project_key_for_model(model_key)
-    return runtime_root() / "artifacts" / "training" / resolved_project / "believer_adapter"
-
-
-def believer_runtime_reply(
-    message: str,
-    model_key: str = "persona_small",
-    *,
-    history: list[dict[str, str]] | None = None,
-    project_key: str | None = None,
-) -> AdapterTestResult:
-    state = BrainSpaState()
-    models = {item["key"]: item for item in state.load()["models"]}
-    model = models[model_key]
-    adapter_dir = adapter_dir_for_model(model_key, project_key)
-    if not adapter_dir.exists():
-        return AdapterTestResult(
-            state="blocked",
-            model=model["base_model"],
-            adapter_path=str(adapter_dir),
-            prompt=message,
-            answer="",
-            eval=None,
-            missing_requirements=["adapter_artifact"],
-            notes=["Build the Believer adapter before serving Telegram model replies."],
-        )
-    answer, eval_result, generation_notes = _generate_believer_answer(
-        model["base_model"],
-        adapter_dir,
-        message,
-        history=history,
-    )
-    return AdapterTestResult(
-        state="complete",
-        model=model["base_model"],
-        adapter_path=str(adapter_dir),
-        prompt=message,
-        answer=answer,
-        eval=eval_result,
-        missing_requirements=[],
-        notes=["Generated through the local SmolLM2 Believer runtime.", *generation_notes],
-    )
 
 
 def run_worker_job(request: WorkerRunRequest) -> WorkerRunResult:
@@ -397,8 +148,11 @@ def run_worker_job(request: WorkerRunRequest) -> WorkerRunResult:
     artifact_dir = runtime_root() / "artifacts" / "workers"
     artifact_dir.mkdir(parents=True, exist_ok=True)
     artifact_path = artifact_dir / f"{request.agent_key}_{request.backend}.json"
-    payload = {"agent": request.agent_key, "backend": request.backend, "task": request.task, "command": command_preview}
-    artifact_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    artifact_path.write_text(
+        json.dumps({"agent": request.agent_key, "backend": request.backend, "task": request.task, "command": command_preview}, indent=2)
+        + "\n",
+        encoding="utf-8",
+    )
     return WorkerRunResult(
         state="complete",
         agent_key=request.agent_key,
@@ -409,12 +163,23 @@ def run_worker_job(request: WorkerRunRequest) -> WorkerRunResult:
     )
 
 
+def project_key_for_model(model_key: str) -> str:
+    for project in BrainSpaState().load().get("projects", []):
+        if project.get("active_model") == model_key:
+            return str(project.get("key") or "")
+    return "snake_rl_validation"
+
+
 def chipmunk_reply(message: str) -> ChipmunkChatResult:
     lowered = message.lower()
     if _asks_for_status(lowered):
         return _chipmunk_status()
     if "dataset" in lowered and ("generate" in lowered or "build" in lowered or "preview" in lowered):
-        return _chipmunk_dataset_action(lowered)
+        return ChipmunkChatResult(
+            reply="Dataset generation is not seeded in this shell. Run Snake autonomous train to create rollout data locally.",
+            routed_to="datasets",
+            suggested_actions=["Open Snake Train", "Inspect rollout dataset"],
+        )
     if "dry-run" in lowered or "dry run" in lowered:
         return _chipmunk_training_dry_run()
     if "worker" in lowered:
@@ -423,27 +188,27 @@ def chipmunk_reply(message: str) -> ChipmunkChatResult:
         return _chipmunk_eval_action(message)
     if "dataset" in lowered:
         return ChipmunkChatResult(
-            reply="Datasets harness should inspect evidence coverage, generate split-safe rows, and label exact failure modes before training.",
+            reply="Datasets should come from explicit evidence or environment rollouts. The shipped reference dataset is Snake rollout data.",
             routed_to="datasets",
-            suggested_actions=["Generate dataset", "Run dataset quality check"],
+            suggested_actions=["Open Datasets", "Open Snake Train"],
         )
     if "evidence" in lowered or "source" in lowered or "proof" in lowered:
         return ChipmunkChatResult(
-            reply="Evidence harness should gather cited proof first, then mark claims that are too weak for dataset rows.",
+            reply="Evidence starts empty in this shell. Add cited sources only when a future behavior needs proof.",
             routed_to="evidence",
             suggested_actions=["Inspect sources", "Write evidence notes"],
         )
     if "train" in lowered or "model" in lowered:
         return ChipmunkChatResult(
-            reply="Tune harness should run a dry-run first, then train only when the selected backend has the required modules.",
+            reply="Tune should show checkpoint state and dry-run readiness. Snake training runs through the Test environment.",
             routed_to="tune",
-            suggested_actions=["Run training dry-run", "Inspect missing runtime modules"],
+            suggested_actions=["Open Tune", "Open Snake Train"],
         )
     if "test" in lowered or "environment" in lowered or "harness" in lowered:
         return ChipmunkChatResult(
-            reply="Test harness should define world state, allowed actions, tools, and scoring comments before judging model output.",
+            reply="Test harnesses should expose world state, allowed actions, tools, scoring, and failure comments. Snake is the reference.",
             routed_to="test",
-            suggested_actions=["Open Test", "Run harness check"],
+            suggested_actions=["Open Test", "Run Snake Train"],
         )
     hermes = _chipmunk_hermes_fallback(message)
     if hermes:
@@ -475,6 +240,52 @@ def looks_like_loop_request(message: str) -> bool:
     )
 
 
+def _eval_snake_environment(request: EvalRunRequest) -> EvalRunResult:
+    text = f"{request.prompt} {request.answer}".lower()
+    dimensions = [
+        ("world_state", any(word in text for word in ("grid", "state", "apple", "snake"))),
+        ("actions", any(word in text for word in ("action", "left", "right", "straight", "move"))),
+        ("scoring", any(word in text for word in ("reward", "score", "apples", "survive", "length"))),
+        ("failure", any(word in text for word in ("wall", "collision", "loop", "dead", "fail"))),
+    ]
+    return _comments_to_result(request.environment_key, dimensions, pass_threshold=0.75)
+
+
+def _eval_generic_environment(request: EvalRunRequest) -> EvalRunResult:
+    text = f"{request.prompt} {request.answer}".lower()
+    dimensions = [
+        ("world_state", any(word in text for word in ("state", "world", "environment", "observation"))),
+        ("actions", any(word in text for word in ("action", "tool", "allowed", "step"))),
+        ("scoring", any(word in text for word in ("score", "reward", "metric", "pass"))),
+        ("failure", any(word in text for word in ("failure", "error", "blocked", "unsafe"))),
+    ]
+    return _comments_to_result(request.environment_key, dimensions, pass_threshold=0.75)
+
+
+def _comments_to_result(environment_key: str, dimensions: list[tuple[str, bool]], pass_threshold: float) -> EvalRunResult:
+    passed_count = sum(1 for _, passed in dimensions if passed)
+    comments = [
+        EvalComment(
+            dimension=name,
+            verdict="good" if passed else "bad",
+            comment=(
+                f"{name.replace('_', ' ')} is explicit."
+                if passed
+                else f"{name.replace('_', ' ')} needs a concrete harness detail."
+            ),
+        )
+        for name, passed in dimensions
+    ]
+    score = passed_count / len(dimensions)
+    return EvalRunResult(
+        environment_key=environment_key,
+        score=score,
+        passed=score >= pass_threshold,
+        comments=comments,
+        artifact_path="",
+    )
+
+
 def _asks_for_status(lowered: str) -> bool:
     return lowered.strip() in {"status", "/status", "ping", "/start"} or "are you connected" in lowered
 
@@ -482,50 +293,11 @@ def _asks_for_status(lowered: str) -> bool:
 def _chipmunk_status() -> ChipmunkChatResult:
     hermes_path = shutil.which("hermes")
     telegram_note = "Telegram route is active through Brain Spa's local poller."
-    if hermes_path:
-        hermes_note = f"Hermes is installed at {hermes_path}."
-    else:
-        hermes_note = "Hermes is not on PATH."
+    hermes_note = f"Hermes is installed at {hermes_path}." if hermes_path else "Hermes is not on PATH."
     return ChipmunkChatResult(
         reply=f"Chipmunk is connected. {telegram_note} {hermes_note}",
         routed_to="chipmunk",
-        suggested_actions=["Generate dataset preview", "Run training dry-run", "Run worker preview"],
-    )
-
-
-def _chipmunk_dataset_action(lowered: str) -> ChipmunkChatResult:
-    preview_only = "preview" in lowered
-    grounded = "ungrounded" not in lowered and not preview_only
-    try:
-        result = generate_believer_dataset(
-            DatasetGenerateRequest(
-                example_count=4 if preview_only else 24,
-                ground_in_evidence=grounded,
-                preview_only=preview_only,
-            )
-        )
-    except Exception as error:
-        return ChipmunkChatResult(
-            reply=f"Dataset action blocked: {error}",
-            routed_to="datasets",
-            suggested_actions=["Open Evidence", "Approve claims", "Generate dataset preview"],
-        )
-    if preview_only:
-        return ChipmunkChatResult(
-            reply=(
-                f"Dataset preview ready for {result.dataset.key}: {result.dataset.row_count} row(s), "
-                f"mix {result.scenario_mix}."
-            ),
-            routed_to="datasets",
-            suggested_actions=["Open Datasets", "Generate full dataset"],
-        )
-    return ChipmunkChatResult(
-        reply=(
-            f"Dataset generated for {result.dataset.key}: {result.dataset.row_count} row(s). "
-            f"Artifact: {result.manifest_path}"
-        ),
-        routed_to="datasets",
-        suggested_actions=["Open Datasets", "Run training dry-run"],
+        suggested_actions=["Open Snake Train", "Run training dry-run", "Run worker preview"],
     )
 
 
@@ -556,7 +328,7 @@ def _chipmunk_worker_action(lowered: str, original: str) -> ChipmunkChatResult:
 def _chipmunk_eval_action(message: str) -> ChipmunkChatResult:
     result = run_environment_eval(
         EvalRunRequest(
-            environment_key="coding_cli" if "coding" in message.lower() else "chat_believer",
+            environment_key="snake_10x10",
             prompt=message,
             answer=message,
         )
@@ -653,7 +425,6 @@ def _write_recipes(output_dir: Path, model_name: str, dataset: dict[str, Any], b
         "model": model_name,
         "dataset_key": dataset["key"],
         "dataset_artifact": dataset.get("artifact_path"),
-        "lora": {"r": 16, "alpha": 32, "dropout": 0.05},
         "max_seq_length": 1024,
     }
     paths = []
@@ -661,217 +432,4 @@ def _write_recipes(output_dir: Path, model_name: str, dataset: dict[str, Any], b
         path = recipes_dir / name
         path.write_text(json.dumps({**recipe, "recipe": name}, indent=2) + "\n", encoding="utf-8")
         paths.append(str(path))
-    for name in ("axolotl_config.yaml", "llamafactory_config.yaml"):
-        path = recipes_dir / name
-        path.write_text(f"model_name: {model_name}\ndataset: {dataset.get('artifact_path')}\nbackend: recipe_only\n", encoding="utf-8")
-        paths.append(str(path))
     return paths
-
-
-def _dataset_train_path(dataset: dict[str, Any]) -> Path | None:
-    artifact_path = dataset.get("artifact_path")
-    if not artifact_path:
-        return None
-    manifest_path = Path(artifact_path)
-    if not manifest_path.exists():
-        return None
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-    train_path = manifest.get("train_path")
-    return Path(train_path) if train_path else None
-
-
-def _run_lora_adapter_build(
-    model_name: str,
-    dataset_path: Path,
-    output_dir: Path,
-    *,
-    epochs: int = 3,
-    max_rows: int = 100,
-) -> tuple[float, int, int]:
-    import torch
-    from peft import LoraConfig, get_peft_model
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-
-    rows: list[dict[str, Any]] = []
-    with dataset_path.open(encoding="utf-8") as handle:
-        for _, line in zip(range(max_rows), handle):
-            item = json.loads(line)
-            rows.append(item)
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(model_name, dtype=torch.float32)
-    model.config.use_cache = False
-    lora = LoraConfig(
-        r=8,
-        lora_alpha=16,
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=["q_proj", "v_proj"],
-    )
-    model = get_peft_model(model, lora)
-    model.train()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4)
-    last_loss = None
-    steps = 0
-    for _epoch in range(max(1, epochs)):
-        for start in range(0, len(rows), 2):
-            batch_rows = rows[start : start + 2]
-            batch = _encode_supervised_batch(tokenizer, batch_rows, max_length=256)
-            loss = model(**batch).loss
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            last_loss = loss
-            steps += 1
-    model.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
-    if last_loss is None:
-        raise ValueError("No dataset rows were available for adapter training.")
-    return float(last_loss.detach().cpu()), len(rows), steps
-
-
-def _encode_supervised_batch(tokenizer: Any, rows: list[dict[str, Any]], max_length: int) -> dict[str, Any]:
-    import torch
-
-    encoded_rows = []
-    for item in rows:
-        messages = item["messages"]
-        system = messages[0]["content"]
-        user = messages[1]["content"]
-        assistant = messages[2]["content"]
-        prefix = format_generation_prompt(system, user)
-        full_text = f"{prefix} {assistant}{tokenizer.eos_token or ''}"
-        full_ids = tokenizer(full_text, add_special_tokens=False, truncation=True, max_length=max_length)["input_ids"]
-        prefix_ids = tokenizer(prefix, add_special_tokens=False, truncation=True, max_length=max_length)["input_ids"]
-        label_start = min(len(prefix_ids), len(full_ids))
-        labels = [-100] * label_start + full_ids[label_start:]
-        if all(label == -100 for label in labels):
-            continue
-        encoded_rows.append({"input_ids": full_ids, "labels": labels})
-
-    if not encoded_rows:
-        raise ValueError("No supervised answer tokens were available after tokenization.")
-
-    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
-    width = max(len(row["input_ids"]) for row in encoded_rows)
-    input_ids = []
-    labels = []
-    attention_mask = []
-    for row in encoded_rows:
-        pad = width - len(row["input_ids"])
-        input_ids.append(row["input_ids"] + [pad_id] * pad)
-        labels.append(row["labels"] + [-100] * pad)
-        attention_mask.append([1] * len(row["input_ids"]) + [0] * pad)
-
-    return {
-        "input_ids": torch.tensor(input_ids),
-        "attention_mask": torch.tensor(attention_mask),
-        "labels": torch.tensor(labels),
-    }
-
-
-def _format_chat_generation_prompt(user_prompt: str, history: list[dict[str, str]] | None = None) -> str:
-    parts = [f"system: {BELIEVER_SYSTEM_PROMPT}"]
-    for turn in (history or [])[-3:]:
-        parts.append(f"user: {turn['user']}")
-        parts.append(f"assistant: {turn['assistant']}")
-    parts.append(f"user: {user_prompt}")
-    parts.append("assistant:")
-    return "\n".join(parts)
-
-
-def _generate_from_adapter(
-    model_name: str,
-    adapter_dir: Path,
-    prompt: str,
-    *,
-    formatted_prompt: str | None = None,
-) -> str:
-    import torch
-    from peft import PeftModel
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-
-    tokenizer = AutoTokenizer.from_pretrained(adapter_dir)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    base_model = AutoModelForCausalLM.from_pretrained(model_name, dtype=torch.float32)
-    model = PeftModel.from_pretrained(base_model, adapter_dir)
-    model.eval()
-    text = formatted_prompt or format_generation_prompt(BELIEVER_SYSTEM_PROMPT, prompt)
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=320)
-    with torch.no_grad():
-        output = model.generate(
-            **inputs,
-            max_new_tokens=96,
-            do_sample=False,
-            repetition_penalty=1.12,
-            no_repeat_ngram_size=5,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-    generated = tokenizer.decode(output[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True).strip()
-    generated = clean_generated_answer(generated)
-    return generated or "(adapter produced an empty answer)"
-
-
-def _generate_believer_answer(
-    model_name: str,
-    adapter_dir: Path,
-    prompt: str,
-    *,
-    history: list[dict[str, str]] | None = None,
-) -> tuple[str, EvalRunResult, list[str]]:
-    formatted = _format_chat_generation_prompt(prompt, history)
-    answer = _generate_from_adapter(model_name, adapter_dir, prompt, formatted_prompt=formatted)
-    notes: list[str] = []
-    if not answer or answer.startswith("(adapter"):
-        notes.append("Adapter returned an empty generation.")
-    elif has_repetition_artifact(answer) or has_fluency_artifact(answer):
-        notes.append("Raw generation kept as-is; harness flagged repetition or fluency artifacts.")
-    eval_result = eval_believer_chat(EvalRunRequest(environment_key="chat_believer", prompt=prompt, answer=answer))
-    return answer, eval_result, notes
-
-
-def _eval_coding_cli(request: EvalRunRequest) -> EvalRunResult:
-    comments = []
-    answer = request.answer.strip()
-    comments.append(
-        EvalComment(
-            dimension="workspace_boundary",
-            verdict="good" if re.search(r"\b(file|repo|workspace|path|diff|patch)\b", answer, re.I) else "mixed",
-            comment="Coding harness answers should show awareness of repository and file boundaries.",
-        )
-    )
-    comments.append(
-        EvalComment(
-            dimension="test_evidence",
-            verdict="good" if re.search(r"\b(test|build|lint|typecheck|pytest|npm)\b", answer, re.I) else "bad",
-            comment="Coding harness requires a verification step, not just an edit claim.",
-        )
-    )
-    comments.append(
-        EvalComment(
-            dimension="command_safety",
-            verdict="bad" if re.search(r"\brm\s+-rf|reset --hard|checkout --\b", answer, re.I) else "good",
-            comment="Destructive commands are forbidden unless explicitly requested.",
-        )
-    )
-    comments.append(
-        EvalComment(
-            dimension="explanation",
-            verdict="good" if len(answer.split()) >= 10 else "mixed",
-            comment="The result should explain what changed and what was verified.",
-        )
-    )
-    score = sum(1 for item in comments if item.verdict == "good") / len(comments)
-    return EvalRunResult(
-        environment_key=request.environment_key,
-        score=round(score, 3),
-        passed=score >= 0.67,
-        comments=comments,
-        artifact_path="",
-    )

@@ -20,10 +20,10 @@ import type { DatasetImportFeedbackResult, DatasetRow, TestScenario } from "@/li
 
 import { DatasetsShell } from "./DatasetsShell";
 
-const DEFAULT_SCENARIOS = ["counsel", "advice", "witness", "daily-word"];
+const DEFAULT_SCENARIOS = ["autonomous-train"];
 
 export function DatasetsRowsPage() {
-  const { datasetSlug = "believer" } = useParams();
+  const { datasetSlug = "snake" } = useParams();
   const datasetKey = datasetKeyFromSlug(datasetSlug);
   const label = datasetDisplayLabel(datasetKey);
 
@@ -112,7 +112,7 @@ export function DatasetsRowsPage() {
       .filter(Boolean);
     setBusy("add-row");
     const response = await createDatasetRow(datasetKey, {
-      scenario_key: String(form.get("scenario_key") || "counsel"),
+      scenario_key: String(form.get("scenario_key") || "autonomous-train"),
       user_prompt: String(form.get("user_prompt") || ""),
       assistant_answer: String(form.get("assistant_answer") || ""),
       failure_labels: labels,
@@ -139,7 +139,7 @@ export function DatasetsRowsPage() {
       prompt: String(form.get("prompt") || ""),
       chosen: String(form.get("chosen") || ""),
       rejected: String(form.get("rejected") || ""),
-      scenario_key: String(form.get("scenario_key") || "counsel"),
+      scenario_key: String(form.get("scenario_key") || "autonomous-train"),
       failure_labels: labels,
     });
     setBusy(null);
@@ -190,7 +190,7 @@ export function DatasetsRowsPage() {
           <h2 className="datasets-add-title">Add row</h2>
           <label className="datasets-field">
             <span>Scenario</span>
-            <select name="scenario_key" defaultValue="counsel">
+            <select name="scenario_key" defaultValue="autonomous-train">
               {scenarioOptions.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.label}
@@ -221,7 +221,7 @@ export function DatasetsRowsPage() {
           <h2 className="datasets-add-title">Preference pair (bad vs good)</h2>
           <label className="datasets-field">
             <span>Scenario</span>
-            <select name="scenario_key" defaultValue="counsel">
+            <select name="scenario_key" defaultValue="autonomous-train">
               {scenarioOptions.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.label}
@@ -336,7 +336,7 @@ export function DatasetsRowsPage() {
 
       {total > 0 ? (
         <p className="datasets-hint">
-          After edits or imports, <Link to="/tune/believer/build">rebuild adapter in Tune</Link>.
+          After edits or imports, <Link to="/tune/snake">inspect the policy in Tune</Link>.
         </p>
       ) : null}
     </DatasetsShell>

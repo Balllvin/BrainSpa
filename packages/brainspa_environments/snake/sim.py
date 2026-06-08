@@ -118,17 +118,20 @@ class SnakeSim:
         score = state.score
         apple = state.apple
 
+        will_grow = new_head == state.apple
+        collision_body = state.snake if will_grow else state.snake[:-1]
+
         if not self._in_bounds(new_head):
             outcome = "died_wall"
             done = True
             new_snake = list(state.snake)
-        elif new_head in state.snake:
+        elif new_head in collision_body:
             outcome = "died_self"
             done = True
             new_snake = list(state.snake)
         else:
             new_snake = [new_head, *state.snake]
-            if new_head == state.apple:
+            if will_grow:
                 ate_apple = True
                 score = state.score + 1
                 if len(new_snake) >= self.grid_size * self.grid_size:

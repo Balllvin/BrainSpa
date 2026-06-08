@@ -1,19 +1,29 @@
-# ML model types in Brain Spa
+# Model Types
 
-Brain Spa is not only an LLM fine-tuning app. The same loop shape applies to **any trainable model**.
+Brain Spa supports two model families.
 
-## `causal_lm`
+## Language Models
 
-- Examples: Believer (`persona_small`), coding worker experiments
-- Evidence → Datasets (SFT JSONL) → Tune (LoRA adapter) → Test (chat/generate scenarios)
-- Artifacts: `dataset_sft_train.jsonl`, `believer_adapter/`
+Language-model work uses evidence-backed text rows, preference pairs, dry-runs, adapters, and chat/generate test environments.
 
-## `policy`
+The public shell does not seed a language model. Add one only when the target behavior, evidence source, dataset route, tune route, and test harness are all explicit.
 
-- Examples: Snake Policy (`snake_policy`)
-- Evidence: **skipped** — rollouts come from the environment
-- Datasets: `trajectories.jsonl`, `transitions.jsonl` under `artifacts/datasets/snake_rollout/`
-- Tune: DQN checkpoint `policy.pt` under `artifacts/training/snake_rl_validation/`
-- Test: `interactive_*` scenarios (train, watch, play, coach, arena)
+## Policy Models
 
-When adding a new policy model, register `model_kind: policy` in state, add scenarios in `test_scenarios.py`, and implement a trainer in `packages/brainspa_training/`.
+Policy work uses environment rollouts and action/reward transitions instead of prompt/answer rows.
+
+Current shipped example:
+
+- model key: `snake_policy`
+- dataset key: `snake_rollout`
+- project key: `snake_rl_validation`
+- environment: `snake_10x10`
+- checkpoint: `~/.brain-spa/artifacts/training/snake_rl_validation/policy.pt`
+
+The checkpoint path is local runtime state. It must not be committed.
+
+## Choosing The Path
+
+Use a language model when the behavior is expressed in text or tool use.
+
+Use a policy model when the behavior is expressed as actions inside a world with rewards, state, and failure labels.

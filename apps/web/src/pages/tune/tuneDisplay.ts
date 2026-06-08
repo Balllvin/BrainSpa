@@ -14,6 +14,28 @@ export function adapterStatusLabel(state: TuneModelStatus["adapter_state"]): str
   }
 }
 
+export function policyStatusLabel(state: TuneModelStatus["policy_state"]): string {
+  switch (state) {
+    case "ready":
+      return "Policy ready";
+    case "training":
+      return "Training";
+    case "stale":
+      return "Policy stale";
+    case "blocked":
+      return "Blocked";
+    default:
+      return "No checkpoint";
+  }
+}
+
+export function tuneStatusBadge(model: TuneModelStatus): string {
+  if (model.model_kind === "policy") {
+    return policyStatusLabel(model.policy_state);
+  }
+  return adapterStatusLabel(model.adapter_state);
+}
+
 export function formatDatasetOptionLabel(dataset: DatasetProfile): string {
   const label = datasetDisplayLabel(dataset.key, dataset.label);
   return `${label} (${dataset.row_count} rows)`;

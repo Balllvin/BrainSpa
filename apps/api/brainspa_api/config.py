@@ -80,7 +80,7 @@ def _safe_path_segment(value: str) -> str:
     return "".join(char if char.isalnum() or char in "-_" else "_" for char in value)
 
 
-def harness_chat_path(model_key: str, scenario_key: str = "counsel") -> Path:
+def harness_chat_path(model_key: str, scenario_key: str = "autonomous-train") -> Path:
     safe_model = _safe_path_segment(model_key)
     safe_scenario = _safe_path_segment(scenario_key)
     return runtime_root() / "state" / f"harness-chat-{safe_model}-{safe_scenario}.json"

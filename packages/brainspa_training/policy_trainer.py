@@ -15,9 +15,10 @@ from packages.brainspa_environments.snake import (
     encode_arena_opponent,
     encode_arena_player,
     encode_state,
+    hidden_dim_for_profile,
     state_dim_for_profile,
 )
-from packages.brainspa_environments.snake.wrappers import ENV_PROFILES, make_arena_sim
+from packages.brainspa_environments.snake.wrappers import ENV_PROFILES, make_arena_sim, normalize_env_profile
 
 
 @dataclass
@@ -71,6 +72,7 @@ class SnakeDQNAgent:
         self._torch = torch
         self._nn = nn
         self.input_dim = input_dim
+        self.hidden = hidden
 
     def _align_state(self, state: list[float]) -> list[float]:
         if len(state) < self.input_dim:
@@ -132,12 +134,18 @@ class SnakeDQNAgent:
             {
                 "policy": self.policy.state_dict(),
                 "target": self.target.state_dict(),
+                "input_dim": self.input_dim,
+                "hidden": self.hidden,
+                "env_profile": "coords" if self.input_dim == 33 else "solo",
             },
             path,
         )
 
     def load(self, path: Path) -> None:
         payload = self._torch.load(path, map_location=self.device, weights_only=True)
+        saved_dim = int(payload.get("input_dim") or self.input_dim)
+        if saved_dim != self.input_dim:
+            raise ValueError(f"Checkpoint input_dim {saved_dim} does not match agent {self.input_dim}")
         self.policy.load_state_dict(payload["policy"])
         self.target.load_state_dict(payload.get("target", payload["policy"]))
 
@@ -233,9 +241,12 @@ def run_training_episode(
 ) -> dict[str, Any]:
     sim = SnakeSim(seed=seed)
     state = sim.reset(seed=seed)
-    decomposer = RewardDecomposer(curriculum_stage=curriculum_stage)
+    profile = normalize_env_profile(env_profile)
+    if profile not in ENV_PROFILES:
+        profile = "coords"
+    reward_mode = "sparse" if profile == "coords" else "shaped"
+    decomposer = RewardDecomposer(curriculum_stage=curriculum_stage, reward_mode=reward_mode)
     decomposer.reset(state)
-    profile = env_profile if env_profile in ENV_PROFILES else "solo"
     transitions: list[dict[str, Any]] = []
     total_reward = 0.0
     reward_totals: dict[str, float] = {}
@@ -288,13 +299,17 @@ def train_snake_policy(
     should_stop: Any | None = None,
     start_episode: int = 0,
 ) -> dict[str, Any]:
-    profiles = env_profiles or ["solo"]
-    input_dim = max(state_dim_for_profile(p) for p in profiles)
-    agent = SnakeDQNAgent(input_dim=input_dim)
+    profiles = env_profiles or ["coords"]
+    profile = profiles[0]
+    input_dim = state_dim_for_profile(profile)
+    agent = SnakeDQNAgent(input_dim=input_dim, hidden=hidden_dim_for_profile(profile))
     if checkpoint_path.exists():
-        agent.load(checkpoint_path)
+        try:
+            agent.load(checkpoint_path)
+        except ValueError:
+            pass
 
-    epsilon = max(0.05, 1.0 - start_episode / max(episodes, 1))
+    epsilon = max(0.02, 0.3 - start_episode / max(episodes, 1))
     rewards_window: list[float] = []
     lengths_window: list[float] = []
     apples_window: list[float] = []

@@ -11,10 +11,17 @@ import { TestShell } from "./TestShell";
 export function TestHomePage() {
   const [models, setModels] = useState<ModelProfile[]>([]);
   const [ready, setReady] = useState(false);
+  const [apiError, setApiError] = useState(false);
 
   useEffect(() => {
     void fetchBrainSpaOverview().then((response) => {
-      setModels(response.overview?.models ?? []);
+      if (!response.ok || !response.overview) {
+        setApiError(true);
+        setModels([]);
+      } else {
+        setApiError(false);
+        setModels(response.overview.models ?? []);
+      }
       setReady(true);
     });
   }, []);
@@ -24,12 +31,17 @@ export function TestHomePage() {
   return (
     <TestShell title="Test">
       {!ready ? <p className="test-empty">Loading…</p> : null}
-      {ready && !testable.length ? (
+      {ready && apiError ? (
+        <p className="test-empty">
+          API offline. Run <code>npm run start</code> from the repo root, then reload.
+        </p>
+      ) : null}
+      {ready && !apiError && !testable.length ? (
         <p className="test-empty">
           No models ready. <Link to="/tune">Tune</Link> first.
         </p>
       ) : null}
-      {ready && testable.length ? (
+      {ready && !apiError && testable.length ? (
         <div
           className={`test-picker-grid${testable.length === 1 ? " test-picker-grid--solo" : ""}`}
         >

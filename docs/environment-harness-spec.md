@@ -31,4 +31,14 @@ See [ml-model-types.md](./ml-model-types.md) and [custom-harnesses.md](./custom-
 | human-vs-ai | `interactive_arena` | human vs policy |
 | dual-arena | `interactive_arena` | self-play same weights |
 
+## UI Reference Rules
+
+The six-board autonomous train page is the standard for policy Test surfaces:
+
+- boards render before training starts
+- all parallel slots are visible at once
+- controls and metrics share the same toolbar
+- stats use labels such as episodes, apples, best length, and full boards
+- no generated screenshots, checkpoints, or rollout files are committed
+
 Optional SB3: `pip install stable-baselines3 gymnasium` then choose **Stable-Baselines3** in Autonomous train.

@@ -45,6 +45,7 @@ class RewardDecomposer:
         distance_scale: float = 0.1,
         coverage_scale: float = 0.05,
         curriculum_stage: str = "A",
+        reward_mode: str = "shaped",
     ) -> None:
         self.apple_reward = apple_reward
         self.death_penalty = death_penalty
@@ -52,6 +53,7 @@ class RewardDecomposer:
         self.distance_scale = distance_scale
         self.coverage_scale = coverage_scale
         self.curriculum_stage = curriculum_stage
+        self.reward_mode = reward_mode
         self._prev_distance: int | None = None
 
     def reset(self, state: SnakeState) -> RewardBreakdown:
@@ -72,6 +74,19 @@ class RewardDecomposer:
             length=float(nxt.length),
             board_coverage=nxt.coverage,
         )
+
+        if self.reward_mode == "sparse":
+            if ate_apple:
+                breakdown.apple = 1.0
+            if nxt.done:
+                if nxt.outcome == "died_wall":
+                    breakdown.death_wall = -1.0
+                elif nxt.outcome == "died_self":
+                    breakdown.death_self = -1.0
+            breakdown.total = breakdown.apple + breakdown.death_wall + breakdown.death_self
+            self._prev_distance = manhattan(nxt.head, nxt.apple)
+            return breakdown
+
         breakdown.survival = self.survival_reward
 
         if ate_apple:

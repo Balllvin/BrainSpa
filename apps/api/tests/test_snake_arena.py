@@ -46,3 +46,30 @@ def test_archived_sessions_after_human_play(client):
     assert listed.status_code == 200
     ids = {item["session_id"] for item in listed.json()}
     assert session_id in ids
+
+
+def test_coach_replay_returns_world_state(client):
+    created = client.post(
+        "/api/env/snake/session",
+        json={"scenario_key": "human-play", "mode": "interactive_play", "seed": 5},
+    )
+    session_id = created.json()["session_id"]
+    client.post("/api/env/snake/step", json={"session_id": session_id, "action": "right"})
+    client.post(f"/api/env/snake/session/{session_id}/close")
+    replay = client.get(f"/api/env/snake/coach/{session_id}?step=0")
+    assert replay.status_code == 200
+    payload = replay.json()
+    assert payload["ok"] is True
+    world = payload["world_state"]
+    assert world is not None
+    assert len(world["snake"]) >= 3
+    assert "apple" in world
+
+
+def test_snake_transitions_pagination(client):
+    response = client.get("/api/datasets/snake/transitions?limit=5&offset=0")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "total" in payload
+    assert "rows" in payload
+    assert payload["limit"] == 5

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from packages.brainspa_environments.snake import ACTION_NAMES, RewardDecomposer, SnakeSim, encode_state
+from packages.brainspa_environments.snake.state import hidden_dim_for_profile
 from packages.brainspa_environments.snake.wrappers import env_profile_for_scenario
 from packages.brainspa_training.policy_trainer import SnakeDQNAgent, greedy_action, state_dim_for_profile
 
@@ -47,9 +48,12 @@ def run_policy_eval(
     path = checkpoint or snake_checkpoint_path()
     profile = env_profile_for_scenario(scenario_key)
     input_dim = state_dim_for_profile(profile)
-    agent = SnakeDQNAgent(input_dim=input_dim)
+    agent = SnakeDQNAgent(input_dim=input_dim, hidden=hidden_dim_for_profile(profile))
     if path.exists():
-        agent.load(path)
+        try:
+            agent.load(path)
+        except ValueError:
+            pass
 
     lengths: list[float] = []
     apples: list[float] = []
@@ -63,7 +67,8 @@ def run_policy_eval(
     for ep in range(episodes):
         sim = SnakeSim(seed=ep + 10_000)
         state = sim.reset(seed=ep + 10_000)
-        decomposer = RewardDecomposer(curriculum_stage="C")
+        reward_mode = "sparse" if profile == "coords" else "shaped"
+        decomposer = RewardDecomposer(curriculum_stage="C", reward_mode=reward_mode)
         decomposer.reset(state)
         while not state.done:
             vector = encode_state(sim, state, env_profile=profile)

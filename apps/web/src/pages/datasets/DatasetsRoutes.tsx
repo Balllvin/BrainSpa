@@ -11,6 +11,8 @@ export function DatasetsRoutes() {
   return (
     <Routes>
       <Route index element={<DatasetsHomePage />} />
+      <Route path="snake/generate" element={<Navigate replace to="/datasets/snake/rollout" />} />
+      <Route path="snake/rows" element={<Navigate replace to="/datasets/snake/rollout" />} />
       <Route path=":datasetSlug/generate" element={<DatasetsGeneratePage />} />
       <Route path=":datasetSlug/rows" element={<DatasetsRowsPage />} />
       <Route path="snake/rollout" element={<DatasetsSnakePage />} />
@@ -21,6 +23,6 @@ export function DatasetsRoutes() {
 }
 
 function DatasetSlugRedirect() {
-  const { datasetSlug = "believer" } = useParams();
+  const { datasetSlug = "snake" } = useParams();
   return <Navigate replace to={datasetRowsPath(canonicalDatasetSlug(datasetSlug))} />;
 }

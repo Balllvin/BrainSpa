@@ -8,6 +8,7 @@ from packages.brainspa_training.policy_trainer import TrainProgress
 from packages.brainspa_training.snake_lab import LabPace, get_snake_train_lab
 
 from .policy_datasets import append_episode
+from .policy_performance import load_lab_records, with_career_records
 from .policy_paths import SNAKE_MODEL_KEY, snake_checkpoint_path, snake_train_job_path
 from .policy_train import _STOP_FLAGS, SNAKE_PROJECT_KEY, _write_job, read_policy_train_job, request_stop_training
 
@@ -30,6 +31,12 @@ def _lab_progress_writer(progress: TrainProgress, result: dict[str, Any]) -> Non
             {**row, "episode_id": episode_id, "policy_version": str(checkpoint)}
             for row in result.get("transitions", [])
         ],
+    )
+    career = load_lab_records()
+    get_snake_train_lab().load_career_records(
+        apples=career["record_apples"],
+        moves=career["record_moves"],
+        length=career["record_length"],
     )
     _write_job(
         {
@@ -55,13 +62,24 @@ def start_snake_lab(
     slots: int = 6,
     episodes: int = 100,
     pace: LabPace = "train",
+    speed_multiplier: float = 1.0,
 ) -> dict[str, Any]:
     existing = read_policy_train_job()
     if existing and existing.get("state") == "running" and existing.get("phase") != "lab":
-        return {"ok": False, "message": "Headless training is already running.", "lab": get_snake_train_lab().snapshot()}
+        return {
+            "ok": False,
+            "message": "Headless training is already running.",
+            "lab": with_career_records(get_snake_train_lab().snapshot()),
+        }
 
     _STOP_FLAGS[SNAKE_PROJECT_KEY] = False
     lab = get_snake_train_lab()
+    career = load_lab_records()
+    lab.load_career_records(
+        apples=career["record_apples"],
+        moves=career["record_moves"],
+        length=career["record_length"],
+    )
     lab.configure_callbacks(
         on_progress=_lab_progress_writer,
         should_stop=lambda: _STOP_FLAGS.get(SNAKE_PROJECT_KEY, False),
@@ -84,8 +102,25 @@ def start_snake_lab(
         slots=slots,
         episodes_target=episodes,
         pace=pace,
+        speed_multiplier=speed_multiplier,
     )
-    return {"ok": True, "lab": snapshot}
+    return {"ok": True, "lab": with_career_records(snapshot)}
+
+
+def set_snake_lab_speed(speed_multiplier: float) -> dict[str, Any]:
+    lab = get_snake_train_lab()
+    snapshot = lab.set_speed_multiplier(speed_multiplier)
+    return {"ok": True, "lab": with_career_records(snapshot)}
+
+
+def set_snake_lab_episodes(episodes: int) -> dict[str, Any]:
+    lab = get_snake_train_lab()
+    snapshot = lab.set_episodes_target(episodes)
+    job = read_policy_train_job()
+    if job and job.get("state") == "running" and job.get("phase") == "lab":
+        job["episodes_target"] = snapshot["episodes_target"]
+        _write_job(job)
+    return {"ok": True, "lab": with_career_records(snapshot)}
 
 
 def stop_snake_lab() -> dict[str, Any]:
@@ -103,12 +138,35 @@ def stop_snake_lab() -> dict[str, Any]:
             "episodes_target": snapshot["episodes_target"],
         }
     )
-    return {"ok": True, "lab": snapshot}
+    return {"ok": True, "lab": with_career_records(snapshot)}
 
 
 def tick_snake_lab() -> dict[str, Any]:
-    return get_snake_train_lab().tick()
+    return with_career_records(get_snake_train_lab().tick())
 
 
 def read_snake_lab() -> dict[str, Any]:
-    return get_snake_train_lab().snapshot()
+    return with_career_records(get_snake_train_lab().snapshot())
+
+
+def reconcile_lab_train_job() -> dict[str, Any] | None:
+    """Close stale lab jobs when the simulation finished without an explicit stop."""
+    job = read_policy_train_job()
+    if not job or job.get("state") != "running" or job.get("phase") != "lab":
+        return job
+
+    snapshot = get_snake_train_lab().snapshot()
+    if snapshot.get("running"):
+        return job
+
+    finished = int(snapshot.get("episode") or 0) >= int(snapshot.get("episodes_target") or 0)
+    _write_job(
+        {
+            **job,
+            "state": "complete" if finished else "idle",
+            "phase": "lab_done" if finished else "lab_stopped",
+            "episode": snapshot.get("episode"),
+            "episodes_target": snapshot.get("episodes_target"),
+        }
+    )
+    return read_policy_train_job()

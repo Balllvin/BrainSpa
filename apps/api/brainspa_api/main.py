@@ -14,7 +14,6 @@ from fastapi.responses import StreamingResponse
 
 from .config import ensure_runtime_dirs, runtime_root
 from .models import (
-    AcceptanceRunResult,
     AdapterTestRequest,
     AdapterTestResult,
     AppSettings,
@@ -62,6 +61,8 @@ from .models import (
     TuneStatusResponse,
     SnakeSessionCreate,
     SnakeStepRequest,
+    SnakeLabEpisodesRequest,
+    SnakeLabSpeedRequest,
     SnakeLabStartRequest,
     PolicyTrainRequest,
     PolicyTrainJob,
@@ -139,7 +140,6 @@ from .datasets_workflows import (
     patch_dataset_row,
     read_evidence_gate,
 )
-from .datasets_workflows import generate_believer_dataset as generate_dataset_for_key
 from .tune_api import list_tune_status, tune_build_preview, tune_status_for_slug
 from .tune_build import read_build_job_for_slug, start_build_job
 from .snake_api import (
@@ -151,7 +151,15 @@ from .snake_api import (
     step_session,
 )
 from .snake_session_store import list_archived_sessions
-from .snake_train_lab import read_snake_lab, start_snake_lab, stop_snake_lab, tick_snake_lab
+from .snake_policy_reset import reset_snake_policy
+from .snake_train_lab import (
+    read_snake_lab,
+    set_snake_lab_episodes,
+    set_snake_lab_speed,
+    start_snake_lab,
+    stop_snake_lab,
+    tick_snake_lab,
+)
 from .policy_train import read_policy_train_job, request_stop_training, start_policy_train
 from packages.brainspa_training.snake_lab import get_snake_train_lab
 from .policy_eval import run_policy_eval
@@ -159,14 +167,11 @@ from .policy_datasets import read_snake_dataset_summary, list_transitions, SNAKE
 
 from .workflows import (
     chipmunk_reply,
-    generate_believer_dataset,
     test_training_adapter,
     run_environment_eval,
     run_worker_job,
     build_training_adapter,
     training_dry_run,
-    run_believer_acceptance,
-    believer_runtime_reply,
     looks_like_loop_request,
 )
 
@@ -189,7 +194,9 @@ def create_app() -> FastAPI:
 
     cors_raw = os.environ.get(
         "BRAIN_SPA_CORS_ORIGINS",
-        "http://127.0.0.1:5173,http://localhost:5173",
+        "http://127.0.0.1:5173,http://localhost:5173,"
+        "http://127.0.0.1:5174,http://localhost:5174,"
+        "http://127.0.0.1:5175,http://localhost:5175",
     )
     cors_origins = [origin.strip() for origin in cors_raw.split(",") if origin.strip()]
 
@@ -397,14 +404,15 @@ def create_app() -> FastAPI:
             return TelegramAuthorizationResult(authorized=False, reason=reason)
         model_key = telegram_bot_model_key(request.bot_name)
         if model_key and request.bot_name != "chipmunk" and not looks_like_loop_request(request.text):
-            result = believer_runtime_reply(request.text or "What should I do when I feel spiritually weak?", model_key)
-            if result.state == "complete":
-                return TelegramAuthorizationResult(
-                    authorized=True,
-                    reason=reason,
-                    routed_to=model_key,
-                    reply=result.answer,
-                )
+            return TelegramAuthorizationResult(
+                authorized=True,
+                reason=reason,
+                routed_to="test" if model_key == "snake_policy" else "chipmunk",
+                reply=(
+                    "Snake Policy is an environment policy, not a shipped chat model. "
+                    "Use the Snake Test pages to run or train it."
+                ),
+            )
         route = chipmunk_reply(request.text or "telegram route check")
         return TelegramAuthorizationResult(
             authorized=True,
@@ -432,7 +440,10 @@ def create_app() -> FastAPI:
 
     @app.post("/api/datasets/generate", response_model=DatasetGenerateResult)
     def generate_dataset(request: DatasetGenerateRequest) -> DatasetGenerateResult:
-        return generate_believer_dataset(request)
+        raise HTTPException(
+            status_code=400,
+            detail="No default text dataset is shipped. Use /test/snake/autonomous-train to create Snake rollout data.",
+        )
 
     @app.get("/api/datasets/evidence-gate", response_model=DatasetEvidenceGate)
     def datasets_evidence_gate() -> DatasetEvidenceGate:
@@ -440,7 +451,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/datasets/scenarios", response_model=list[TestScenarioPublic])
     def datasets_scenarios() -> list[TestScenarioPublic]:
-        return list_test_scenarios("persona_small")
+        return list_test_scenarios("snake_policy")
 
     @app.get("/api/datasets/{dataset_key}/rows", response_model=DatasetRowPage)
     def dataset_rows(dataset_key: str, offset: int = 0, limit: int = 50) -> DatasetRowPage:
@@ -457,9 +468,12 @@ def create_app() -> FastAPI:
 
     @app.post("/api/datasets/{dataset_key}/generate", response_model=DatasetGenerateResult)
     def generate_dataset_by_key(dataset_key: str, request: DatasetGenerateRequest) -> DatasetGenerateResult:
-        if dataset_key != "believer_seed":
-            raise HTTPException(status_code=404, detail=f"Unknown dataset: {dataset_key}")
-        return generate_dataset_for_key(request, dataset_key=dataset_key)
+        if dataset_key in {"snake", SNAKE_DATASET_KEY}:
+            raise HTTPException(
+                status_code=400,
+                detail="Snake rollout data is created by autonomous train, not by text row generation.",
+            )
+        raise HTTPException(status_code=404, detail=f"Unknown dataset: {dataset_key}")
 
     @app.post("/api/datasets/{dataset_key}/import-test-feedback", response_model=DatasetImportFeedbackResult)
     def dataset_import_test_feedback(dataset_key: str) -> DatasetImportFeedbackResult:
@@ -518,10 +532,6 @@ def create_app() -> FastAPI:
     def tune_test_adapter(request: AdapterTestRequest) -> AdapterTestResult:
         return test_training_adapter(request)
 
-    @app.post("/api/tune/acceptance", response_model=AcceptanceRunResult)
-    def tune_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
-        return run_believer_acceptance(request)
-
     @app.post("/api/training/dry-run", response_model=TrainingDryRunResult)
     def dry_run_training(request: TrainingDryRunRequest) -> TrainingDryRunResult:
         return training_dry_run(request)
@@ -533,10 +543,6 @@ def create_app() -> FastAPI:
     @app.post("/api/training/test-adapter", response_model=AdapterTestResult)
     def test_adapter(request: AdapterTestRequest) -> AdapterTestResult:
         return test_training_adapter(request)
-
-    @app.post("/api/training/believer-acceptance", response_model=AcceptanceRunResult)
-    def believer_acceptance(request: AdapterTestRequest) -> AcceptanceRunResult:
-        return run_believer_acceptance(request)
 
     @app.post("/api/evals/run", response_model=EvalRunResult)
     def run_eval(request: EvalRunRequest) -> EvalRunResult:
@@ -570,7 +576,28 @@ def create_app() -> FastAPI:
 
     @app.post("/api/env/snake/lab/start")
     def snake_lab_start(body: SnakeLabStartRequest) -> dict:
-        return start_snake_lab(slots=body.slots, episodes=body.episodes, pace=body.pace)
+        return start_snake_lab(
+            slots=body.slots,
+            episodes=body.episodes,
+            pace=body.pace,
+            speed_multiplier=body.speed_multiplier,
+        )
+
+    @app.post("/api/env/snake/lab/speed")
+    def snake_lab_speed(body: SnakeLabSpeedRequest) -> dict:
+        return set_snake_lab_speed(body.speed_multiplier)
+
+    @app.post("/api/env/snake/lab/episodes")
+    def snake_lab_episodes(body: SnakeLabEpisodesRequest) -> dict:
+        return set_snake_lab_episodes(body.episodes)
+
+    @app.post("/api/env/snake/reset")
+    def snake_policy_reset() -> dict:
+        from .snake_train_lab import with_career_records
+
+        result = reset_snake_policy()
+        result["lab"] = with_career_records(result["lab"])
+        return result
 
     @app.post("/api/env/snake/lab/stop")
     def snake_lab_stop() -> dict:
@@ -580,6 +607,12 @@ def create_app() -> FastAPI:
     def snake_lab_status() -> dict:
         return read_snake_lab()
 
+    @app.get("/api/env/snake/performance")
+    def snake_policy_performance() -> dict:
+        from .policy_performance import read_policy_performance
+
+        return read_policy_performance()
+
     @app.post("/api/env/snake/lab/tick")
     def snake_lab_tick() -> dict:
         return tick_snake_lab()
@@ -588,17 +621,21 @@ def create_app() -> FastAPI:
     def snake_lab_stream():
         import asyncio
 
-        lab = get_snake_train_lab()
-
         async def event_stream():
+            from .snake_train_lab import reconcile_lab_train_job, tick_snake_lab
+
+            lab = get_snake_train_lab()
             while lab.running:
-                frame = lab.tick()
+                frame = tick_snake_lab()
                 payload = json.dumps({"type": "frame", "lab": frame})
                 yield f"data: {payload}\n\n"
                 if not lab.running:
                     break
                 await asyncio.sleep(lab.stream_interval_sec())
-            done = lab.snapshot()
+            reconcile_lab_train_job()
+            from .snake_train_lab import read_snake_lab
+
+            done = read_snake_lab()
             yield f"data: {json.dumps({'type': 'done', 'lab': done})}\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -629,7 +666,9 @@ def create_app() -> FastAPI:
 
     @app.get("/api/policy/{model_slug}/train-job", response_model=PolicyTrainJob)
     def policy_train_job(model_slug: str) -> PolicyTrainJob:
-        job = read_policy_train_job()
+        from .snake_train_lab import reconcile_lab_train_job
+
+        job = reconcile_lab_train_job() or read_policy_train_job()
         if not job:
             return PolicyTrainJob(state="idle", phase="idle")
         return PolicyTrainJob(**{k: v for k, v in job.items() if k in PolicyTrainJob.model_fields})
@@ -669,6 +708,14 @@ def create_app() -> FastAPI:
             return None
         payload = json.loads(path.read_text(encoding="utf-8"))
         return PolicyEvalResult(**payload)
+
+    @app.get("/api/policy/{model_slug}/performance")
+    def policy_performance_route(model_slug: str) -> dict:
+        if model_slug not in {"snake", "snake_policy"}:
+            raise HTTPException(status_code=404, detail="Performance tracking is only available for snake policy")
+        from .policy_performance import read_policy_performance
+
+        return read_policy_performance()
 
     @app.get("/api/datasets/{dataset_key}/policy-summary", response_model=SnakeDatasetSummary)
     def snake_dataset_summary(dataset_key: str) -> SnakeDatasetSummary:
@@ -744,7 +791,10 @@ def create_app() -> FastAPI:
 
     @app.get("/api/harness/scenarios/{model_key}", response_model=list[TestScenarioPublic])
     def harness_test_scenarios(model_key: str) -> list[TestScenarioPublic]:
-        return list_test_scenarios(model_key)
+        scenarios = list_test_scenarios(model_key)
+        if not scenarios:
+            raise HTTPException(status_code=404, detail=f"Unknown test model: {model_key}")
+        return scenarios
 
     @app.get("/api/harness/chat/{model_key}/{scenario_key}", response_model=HarnessChatThread)
     def harness_chat_thread(model_key: str, scenario_key: str) -> HarnessChatThread:

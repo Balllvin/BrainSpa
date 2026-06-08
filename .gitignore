@@ -1,5 +1,6 @@
 node_modules/
 dist/
+output/
 .cursor/*
 !.cursor/agents/
 !.cursor/agents/**
@@ -15,4 +16,28 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 Retired/
-docs/telegram env.docx
+docs/*.docx
+
+# Local runtime and generated training artifacts stay outside GitHub.
+artifacts/
+adapters/
+checkpoints/
+models/
+runs/
+wandb/
+tensorboard/
+*.ckpt
+*.gguf
+*.h5
+*.hdf5
+*.joblib
+*.keras
+*.npy
+*.npz
+*.onnx
+*.pb
+*.pkl
+*.pt
+*.pth
+*.safetensors
+*.tflite

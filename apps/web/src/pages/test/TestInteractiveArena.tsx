@@ -11,19 +11,9 @@ import {
 import { testModelPath } from "@/lib/testRoutes";
 
 import { TestSnakeCanvas } from "./TestSnakeCanvas";
-import { SnakeBar, SnakeBarGroup, SnakeBarSegment } from "./snake/SnakeBar";
+import { SnakeBar, SnakeBarGroup, SnakeBarSegment, SnakeTelemetry } from "./snake/SnakeBar";
+import { KEY_TO_ACTION, SNAKE_CONTROL_HINT, SnakePlaceholderBoard, sessionMetrics } from "./snake/SnakeTestUtils";
 import { SnakeShell } from "./snake/SnakeShell";
-
-const KEY_TO_ACTION: Record<string, string> = {
-  ArrowUp: "up",
-  ArrowDown: "down",
-  ArrowLeft: "left",
-  ArrowRight: "right",
-  w: "up",
-  s: "down",
-  a: "left",
-  d: "right",
-};
 
 type ArenaPace = "human" | "fast";
 
@@ -114,25 +104,41 @@ export function TestInteractiveArena({
     return () => window.removeEventListener("keydown", onKey);
   }, [dualAi, scenarioKey]);
 
+  const statusExtra = dualAi ? "two policies" : SNAKE_CONTROL_HINT;
+
   return (
     <SnakeShell backTo={testModelPath(modelKey)}>
-      {dualAi ? (
-        <SnakeBar>
+      <SnakeBar>
+        {dualAi ? (
           <SnakeBarGroup>
             <SnakeBarSegment
               value={pace}
               options={[
-                { value: "human", label: "I", title: "Human pace" },
-                { value: "fast", label: "III", title: "Fast" },
+                { value: "human", label: "Slow" },
+                { value: "fast", label: "Fast" },
               ]}
               onChange={setPace}
             />
           </SnakeBarGroup>
-        </SnakeBar>
-      ) : null}
+        ) : null}
+        <SnakeTelemetry>
+          {session
+            ? sessionMetrics(session, statusExtra)
+            : dualAi
+              ? "Loading dual arena…"
+              : `Loading arena · ${SNAKE_CONTROL_HINT}`}
+        </SnakeTelemetry>
+      </SnakeBar>
       <div className="snake-focus">
-        {session ? <TestSnakeCanvas world={session.world_state} /> : <p className="snake-wait">···</p>}
-        {!dualAi ? <kbd className="snake-keys">↑ ← ↓ →</kbd> : null}
+        {session ? (
+          <TestSnakeCanvas
+            world={session.world_state}
+            policyAction={dualAi ? session.policy_action : null}
+            opponentPolicyAction={session.opponent_action}
+          />
+        ) : (
+          <SnakePlaceholderBoard />
+        )}
       </div>
     </SnakeShell>
   );

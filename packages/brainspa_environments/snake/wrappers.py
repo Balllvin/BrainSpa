@@ -3,15 +3,20 @@ from __future__ import annotations
 from .arena import SnakeArenaSim
 from .sim import SnakeSim
 
-ENV_PROFILES = ("solo", "wrapped_v2", "arena")
+ENV_PROFILES = ("solo", "wrapped_v2", "arena", "coords")
+
+
+def normalize_env_profile(env_profile: str) -> str:
+    """Map legacy profile names to the current canonical name."""
+    if env_profile == "coords_v1":
+        return "coords"
+    return env_profile
 
 
 def env_profile_for_scenario(scenario_key: str) -> str:
     if scenario_key in {"dual-arena", "human-vs-ai"}:
         return "arena"
-    if scenario_key == "autonomous-train":
-        return "solo"
-    return "solo"
+    return "coords"
 
 
 def is_arena_scenario(scenario_key: str) -> bool:

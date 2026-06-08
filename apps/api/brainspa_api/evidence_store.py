@@ -34,27 +34,11 @@ from .models import (
 )
 from .state import BrainSpaState, get_xai_api_key
 
-DEFAULT_BEHAVIOR_FOCUS = (
-    "Blunt faith-forward persona grounded in real sources—not generic assistant hedging."
-)
+DEFAULT_BEHAVIOR_FOCUS = "Specific target behavior backed by cited evidence before training rows are written."
 
-BELIEVER_MODEL_SLUG = "believer"
-BELIEVER_MODEL_KEY = "persona_small"
-BELIEVER_DISPLAY_NAME = "Believer"
-
-MODEL_SLUG_TO_KEY: dict[str, str] = {
-    "believer": BELIEVER_MODEL_KEY,
-    "persona_small": BELIEVER_MODEL_KEY,
-}
-
-MODEL_KEY_TO_SLUG: dict[str, str] = {
-    BELIEVER_MODEL_KEY: BELIEVER_MODEL_SLUG,
-}
-
-MODEL_DISPLAY: dict[str, str] = {
-    BELIEVER_MODEL_SLUG: BELIEVER_DISPLAY_NAME,
-    BELIEVER_MODEL_KEY: BELIEVER_DISPLAY_NAME,
-}
+MODEL_SLUG_TO_KEY: dict[str, str] = {"snake": "snake_policy"}
+MODEL_KEY_TO_SLUG: dict[str, str] = {"snake_policy": "snake"}
+MODEL_DISPLAY: dict[str, str] = {"snake": "Snake Policy", "snake_policy": "Snake Policy"}
 
 ClaimStatus = Literal["pending", "approved", "rejected", "weak"]
 
@@ -351,7 +335,7 @@ def _local_extract_claims(source: SourceProfile, query: str | None) -> list[dict
             "citation": source.provenance,
         },
         {
-            "text": f"Reject generic assistant hedging; stay blunt and specific to: {focus}",
+            "text": f"Reject vague behavior claims; stay specific to: {focus}",
             "citation": source.provenance,
         },
         {

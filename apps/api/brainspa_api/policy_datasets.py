@@ -38,6 +38,10 @@ def append_episode(
     with trajectories_path(dataset_key).open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(episode_summary) + "\n")
 
+    from .policy_performance import update_policy_performance_from_episode
+
+    update_policy_performance_from_episode(episode_summary)
+
     if transitions:
         with transitions_path(dataset_key).open("a", encoding="utf-8") as handle:
             for row in transitions:
