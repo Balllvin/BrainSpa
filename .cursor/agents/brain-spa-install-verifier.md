@@ -12,7 +12,7 @@ When invoked, from repo root:
 3. `BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 python3 -m pytest apps/api/tests -q`
 4. `npm run build`
 5. Start API in background; `curl -s http://127.0.0.1:8000/api/health` must return `"ok": true`
-6. Optional: `curl -s http://127.0.0.1:8000/api/evidence/models/believer`
+6. Optional: `curl -s http://127.0.0.1:8000/api/evidence/models/starter`
 
 Report VERIFIED or NOT VERIFIED with command output snippets.
 

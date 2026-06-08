@@ -3,6 +3,7 @@ uvicorn
 pydantic
 pytest
 httpx
+python-multipart
 certifi
 torch
 transformers

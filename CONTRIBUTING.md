@@ -24,7 +24,7 @@ npm run dev
 npm run verify
 ```
 
-This runs `npm run build` and API tests with Telegram polling disabled.
+This runs the public-shell guard, production build, and API tests with Telegram polling disabled. See `docs/public-shell-boundary.md` for what must stay out of GitHub.
 
 ## Project layout
 
@@ -48,15 +48,16 @@ Shared review agents live in `.cursor/agents/`:
 ## Branch workflow
 
 - `main` is the clean public canonical branch on GitHub.
-- `local-runtime` is the local working branch for Brain Spa iteration on Alvin's machine.
+- `local-runtime` is the local working branch for Brain Spa iteration on a private runtime branch.
 - Make changes on `local-runtime`, push that branch, then open PRs into `main`.
-- Keep runtime state outside git: `~/.brain-spa`, `.env`, tokens, and Playwright scratch files stay local.
+- Before pushing, run `npm run verify`; it includes `npm run check:public-shell`.
+- Keep runtime state outside git: `~/.brain-spa`, `.env`, tokens, generated evidence, datasets, adapters, transcripts, evals, and Playwright scratch files stay local.
 
 ## Commits and PRs
 
 - One logical change per PR when possible
 - Include what you verified (pytest, build, browser route)
-- Do not commit `~/.brain-spa`, `.env`, tokens, or Playwright scratch files
+- Do not commit `~/.brain-spa`, `.env`, tokens, generated evidence, datasets, adapters, model weights, eval outputs, transcripts, or Playwright scratch files
 
 ## License
 

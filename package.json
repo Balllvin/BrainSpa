@@ -14,8 +14,13 @@
     "api": "node scripts/run-python.mjs -m apps.api.brainspa_api",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "check:public-shell": "node scripts/check-public-shell.mjs",
     "test:api": "BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 node scripts/run-python.mjs -m pytest apps/api/tests -q",
-    "verify": "npm run build && npm run test:api"
+    "verify": "npm run check:public-shell && npm run build && npm run test:api"
+  },
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -28,7 +33,6 @@
     "@types/react-dom": "^19.0.0",
     "@types/three": "^0.184.1",
     "@vitejs/plugin-react": "^4.4.1",
-    "playwright": "^1.60.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }

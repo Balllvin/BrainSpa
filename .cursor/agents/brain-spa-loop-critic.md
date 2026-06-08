@@ -13,7 +13,7 @@ When invoked:
 Banned on user-facing loop pages:
 
 - Harness cards with `tools:` / `scores:`
-- Registry keys in titles (`persona_small`, `believer_voice_refs`)
+- Registry keys in titles (`starter_model`, `starter_voice_refs`)
 - "Back to Chipmunk" on section roots
 - Equal-weight source grids without model context (Evidence)
 
@@ -21,7 +21,7 @@ Required patterns:
 
 - Section root: no parent back link
 - Subpages: arrow-only back (`LoopNavArrow`)
-- Evidence: Believer-first home, unified `/evidence/believer/review`, manual claims, Datasets ready banner
+- Evidence: Starter-first home, unified `/evidence/starter/review`, manual claims, Datasets ready banner
 - Datasets: approved-evidence gate before generate
 - Test: chat UX contract (optimistic send, typing dots)
 
