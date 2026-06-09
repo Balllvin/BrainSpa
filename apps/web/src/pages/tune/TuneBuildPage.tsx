@@ -46,7 +46,7 @@ export function TuneBuildPage() {
   const [status, setStatus] = useState<TuneModelStatus | null>(null);
   const [datasets, setDatasets] = useState<DatasetProfile[]>([]);
   const [preview, setPreview] = useState<TuneBuildPreview | null>(null);
-  const [datasetKey, setDatasetKey] = useState("starter_seed");
+  const [datasetKey, setDatasetKey] = useState("snake_rollout");
   const [preset, setPreset] = useState<TrainingPreset>("standard");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>("pick");
@@ -155,7 +155,7 @@ export function TuneBuildPage() {
 
   const dryRunReady = dryRun && !dryRun.missing_requirements.length;
   const canBuild = dryRunReady && !busy && !building;
-  const datasetSlug = preview?.dataset_slug ?? "starter";
+  const datasetSlug = preview?.dataset_slug ?? "snake";
 
   return (
     <TuneShell backTo={tuneModelPath(canonicalSlug)} backLabel={status?.display_name ?? "Model"} title="Build">
@@ -246,7 +246,7 @@ export function TuneBuildPage() {
           onClick={handleBuild}
           title={dryRunReady ? undefined : "Run dry-run first"}
         >
-          {building ? "Building…" : "Build adapter (slow)"}
+          {building ? "Building…" : "Build"}
         </button>
       </div>
 
@@ -285,11 +285,11 @@ export function TuneBuildPage() {
                 {build.loss != null ? ` · loss ${build.loss.toFixed(4)}` : ""}
               </p>
               <div className="tune-next-links">
-                <Link className="tune-btn tune-btn--primary" to={testScenarioPath(canonicalSlug, "review")}>
-                  Test review
+                <Link className="tune-btn tune-btn--primary" to={testScenarioPath(canonicalSlug, "autonomous-watch")}>
+                  Watch policy
                 </Link>
-                <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "counsel")}>
-                  Test counsel
+                <Link className="tune-btn" to={testScenarioPath(canonicalSlug, "autonomous-train")}>
+                  Train more
                 </Link>
                 <Link className="tune-btn" to={tuneStatusPath(canonicalSlug)}>
                   View status

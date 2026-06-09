@@ -40,6 +40,8 @@ export interface ModelProfile {
   hardware_fit: string;
   strengths: string[];
   known_failures: string[];
+  model_kind?: "causal_lm" | "policy";
+  policy_arch?: string | null;
 }
 
 export interface HardwareProfile {
@@ -476,7 +478,14 @@ export interface HarnessChatThread {
 export interface TestScenario {
   key: string;
   label: string;
-  mode: "chat" | "generate";
+  mode:
+    | "chat"
+    | "generate"
+    | "interactive_train"
+    | "interactive_watch"
+    | "interactive_play"
+    | "interactive_coach"
+    | "interactive_arena";
   placeholder: string;
   hint: string;
 }
@@ -520,8 +529,11 @@ export interface TuneModelStatus {
   label: string;
   display_name: string;
   project_key: string;
+  model_kind?: "causal_lm" | "policy";
   adapter_path: string;
   adapter_state: "missing" | "ready" | "blocked" | "stale";
+  policy_path?: string | null;
+  policy_state?: "missing" | "training" | "ready" | "stale" | "blocked" | null;
   dataset_key: string | null;
   dataset_row_count: number;
   build_dataset_key: string | null;

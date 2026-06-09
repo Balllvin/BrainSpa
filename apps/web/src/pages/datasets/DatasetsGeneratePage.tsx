@@ -16,10 +16,10 @@ import type { DatasetEvidenceGate, DatasetGenerateResult, DatasetRow, TestScenar
 
 import { DatasetsShell } from "./DatasetsShell";
 
-const DEFAULT_SCENARIOS = ["counsel", "advice", "daily-word", "review"];
+const DEFAULT_SCENARIOS = ["autonomous-train"];
 
 export function DatasetsGeneratePage() {
-  const { datasetSlug = "starter" } = useParams();
+  const { datasetSlug = "snake" } = useParams();
   const datasetKey = datasetKeyFromSlug(datasetSlug);
   const label = datasetDisplayLabel(datasetKey);
 
@@ -29,10 +29,7 @@ export function DatasetsGeneratePage() {
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set(DEFAULT_SCENARIOS));
   const [mixEven, setMixEven] = useState(true);
   const [weights, setWeights] = useState<Record<string, number>>({
-    counsel: 1,
-    advice: 1,
-    review: 1,
-    "daily-word": 1,
+    "autonomous-train": 1,
   });
   const [groundInEvidence, setGroundInEvidence] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -238,14 +235,6 @@ export function DatasetsGeneratePage() {
           <span className="datasets-pack-label">Quick packs</span>
           <button
             className="secondary"
-            disabled={Boolean(busy) || !canRun}
-            type="button"
-            onClick={() => runGenerate("review-heavy")}
-          >
-            12 review-heavy
-          </button>
-          <button
-            className="secondary"
             disabled={Boolean(busy)}
             type="button"
             onClick={() => runGenerate("import-feedback-only")}
@@ -277,7 +266,7 @@ export function DatasetsGeneratePage() {
             <Link className="secondary" to={datasetRowsPath(datasetSlug)}>
               Review rows
             </Link>
-            <Link className="primary" to="/tune/starter/build">
+            <Link className="primary" to="/tune/snake">
               Continue to Tune
             </Link>
           </div>

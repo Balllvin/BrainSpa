@@ -6,11 +6,9 @@ from .config import harness_chat_path, write_private_json
 from .model_feedback import append_model_feedback_record
 from .models import HarnessChatMessage, HarnessChatSendRequest, HarnessChatSendResult, HarnessChatThread
 from .state import log_event
-from .test_scenarios import scenario_generation_text
-from .workflows import starter_runtime_reply, project_key_for_model
 
 
-def read_harness_chat(model_key: str, scenario_key: str = "counsel") -> HarnessChatThread:
+def read_harness_chat(model_key: str, scenario_key: str = "autonomous-train") -> HarnessChatThread:
     path = harness_chat_path(model_key, scenario_key)
     if not path.exists():
         return HarnessChatThread(model_key=model_key, scenario_key=scenario_key, messages=[])
@@ -24,38 +22,10 @@ def read_harness_chat(model_key: str, scenario_key: str = "counsel") -> HarnessC
 
 
 def send_harness_chat(request: HarnessChatSendRequest) -> HarnessChatSendResult:
-    scenario_key = request.scenario_key or "counsel"
+    scenario_key = request.scenario_key or "autonomous-train"
     thread = read_harness_chat(request.model_key, scenario_key)
     if request.reply_to_message_id is not None:
         return _save_reply_feedback(thread, request)
-
-    history = [
-        {"user": message.prompt, "assistant": message.content}
-        for message in thread.messages
-        if message.role == "assistant" and message.prompt
-    ][-3:]
-    prompt_for_model = scenario_generation_text(scenario_key, request.text)
-    generation = starter_runtime_reply(
-        prompt_for_model,
-        request.model_key,
-        history=history,
-        project_key=project_key_for_model(request.model_key),
-    )
-    if generation.state != "complete":
-        reason = ", ".join(generation.missing_requirements) or "runtime blocked"
-        blocked = HarnessChatMessage(
-            id=_next_message_id(thread),
-            role="system",
-            content=f"Model unavailable: {reason}.",
-        )
-        thread.messages.append(blocked)
-        _write_thread(thread)
-        return HarnessChatSendResult(
-            kind="assistant_reply",
-            message=blocked,
-            generation_state=generation.state,
-            missing_requirements=generation.missing_requirements,
-        )
 
     user_message = HarnessChatMessage(
         id=_next_message_id(thread),
@@ -63,22 +33,18 @@ def send_harness_chat(request: HarnessChatSendRequest) -> HarnessChatSendResult:
         content=request.text,
     )
     thread.messages.append(user_message)
-    assistant_message = HarnessChatMessage(
+    system_message = HarnessChatMessage(
         id=_next_message_id(thread),
-        role="assistant",
-        content=generation.answer,
-        prompt=prompt_for_model,
-        model=generation.model,
-        adapter_path=generation.adapter_path,
-        eval=generation.eval,
+        role="system",
+        content="Snake Policy uses the interactive environment pages for testing and training. Chat harnesses are not shipped in this shell.",
     )
-    thread.messages.append(assistant_message)
+    thread.messages.append(system_message)
     _write_thread(thread)
     return HarnessChatSendResult(
         kind="assistant_reply",
-        message=assistant_message,
-        generation_state=generation.state,
-        missing_requirements=generation.missing_requirements,
+        message=system_message,
+        generation_state="blocked",
+        missing_requirements=["Use /test/snake/autonomous-train or /test/snake/human-play for Snake Policy."],
     )
 
 

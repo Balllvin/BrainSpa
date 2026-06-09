@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
-import { fetchTuneModelStatus, runStarterAcceptance } from "@/lib/backend";
+import { fetchTuneModelStatus, runAcceptanceCheck } from "@/lib/backend";
 import { datasetDisplayLabel } from "@/lib/datasetsRoutes";
 import { testModelPath } from "@/lib/testRoutes";
 import { canonicalModelSlug, modelKeyFromSlug, tuneBuildPath, tuneModelPath } from "@/lib/tuneRoutes";
@@ -38,10 +38,14 @@ export function TuneStatusPage() {
     return <Navigate replace to={`${tuneModelPath(canonicalSlug)}/status`} />;
   }
 
+  if (canonicalSlug === "snake") {
+    return <Navigate replace to={tuneModelPath(canonicalSlug)} />;
+  }
+
   async function handleAcceptance() {
     setBusy(true);
     setError(null);
-    const response = await runStarterAcceptance(modelKey);
+    const response = await runAcceptanceCheck(modelKey);
     setBusy(false);
     if (!response.ok || !response.data) {
       setError(response.error ?? "Acceptance check failed.");
@@ -58,7 +62,7 @@ export function TuneStatusPage() {
     acceptance?.passed ??
     (acceptanceSummary?.passed != null ? acceptanceSummary.passed : null);
 
-  const datasetSlug = status?.dataset_key === "starter_seed" ? "starter" : status?.dataset_key ?? "starter";
+  const datasetSlug = status?.dataset_key ?? "snake";
   const buildDatasetLabel = status?.build_dataset_key
     ? datasetDisplayLabel(status.build_dataset_key)
     : "—";

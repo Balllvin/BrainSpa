@@ -1,49 +1,39 @@
-# Self-hosting Brain Spa
+# Self-Host Guide
 
-Brain Spa is **local-first**: one machine, one operator, artifacts on disk under `BRAIN_SPA_HOME` (default `~/.brain-spa`). There is no hosted multi-tenant mode in this repo.
-
-## Requirements
-
-| Component | Version |
-|-----------|---------|
-| Node.js | 20+ recommended |
-| Python | 3.11+ |
-| OS | macOS or Linux tested; Windows may need path tweaks |
-
-Optional for the full loop (Tune adapter build, starter generation):
-
-- GPU or patience for CPU training
-- ~2GB+ disk for small HF models
-- `torch`, `transformers`, `datasets`, `trl`, `peft` (see `apps/api/requirements.txt`)
+Brain Spa runs locally with a Vite UI and FastAPI backend.
 
 ## Install
 
 ```bash
-git clone https://github.com/Balllvin/BrainSpa.git
-cd BrainSpa
 npm install
-python3.11 -m pip install -r apps/api/requirements.txt  # or newer
+python3.11 -m pip install -r apps/api/requirements.txt
 ```
-
-Copy `.env.example` to `.env` if you need non-default hosts or keys. The API reads `.env` from the project root before resolving `BRAIN_SPA_HOME`.
 
 ## Run
 
-Terminal 1 — API:
-
 ```bash
-npm run api
+npm run start
 ```
 
-Set `BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1` only when you want the Telegram worker off.
+Open http://127.0.0.1:5173.
 
-Terminal 2 — UI:
+The API runs on http://127.0.0.1:8000. Vite proxies `/api` to the backend.
 
-```bash
-npm run dev
+## Runtime Data
+
+By default, local state lives under:
+
+```text
+~/.brain-spa
 ```
 
-Open http://127.0.0.1:5173
+Override it with:
+
+```bash
+BRAIN_SPA_HOME=/path/to/runtime npm run start
+```
+
+Runtime data is intentionally outside git. This includes Snake rollout rows, checkpoints, eval output, Telegram tokens, and worker state.
 
 ## Verify
 
@@ -51,51 +41,30 @@ Open http://127.0.0.1:5173
 npm run verify
 ```
 
-Or manually:
+For Snake browser smoke coverage:
 
 ```bash
-npm run build
-BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 python3 -m pytest apps/api/tests -q
-curl -s http://127.0.0.1:8000/api/health
+npm run start
+node scripts/smoke-snake.mjs
 ```
 
-## Environment variables
+Screenshots from smoke tests are local output and ignored by git.
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `BRAIN_SPA_HOME` | No | Runtime root (default `~/.brain-spa`) |
-| `VITE_BACKEND_URL` | No | Frontend API base (default `http://127.0.0.1:8000`) |
-| `BRAIN_SPA_API_HOST` / `BRAIN_SPA_API_PORT` | No | API bind address |
-| `BRAIN_SPA_CORS_ORIGINS` | No | Comma-separated dev UI origins |
-| `XAI_API_KEY` | No | Grok voice + Evidence mining (Settings can store key too) |
-| `BRAIN_SPA_DISABLE_TELEGRAM_POLLING` | No | Set `1` to disable Telegram worker |
-| `HF_TOKEN` | No | Gated Hugging Face models only |
+## First-Run Expected State
 
-## Secrets
+A clean clone should show:
 
-- Telegram bot tokens: Settings UI → `~/.brain-spa/secrets/telegram-bots.json` (mode `600`)
-- xAI key: Settings → Chipmunk or `~/.brain-spa/secrets/xai-api-key`
+- Evidence: no seeded sources
+- Datasets: Snake rollout exists but has no transitions yet
+- Tune: Snake Policy has no checkpoint yet
+- Test: Snake environments are ready to run
 
-Never commit secrets or `BRAIN_SPA_HOME` contents. The public GitHub repo is only the reusable Brain Spa shell; keep generated evidence, datasets, adapters, eval outputs, transcripts, and local model configuration outside git. See [docs/public-shell-boundary.md](public-shell-boundary.md).
+Run `/test/snake/autonomous-train` to create local rollout data and train a policy checkpoint.
 
-## Four-stage loop (user routes)
+## Optional Integrations
 
-| Stage | Entry | Job |
-|-------|-------|-----|
-| Evidence | `/evidence` | Approve cited claims for Starter |
-| Datasets | `/datasets` | Rows from approved evidence |
-| Tune | `/tune` | Dry-run and build adapter |
-| Test | `/test` | Try model in environments |
+- xAI/Grok for Chipmunk voice and evidence mining
+- Telegram for local model/notification bots
+- Codex/OpenCode/Grok/Cursor as worker backends
 
-See `docs/loop-pipeline-and-feedback.md` and `docs/harness-and-test-ui-guide.md`.
-
-## Optional CLIs
-
-Evidence/Datasets/Tune stage agents can use Codex, OpenCode, or Grok when installed — configure in Settings → Harnesses. Missing CLIs show as not installed; core UI still works.
-
-## Troubleshooting
-
-- **Connection refused on :5173** — Vite binds `127.0.0.1`; use that host, not IPv6-only `localhost`.
-- **API offline in UI** — Run `npm run api` and check `curl http://127.0.0.1:8000/api/health`.
-- **Evidence ingest empty** — Set xAI key or use local draft claims (no key).
-- **Training fails** — Install full `requirements.txt`; check disk and `docs/local-blockers.md`.
+Secrets live in the runtime secret store, not in this repository.

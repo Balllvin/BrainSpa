@@ -1,114 +1,89 @@
 # Brain Spa
 
-Local app for changing model behavior through a four-stage loop: **Evidence → Datasets → Tune → Test**.
+Local app for changing model behavior through a four-stage loop: **Evidence -> Datasets -> Tune -> Test**.
 
-Chipmunk is the voice-first operator on the home screen; the loop stages are where you approve proof, build rows, train adapters, and test behavior in real environments.
+The public shell ships with one concrete reference environment: **Snake Policy**. It includes the UI, APIs, environment package, rollout dataset tooling, policy trainer, and tests needed to run the full loop from scratch. It does not ship trained model weights, checkpoints, generated screenshots, local runtime state, secrets, or previous run artifacts.
 
-**License:** MIT — see [LICENSE](LICENSE).
+**License:** MIT - see [LICENSE](LICENSE).
 
-## Quick start
+## Quick Start
 
 ```bash
 git clone https://github.com/Balllvin/BrainSpa.git
 cd BrainSpa
 npm install
 python3.11 -m pip install -r apps/api/requirements.txt  # or newer
+npm run start
 ```
 
-Terminal 1 — API:
-
-```bash
-export BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1   # recommended until Telegram is configured
-npm run api
-```
-
-Terminal 2 — UI:
-
-```bash
-npm run dev
-```
-
-Open http://127.0.0.1:5173
+Open http://127.0.0.1:5173.
 
 Full self-host guide: [docs/self-host.md](docs/self-host.md). Environment template: [.env.example](.env.example).
 
-## Verify install
+## Verify
 
 ```bash
 npm run verify
 ```
 
-Runs production build and API tests (`BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1`).
+Runs the production build and API test suite with Telegram polling disabled.
 
-## What this repo contains
+## What Ships
 
-```
+```text
 brain-spa/
-  apps/api/           Python FastAPI backend
-  apps/web/src/       React + Vite UI
-  packages/           Training and agent helpers
-  docs/               Loop pipeline, audits, self-host
-  .cursor/agents/     Optional Cursor review subagents
+  apps/api/                         Python FastAPI backend
+  apps/web/src/                     React + Vite UI
+  packages/brainspa_environments/   Environment implementations
+  packages/brainspa_training/       Training helpers
+  docs/                             Architecture and harness guidance
+  scripts/                          Dev and smoke-test scripts
 ```
 
-Runtime data lives outside the repo under `~/.brain-spa` (or `BRAIN_SPA_HOME`). The GitHub repo is the reusable app shell only; generated evidence, datasets, adapters, evals, transcripts, local model configs, and secrets must stay outside git. See [docs/public-shell-boundary.md](docs/public-shell-boundary.md).
+Runtime data lives outside the repo under `~/.brain-spa` or `BRAIN_SPA_HOME`.
 
-## Four-stage loop
+## Four-Stage Loop
 
-| Stage | Route | You do |
-|-------|-------|--------|
-| Evidence | `/evidence` | Approve cited claims (Starter-first) |
-| Datasets | `/datasets/starter/generate` | Generate training rows from approved evidence |
-| Tune | `/tune/starter` | Dry-run and build LoRA adapter |
-| Test | `/test/starter` | Try the model (counsel, review, …) |
-| Settings | `/settings` | xAI key, Telegram, stage harness CLIs |
+| Stage | Route | Current shell behavior |
+|-------|-------|------------------------|
+| Evidence | `/evidence` | Source inbox starts empty until a model behavior needs cited proof. |
+| Datasets | `/datasets/snake/rollout` | Shows Snake rollout transitions after autonomous training runs. |
+| Tune | `/tune/snake` | Shows policy checkpoint state, training controls, reset, and eval summary. |
+| Test | `/test/snake` | Runs Snake environments: six-board train, watch, human play, coach replay, and arena. |
+| Settings | `/settings` | Runtime configuration, tokens, stage backends, and model bot wiring. |
 
-Handoffs are **files + API state** under `~/.brain-spa/artifacts/`. See [docs/loop-pipeline-and-feedback.md](docs/loop-pipeline-and-feedback.md).
+## Snake Reference
 
-## Local API
+Snake is the reference for future harnesses because it demonstrates the complete non-LLM loop:
 
-Default: `http://127.0.0.1:8000`
+- environment package: `packages/brainspa_environments/snake/`
+- policy training: `packages/brainspa_training/`
+- API routes: `/api/env/snake/*`, `/api/policy/*`, `/api/datasets/snake/*`
+- UI surfaces: `/test/snake/*`, `/datasets/snake/rollout`, `/tune/snake`
+
+The expected first-run state is empty: no checkpoint, no rollout rows, no performance history. Running `/test/snake/autonomous-train` creates local artifacts under `~/.brain-spa`; those artifacts stay out of GitHub.
+
+## Local API Highlights
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /api/health` | Liveness |
-| `GET /api/overview` | Registry snapshot |
-| `GET /api/evidence/models/starter` | Starter evidence summary |
-| `GET /api/evidence/claims?model=starter` | Filtered claims |
-| `POST /api/evidence/claims` | Add manual claim |
-| `GET /api/evidence/approved-claims` | Datasets handoff |
-| `POST /api/datasets/starter_seed/generate` | Generate JSONL rows |
-| `POST /api/training/dry-run` | Training readiness |
-| `POST /api/training/build-adapter` | LoRA build |
-| `GET /api/harness/scenarios/{model_key}` | Test environments |
+| `GET /api/overview` | Shell registry snapshot |
+| `GET /api/harness/scenarios/snake` | Snake Test scenario list |
+| `POST /api/env/snake/session` | Interactive Snake session |
+| `POST /api/env/snake/lab/start` | Start six-board autonomous training |
+| `POST /api/env/snake/reset` | Remove local Snake policy artifacts |
+| `GET /api/datasets/snake/transitions` | Read rollout transitions |
+| `POST /api/policy/snake/eval` | Evaluate the local policy checkpoint |
 
-## Optional integrations
+## Repository Hygiene
 
-- **xAI / Grok** — Chipmunk voice and Evidence mining ([Settings → Chipmunk](http://127.0.0.1:5173/settings/chipmunk) or `XAI_API_KEY`)
-- **Telegram** — Model bots; tokens in `~/.brain-spa/secrets/` only ([Settings → Telegram](http://127.0.0.1:5173/settings/telegram))
-- **Stage CLIs** — Codex, OpenCode, Grok for agent harnesses ([Settings → Harnesses](http://127.0.0.1:5173/settings/agents))
+GitHub should contain source, docs, tests, and small static config only. Keep these out of git:
 
-External setup details: [docs/local-blockers.md](docs/local-blockers.md).
+- `.env`, local secrets, Telegram tokens
+- `~/.brain-spa` runtime data
+- generated screenshots and Playwright output
+- model weights, adapters, checkpoints, tensorboard/wandb runs
+- generated datasets and training artifacts
 
-## Development
-
-```bash
-BRAIN_SPA_DISABLE_TELEGRAM_POLLING=1 npm run api
-npm run dev
-python3 -m pytest apps/api/tests -q
-npm run build
-```
-
-Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Cursor agents (optional)
-
-Project subagents in `.cursor/agents/`:
-
-- `brain-spa-oss-readiness` — clone-and-run / release checklist
-- `brain-spa-loop-critic` — loop UX vs Test patterns
-- `brain-spa-install-verifier` — pytest + build smoke
-
-## Legacy routes
-
-Old paths redirect: `/registry` → `/evidence`, `/data` → `/datasets`, `/environments` → `/test`.
+The root `.gitignore` blocks those payloads by default.

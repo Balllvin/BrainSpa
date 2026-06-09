@@ -34,27 +34,11 @@ from .models import (
 )
 from .state import BrainSpaState, get_xai_api_key
 
-DEFAULT_BEHAVIOR_FOCUS = (
-    "Direct, practical behavior grounded in approved source material—not generic assistant hedging."
-)
+DEFAULT_BEHAVIOR_FOCUS = "Specific target behavior backed by cited evidence before training rows are written."
 
-STARTER_MODEL_SLUG = "starter"
-STARTER_MODEL_KEY = "starter_model"
-STARTER_DISPLAY_NAME = "Starter"
-
-MODEL_SLUG_TO_KEY: dict[str, str] = {
-    "starter": STARTER_MODEL_KEY,
-    "starter_model": STARTER_MODEL_KEY,
-}
-
-MODEL_KEY_TO_SLUG: dict[str, str] = {
-    STARTER_MODEL_KEY: STARTER_MODEL_SLUG,
-}
-
-MODEL_DISPLAY: dict[str, str] = {
-    STARTER_MODEL_SLUG: STARTER_DISPLAY_NAME,
-    STARTER_MODEL_KEY: STARTER_DISPLAY_NAME,
-}
+MODEL_SLUG_TO_KEY: dict[str, str] = {"snake": "snake_policy"}
+MODEL_KEY_TO_SLUG: dict[str, str] = {"snake_policy": "snake"}
+MODEL_DISPLAY: dict[str, str] = {"snake": "Snake Policy", "snake_policy": "Snake Policy"}
 
 ClaimStatus = Literal["pending", "approved", "rejected", "weak"]
 
@@ -351,7 +335,7 @@ def _local_extract_claims(source: SourceProfile, query: str | None) -> list[dict
             "citation": source.provenance,
         },
         {
-            "text": f"Reject generic assistant hedging; stay blunt and specific to: {focus}",
+            "text": f"Reject vague behavior claims; stay specific to: {focus}",
             "citation": source.provenance,
         },
         {
@@ -670,7 +654,7 @@ def list_approved_claims(
         approved = [item for item in approved if item.get("source_key") in keys]
 
     manifest = read_evidence_manifest(state)
-    slug = _model_slug(model) if model else STARTER_MODEL_SLUG
+    slug = _model_slug(model) if model else BELIEVER_MODEL_SLUG
     model_bucket = manifest.models.get(slug, {}) if model else {}
     ready = bool(model_bucket.get("ready_for_datasets")) if model else manifest.approved_count > 0
     count = int(model_bucket.get("approved_count", len(approved))) if model else len(approved)

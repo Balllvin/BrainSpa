@@ -16,6 +16,7 @@ import type { TuneModelStatus } from "@/lib/types";
 import { adapterStatusLabel } from "./tuneDisplay";
 import { TuneShell } from "./TuneShell";
 import { TuneStaleBanner } from "./TuneStaleBanner";
+import { TunePolicyPage } from "./TunePolicyPage";
 
 type HubCard = {
   key: string;
@@ -28,13 +29,13 @@ const HUB_CARDS: HubCard[] = [
   {
     key: "build",
     name: "Build",
-    hint: "Dry-run, then train the adapter",
+    hint: "Dry-run, then train",
     path: (slug) => tuneBuildPath(slug),
   },
   {
     key: "status",
     name: "Status & acceptance",
-    hint: "Last build and 10-question check",
+    hint: "Last build and acceptance check",
     path: (slug) => tuneStatusPath(slug),
   },
   {
@@ -46,7 +47,7 @@ const HUB_CARDS: HubCard[] = [
   {
     key: "test",
     name: "Test environments",
-    hint: "Counsel, advice, review, daily note",
+    hint: "Run environment scenarios",
     path: (slug) => testModelPath(slug),
   },
 ];
@@ -74,13 +75,17 @@ export function TuneModelPage() {
     return <Navigate replace to={tuneModelPath(canonicalSlug)} />;
   }
 
-  const datasetSlug = status?.dataset_key === "starter_seed" ? "starter" : status?.dataset_key ?? "starter";
+  if (canonicalSlug === "snake") {
+    return <TunePolicyPage modelSlug={canonicalSlug} />;
+  }
+
+  const datasetSlug = status?.dataset_key ?? "snake";
 
   return (
     <TuneShell
       backTo={tuneHomePath()}
       backLabel="Tune"
-      title={status?.display_name ?? (canonicalSlug === "starter" ? "Starter" : canonicalSlug)}
+      title={status?.display_name ?? canonicalSlug}
     >
       {!ready ? <p className="tune-empty">Loading…</p> : null}
       {ready && error ? <p className="tune-error">{error}</p> : null}

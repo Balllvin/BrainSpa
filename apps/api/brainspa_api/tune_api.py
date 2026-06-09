@@ -15,15 +15,8 @@ from .models import (
 )
 from .state import BrainSpaState
 from .test_scenarios import SCENARIOS_BY_MODEL
-from .workflows import (
-    _dataset_train_path,
-    adapter_dir_for_model,
-    project_key_for_model,
-)
 
-_DATASET_SLUGS: dict[str, str] = {
-    "starter_seed": "starter",
-}
+_DATASET_SLUGS: dict[str, str] = {"snake_rollout": "snake"}
 
 
 def _dataset_slug(dataset_key: str) -> str:
@@ -31,26 +24,24 @@ def _dataset_slug(dataset_key: str) -> str:
 
 
 def _dataset_display_label(dataset_key: str, label: str = "") -> str:
-    if dataset_key == "starter_seed":
-        return "Starter training set"
+    if dataset_key == "snake_rollout":
+        return "Snake rollout"
     return label or dataset_key
 
 AdapterState = Literal["missing", "ready", "blocked", "stale"]
 
 
 _DISPLAY_NAMES: dict[str, str] = {
-    "starter_model": "Starter",
-    "coding_model": "Coding Worker",
+    "snake_policy": "Snake Policy",
 }
 
 _SLUGS: dict[str, str] = {
-    "starter_model": "starter",
-    "coding_model": "coding-worker",
+    "snake_policy": "snake",
 }
 
 
 def _display_name(model_key: str, label: str) -> str:
-    if label and label not in {"Persona Small", "Coding Small"}:
+    if label:
         return label
     return _DISPLAY_NAMES.get(model_key, label or model_key)
 
@@ -75,38 +66,56 @@ def _iso_mtime(path: Path) -> str | None:
     return stamp.isoformat()
 
 
-def _adapter_ready(adapter_dir: Path) -> bool:
-    if not adapter_dir.is_dir():
-        return False
-    markers = ("adapter_config.json", "adapter_model.safetensors", "pytorch_model.bin")
-    return any((adapter_dir / name).exists() for name in markers) or any(adapter_dir.iterdir())
-
-
-def _read_acceptance_summary() -> TuneAcceptanceSummary | None:
-    path = runtime_root() / "artifacts" / "evals" / "starter_acceptance.json"
-    payload = _read_json(path)
-    if not payload:
-        return None
-    cases = payload.get("cases") or []
-    passed_cases = sum(1 for case in cases if case.get("passed"))
-    return TuneAcceptanceSummary(
-        state=str(payload.get("state") or "unknown"),
-        passed=payload.get("passed") if payload.get("state") == "complete" else None,
-        cases_passed=passed_cases,
-        cases_total=len(cases),
-        artifact_path=str(payload.get("artifact_path") or path),
-    )
-
-
 def _default_dataset_key(model_key: str, projects: list[dict[str, Any]], datasets: dict[str, Any]) -> str:
     for project in projects:
         if project.get("active_model") == model_key and project.get("active_dataset"):
             key = str(project["active_dataset"])
             if key in datasets:
                 return key
-    if "starter_seed" in datasets:
-        return "starter_seed"
-    return next(iter(datasets), "starter_seed")
+    if "snake_rollout" in datasets:
+        return "snake_rollout"
+    return next(iter(datasets), "snake_rollout")
+
+
+def _policy_status(model_key: str, model: dict[str, Any], datasets: dict[str, Any]) -> TuneModelStatus:
+    from .policy_paths import snake_checkpoint_path, snake_train_job_path
+    from .policy_paths import snake_acceptance_path
+
+    project_key = "snake_rl_validation"
+    dataset_key = "snake_rollout"
+    dataset = datasets.get(dataset_key, {})
+    job = _read_json(snake_train_job_path())
+    checkpoint = snake_checkpoint_path()
+    policy_state: Literal["missing", "training", "ready", "stale", "blocked"] = "missing"
+    if job and job.get("state") == "running":
+        policy_state = "training"
+    elif checkpoint.exists():
+        policy_state = "ready"
+    acceptance_payload = _read_json(snake_acceptance_path())
+    acceptance = None
+    if acceptance_payload:
+        acceptance = TuneAcceptanceSummary(
+            state="complete",
+            passed=acceptance_payload.get("passed"),
+            cases_passed=int(acceptance_payload.get("consecutive_full_board_max") or 0),
+            cases_total=10,
+            artifact_path=str(acceptance_payload.get("artifact_path") or snake_acceptance_path()),
+        )
+    return TuneModelStatus(
+        model_key=model_key,
+        slug=_slug(model_key),
+        label=str(model.get("label") or model_key),
+        display_name=_display_name(model_key, str(model.get("label") or "")),
+        project_key=project_key,
+        model_kind="policy",
+        adapter_path=str(checkpoint),
+        adapter_state="missing",
+        policy_path=str(checkpoint),
+        policy_state=policy_state,
+        dataset_key=dataset_key,
+        dataset_row_count=int(dataset.get("row_count") or 0),
+        acceptance=acceptance,
+    )
 
 
 def tune_status_for_model(model_key: str) -> TuneModelStatus:
@@ -118,78 +127,9 @@ def tune_status_for_model(model_key: str) -> TuneModelStatus:
         raise KeyError(model_key)
 
     model = models[model_key]
-    project_key = project_key_for_model(model_key)
-    adapter_dir = adapter_dir_for_model(model_key, project_key)
-    adapter_path = str(adapter_dir)
-
-    build_payload = _read_json(adapter_dir / "adapter_build_result.json")
-    dry_run_payload = _read_json(runtime_root() / "artifacts" / "training" / project_key / "dry_run.json")
-
-    dataset_key = _default_dataset_key(model_key, payload.get("projects", []), datasets)
-    dataset = datasets.get(dataset_key, {})
-    dataset_row_count = int(dataset.get("row_count") or 0)
-
-    build_dataset_key = str(build_payload["dataset_key"]) if build_payload and build_payload.get("dataset_key") else None
-    build_rows_used = int(build_payload["rows_used"]) if build_payload and build_payload.get("rows_used") is not None else None
-    build_state = str(build_payload["state"]) if build_payload and build_payload.get("state") else None
-    built_at = _iso_mtime(adapter_dir / "adapter_build_result.json")
-
-    missing: list[str] = []
-    if build_payload and build_payload.get("missing_requirements"):
-        missing = list(build_payload["missing_requirements"])
-    elif dry_run_payload and dry_run_payload.get("missing_requirements"):
-        missing = list(dry_run_payload["missing_requirements"])
-
-    adapter_state: AdapterState = "missing"
-    if build_state == "blocked" or (build_payload and not _adapter_ready(adapter_dir)):
-        adapter_state = "blocked"
-    elif _adapter_ready(adapter_dir) and build_state == "complete":
-        adapter_state = "ready"
-    elif _adapter_ready(adapter_dir):
-        adapter_state = "ready"
-    elif build_state == "blocked":
-        adapter_state = "blocked"
-
-    stale = False
-    stale_reason: str | None = None
-    if adapter_state == "ready" and build_state == "complete":
-        if build_rows_used is not None and dataset_row_count != build_rows_used:
-            stale = True
-            stale_reason = (
-                f"Dataset now has {dataset_row_count} rows; last build used {build_rows_used}. Rebuild recommended."
-            )
-        train_path = _dataset_train_path(dataset)
-        build_meta = adapter_dir / "adapter_build_result.json"
-        if train_path and train_path.exists() and build_meta.exists():
-            if train_path.stat().st_mtime > build_meta.stat().st_mtime + 1:
-                stale = True
-                stale_reason = "Training data changed since the last adapter build. Rebuild recommended."
-
-    if stale and adapter_state == "ready":
-        adapter_state = "stale"
-
-    acceptance = _read_acceptance_summary() if model_key == "starter_model" else None
-
-    return TuneModelStatus(
-        model_key=model_key,
-        slug=_slug(model_key),
-        label=str(model.get("label") or model_key),
-        display_name=_display_name(model_key, str(model.get("label") or "")),
-        project_key=project_key,
-        adapter_path=adapter_path,
-        adapter_state=adapter_state,
-        dataset_key=dataset_key,
-        dataset_row_count=dataset_row_count,
-        build_dataset_key=build_dataset_key,
-        build_rows_used=build_rows_used,
-        build_state=build_state,
-        built_at=built_at,
-        stale=stale,
-        stale_reason=stale_reason,
-        dry_run_state=str(dry_run_payload["state"]) if dry_run_payload and dry_run_payload.get("state") else None,
-        missing_requirements=missing,
-        acceptance=acceptance,
-    )
+    if model.get("model_kind") == "policy":
+        return _policy_status(model_key, model, datasets)
+    raise KeyError(model_key)
 
 
 def list_tune_status() -> TuneStatusResponse:
@@ -225,11 +165,11 @@ def _scenario_breakdown(dataset_key: str, model_key: str) -> list[TuneScenarioCo
     except Exception:
         return []
 
-    labels = {item.key: item.label for item in SCENARIOS_BY_MODEL.get(model_key, SCENARIOS_BY_MODEL.get("starter_model", []))}
+    labels = {item.key: item.label for item in SCENARIOS_BY_MODEL.get(model_key, [])}
     counts: dict[str, int] = {}
     for row in rows:
         metadata = row.get("metadata") or {}
-        scenario_key = str(metadata.get("scenario_key") or "counsel")
+        scenario_key = str(metadata.get("scenario_key") or "autonomous-train")
         counts[scenario_key] = counts.get(scenario_key, 0) + 1
 
     return [
@@ -244,7 +184,7 @@ def _scenario_breakdown(dataset_key: str, model_key: str) -> list[TuneScenarioCo
 
 def tune_build_preview(model_slug: str, dataset_key: str | None = None) -> TuneBuildPreview:
     status = tune_status_for_slug(model_slug)
-    resolved_dataset = dataset_key or status.dataset_key or "starter_seed"
+    resolved_dataset = dataset_key or status.dataset_key or "snake_rollout"
     state = BrainSpaState()
     datasets = {item["key"]: item for item in state.load().get("datasets", [])}
     dataset = datasets.get(resolved_dataset, {})

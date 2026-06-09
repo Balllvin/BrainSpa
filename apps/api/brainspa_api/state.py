@@ -121,7 +121,7 @@ def seed_state() -> dict[str, Any]:
                 "tools": ["codex", "transformers", "TRL", "PEFT", "MLX recipe writer", "artifact registry"],
                 "scoring_rules": ["dry-run complete", "requirements explicit", "adapter saved", "base model unchanged"],
                 "failure_comments": ["missing trainer module", "dataset handoff invalid", "adapter artifact missing", "loss unavailable"],
-                "template_artifacts": ["dry_run.json", "trainer_recipes", "adapter_build_result.json", "starter_adapter"],
+                "template_artifacts": ["dry_run.json", "trainer_recipes", "adapter_build_result.json", "policy checkpoint"],
             },
             {
                 "key": "test",
@@ -151,99 +151,54 @@ def seed_state() -> dict[str, Any]:
         ],
         "models": [
             {
-                "key": "starter_model",
-                "label": "Starter",
-                "base_model": "HuggingFaceTB/SmolLM2-360M-Instruct",
-                "role": "Small persona and chatbot fine-tunes",
+                "key": "snake_policy",
+                "label": "Snake Policy",
+                "base_model": "",
+                "role": "Autonomous grid-world policy trained from environment rollouts",
                 "state": "candidate",
-                "parameter_count": "360M",
-                "hardware_fit": "Recommended for the current local-first target.",
-                "strengths": ["Small", "Apache licensed", "Practical for fast local iteration"],
-                "known_failures": ["Needs task-specific data for strong domain behavior"],
-            },
-            {
-                "key": "coding_model",
-                "label": "Coding Small",
-                "base_model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
-                "role": "Small coding-worker experiments",
-                "state": "candidate",
-                "parameter_count": "0.5B",
-                "hardware_fit": "Useful when the goal is code-specific behavior under a small-model budget.",
-                "strengths": ["Code-specialized", "Small", "Strong candidate for worker datasets"],
-                "known_failures": ["Less suitable as the default persona model"],
+                "parameter_count": "DQN MLP",
+                "hardware_fit": "CPU-friendly; trains in background while API runs.",
+                "strengths": ["Rich reward logging", "Multi-environment reuse", "No LLM required"],
+                "known_failures": ["Full-board mastery on 10x10 is hard; needs curriculum"],
+                "model_kind": "policy",
+                "policy_arch": "snake_coords",
+                "input_dim": 33,
+                "output_dim": 4,
             },
         ],
         "datasets": [
             {
-                "key": "starter_seed",
-                "label": "Starter training set",
-                "goal": "Validate the full Brain Spa loop with a small model that answers in a direct, practical target behavior.",
+                "key": "snake_rollout",
+                "label": "Snake rollout",
+                "goal": "Autonomous RL trajectories and transitions from Snake environments.",
                 "state": "draft",
-                "quality_notes": ["Needs source material", "Needs split-safe eval set", "Needs failure labels"],
-                "warnings": ["Not ready for training"],
-            }
+                "quality_notes": ["Fed by training, not Evidence"],
+                "warnings": ["No transitions until autonomous train runs"],
+            },
         ],
         "projects": [
             {
-                "key": "starter_validation",
-                "label": "Starter Validation",
-                "goal": "End-to-end local validation for dataset generation, training handoff, model registry, and Telegram chat.",
-                "active_model": "starter_model",
-                "active_dataset": "starter_seed",
-                "environment": "chat_starter",
-            },
-            {
-                "key": "coding_environment",
-                "label": "Coding Environment",
-                "goal": "Validate CLI and file-editing behavior for models intended to operate in a coding harness.",
-                "active_model": "coding_model",
-                "active_dataset": None,
-                "environment": "coding_cli",
+                "key": "snake_rl_validation",
+                "label": "Snake RL Validation",
+                "goal": "Train and evaluate a DQN policy on 10x10 Snake with autonomous rollouts.",
+                "active_model": "snake_policy",
+                "active_dataset": "snake_rollout",
+                "environment": "snake_10x10",
             },
         ],
-        "sources": [
-            {
-                "key": "starter_voice_refs",
-                "label": "Starter Behavior References",
-                "kind": "web",
-                "provenance": "Approved source notes and target-behavior references",
-                "summary": "Ground Starter behavior in cited source material—not generic assistant hedging.",
-                "active": True,
-                "feeds_models": ["starter_model", "starter"],
-            },
-            {
-                "key": "runtime_source_notes",
-                "label": "Runtime Source Notes",
-                "kind": "transcript",
-                "provenance": "Private runtime source notes outside the public repository",
-                "summary": "Optional guidance source for fine-grained training comments, environment loops, and reward design.",
-                "active": True,
-                "feeds_models": [],
-            },
-            {
-                "key": "recovery_commits",
-                "label": "Recovered Repository History",
-                "kind": "source_recovery",
-                "provenance": "GitHub commit history for Brain Spa source, data workflows, training source, and harness recovery.",
-                "summary": "Source map for transcript ingestion, training handoff validation, Telegram persona running, and custom harnesses.",
-                "active": True,
-                "feeds_models": [],
-            },
-        ],
+        "sources": [],
         "environments": [
             {
-                "key": "chat_starter",
-                "label": "Starter Chat Harness",
-                "goal": "Test whether the model answers with the intended target behavior without generic or evasive phrasing.",
-                "harness": "Single-turn and short multi-turn chat",
-                "scoring": ["Target-behavior fit", "Grounding", "Boundary clarity", "Non-generic wording"],
-            },
-            {
-                "key": "coding_cli",
-                "label": "Coding CLI Harness",
-                "goal": "Test whether a coder model can inspect files, edit safely, run commands, and explain failures.",
-                "harness": "Repository workspace with shell, file operations, tests, and strict allowed-action boundaries",
-                "scoring": ["Patch correctness", "Test evidence", "Command safety", "Failure explanation"],
+                "key": "snake_10x10",
+                "label": "Snake 10x10",
+                "goal": "Autonomous RL on a 10x10 grid with decomposed rewards and policy checkpoints.",
+                "harness": "Interactive game with train, watch, play, coach, and arena scenarios",
+                "scoring": [
+                    "Mean apples per episode",
+                    "Mean length",
+                    "Full-board rate",
+                    "10 consecutive full-board wins",
+                ],
             },
         ],
     }
@@ -260,6 +215,16 @@ class BrainSpaState:
         payload = json.loads(self.path.read_text(encoding="utf-8"))
         seed = seed_state()
         changed = False
+        current_seed_keys = {
+            collection: {item.get("key") for item in seed.get(collection, []) if item.get("key")}
+            for collection in ("models", "datasets", "projects", "sources", "environments")
+        }
+        for collection, allowed_keys in current_seed_keys.items():
+            before = payload.get(collection, [])
+            after = [item for item in before if item.get("key") in allowed_keys]
+            if after != before:
+                payload[collection] = after
+                changed = True
         if payload.get("agents") != seed["agents"]:
             payload["agents"] = seed["agents"]
             changed = True
@@ -280,6 +245,13 @@ class BrainSpaState:
             if seed_item and "feeds_models" not in item:
                 item["feeds_models"] = list(seed_item.get("feeds_models", []))
                 changed = True
+        for collection in ("models", "datasets", "projects"):
+            seed_items = {item["key"]: item for item in seed.get(collection, [])}
+            existing_keys = {item["key"] for item in payload.get(collection, [])}
+            for key, item in seed_items.items():
+                if key not in existing_keys:
+                    payload.setdefault(collection, []).append(item)
+                    changed = True
         for key, value in seed.items():
             if key not in payload:
                 payload[key] = value
@@ -432,9 +404,7 @@ def migrate_legacy_telegram_bots() -> int:
                     continue
                 label = str(item.get("project_name") or item.get("name") or f"bot-{_id}")
                 name = _slug_bot_name(label)
-                model_key = "starter_model"
-                if "coding" in label.lower():
-                    model_key = "coding_model"
+                model_key = "snake_policy" if "snake" in label.lower() else ""
                 imported.append(
                     {
                         "name": name,
@@ -477,7 +447,7 @@ def read_telegram_bots() -> list[TelegramBotPublic]:
         bots.append(
             TelegramBotPublic(
                 name=item["name"],
-                model_key=item.get("model_key", "starter_model"),
+                model_key=item.get("model_key", ""),
                 allowed_chat_id_configured=bool(item.get("allowed_chat_id")),
                 enabled=bool(item.get("enabled", True)),
                 live_verified=bool(item.get("live_verified")),
@@ -567,7 +537,7 @@ def telegram_bot_model_key(bot_name: str) -> str | None:
     data = json.loads(path.read_text(encoding="utf-8"))
     for item in data.get("bots", []):
         if item.get("name") == bot_name:
-            return str(item.get("model_key") or "starter_model")
+            return str(item.get("model_key") or "")
     return None
 
 

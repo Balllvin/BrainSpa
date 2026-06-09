@@ -6,7 +6,7 @@ import { datasetDisplayLabel } from "@/lib/datasetsRoutes";
 import { tuneModelPath } from "@/lib/tuneRoutes";
 import type { TuneModelStatus } from "@/lib/types";
 
-import { adapterStatusLabel } from "./tuneDisplay";
+import { tuneStatusBadge } from "./tuneDisplay";
 import { TuneShell } from "./TuneShell";
 
 export function TuneHomePage() {
@@ -38,8 +38,10 @@ export function TuneHomePage() {
           {models.map((model) => (
             <Link key={model.model_key} className="tune-picker-card" to={tuneModelPath(model.slug)}>
               <strong>{model.display_name}</strong>
-              <span className={`tune-status-badge tune-status-badge--${model.adapter_state}`}>
-                {adapterStatusLabel(model.adapter_state)}
+              <span
+                className={`tune-status-badge tune-status-badge--${model.model_kind === "policy" ? model.policy_state ?? "missing" : model.adapter_state}`}
+              >
+                {tuneStatusBadge(model)}
               </span>
               {model.stale && model.stale_reason ? (
                 <span className="tune-stale-hint">{model.stale_reason}</span>

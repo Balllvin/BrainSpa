@@ -44,16 +44,23 @@ class HarnessProfile(BaseModel):
     template_artifacts: list[str]
 
 
+ModelKind = Literal["causal_lm", "policy"]
+
+
 class ModelProfile(BaseModel):
     key: str
     label: str
-    base_model: str
+    base_model: str = ""
     role: str
     state: ModelState
     parameter_count: str
     hardware_fit: str
     strengths: list[str]
     known_failures: list[str] = Field(default_factory=list)
+    model_kind: ModelKind = "causal_lm"
+    policy_arch: str | None = None
+    input_dim: int | None = None
+    output_dim: int | None = None
 
 
 class DatasetProfile(BaseModel):
@@ -272,19 +279,17 @@ class TelegramPollerStatus(BaseModel):
 
 
 class DatasetGenerateRequest(BaseModel):
-    project_key: str = "starter_validation"
-    goal: str = "Create a Starter dataset for small-model validation."
+    project_key: str = "snake_rl_validation"
+    goal: str = "Create Snake rollout data by running the environment."
     example_count: int = Field(default=24, ge=4, le=96)
-    scenarios: list[str] = Field(
-        default_factory=lambda: ["counsel", "advice", "daily-word", "review"],
-    )
+    scenarios: list[str] = Field(default_factory=list)
     scenario_weights: dict[str, int] = Field(default_factory=dict)
     mix_even: bool = True
     ground_in_evidence: bool = True
     preview_only: bool = False
     pack: str | None = Field(
         default=None,
-        description="Quick pack: review-heavy | import-feedback-only",
+        description="Optional dataset generation pack.",
     )
 
 
@@ -301,7 +306,7 @@ class DatasetPreferencePairCreate(BaseModel):
     chosen: str
     rejected: str
     failure_labels: list[str] = Field(default_factory=list)
-    scenario_key: str = "counsel"
+    scenario_key: str = "autonomous-train"
 
 
 class DatasetEvidenceGate(BaseModel):
@@ -367,9 +372,9 @@ TrainingPreset = Literal["fast", "standard", "quality"]
 
 
 class TrainingDryRunRequest(BaseModel):
-    project_key: str = "starter_validation"
-    dataset_key: str = "starter_seed"
-    model_key: str = "starter_model"
+    project_key: str = "snake_rl_validation"
+    dataset_key: str = "snake_rollout"
+    model_key: str = "snake_policy"
     preferred_backend: str | None = None
     training_preset: TrainingPreset = "standard"
 
@@ -399,9 +404,9 @@ class TrainingAdapterBuildResult(BaseModel):
 
 
 class EvalRunRequest(BaseModel):
-    environment_key: str = "chat_starter"
-    prompt: str = "What should I do when I do not know enough yet?"
-    answer: str = "Name the missing fact, resolve it, and state the next concrete action."
+    environment_key: str = "snake_10x10"
+    prompt: str = "Run a Snake policy check."
+    answer: str = "The policy should survive longer, collect apples, and avoid loops."
     workspace_hint: str | None = None
 
 
@@ -420,9 +425,9 @@ class EvalRunResult(BaseModel):
 
 
 class AdapterTestRequest(BaseModel):
-    project_key: str = "starter_validation"
-    model_key: str = "starter_model"
-    prompt: str = "What should I do when I do not know enough yet?"
+    project_key: str = "snake_rl_validation"
+    model_key: str = "snake_policy"
+    prompt: str = "Run a Snake policy check."
 
 
 class AdapterTestResult(BaseModel):
@@ -463,14 +468,20 @@ class TuneAcceptanceSummary(BaseModel):
     artifact_path: str | None = None
 
 
+PolicyState = Literal["missing", "training", "ready", "stale", "blocked"]
+
+
 class TuneModelStatus(BaseModel):
     model_key: str
     slug: str
     label: str
     display_name: str
     project_key: str
+    model_kind: ModelKind = "causal_lm"
     adapter_path: str
     adapter_state: Literal["missing", "ready", "blocked", "stale"]
+    policy_path: str | None = None
+    policy_state: PolicyState | None = None
     dataset_key: str | None = None
     dataset_row_count: int = 0
     build_dataset_key: str | None = None
@@ -564,13 +575,13 @@ class HarnessChatMessage(BaseModel):
 
 class HarnessChatThread(BaseModel):
     model_key: str
-    scenario_key: str = "counsel"
+    scenario_key: str = "autonomous-train"
     messages: list[HarnessChatMessage] = Field(default_factory=list)
 
 
 class HarnessChatSendRequest(BaseModel):
     model_key: str
-    scenario_key: str = "counsel"
+    scenario_key: str = "autonomous-train"
     text: str = Field(min_length=1)
     reply_to_message_id: int | None = None
 
@@ -673,7 +684,7 @@ class ChipmunkHermesUpdate(BaseModel):
 
 
 class ChipmunkSettings(BaseModel):
-    default_model_key: str = "starter_model"
+    default_model_key: str = "snake_policy"
     default_telegram_bot_name: str | None = None
     voice_model: str = "grok-voice-think-fast-1.0"
     xai_configured: bool = False
@@ -713,3 +724,89 @@ class Overview(BaseModel):
     datasets: list[DatasetProfile]
     environments: list[EnvironmentProfile]
     telegram_bots: list[TelegramBotPublic]
+
+
+class SnakeSessionCreate(BaseModel):
+    scenario_key: str = "autonomous-watch"
+    mode: str = "interactive_watch"
+    seed: int | None = None
+
+
+class SnakeStepRequest(BaseModel):
+    session_id: str
+    action: str | int | None = None
+    actor: Literal["player", "opponent", "auto"] = "auto"
+
+
+SnakeLabPace = Literal["human", "watch", "train"]
+
+
+class SnakeLabStartRequest(BaseModel):
+    slots: int = Field(default=6, ge=1, le=6)
+    episodes: int = Field(default=100, ge=10, le=10_000)
+    pace: SnakeLabPace = "train"
+    speed_multiplier: float = Field(default=1.0, ge=0.25, le=32.0)
+
+
+class SnakeLabSpeedRequest(BaseModel):
+    speed_multiplier: float = Field(ge=0.25, le=32.0)
+
+
+class SnakeLabEpisodesRequest(BaseModel):
+    episodes: int = Field(ge=10, le=10_000)
+
+
+PolicyBackend = Literal["dqn", "sb3"]
+
+
+class PolicyTrainRequest(BaseModel):
+    model_key: str = "snake_policy"
+    episodes: int = 100
+    env_profiles: list[str] = Field(default_factory=lambda: ["coords"])
+    policy_backend: PolicyBackend = "dqn"
+
+
+class PolicyTrainJob(BaseModel):
+    state: Literal["idle", "running", "complete", "failed"]
+    phase: str = "idle"
+    model_key: str = "snake_policy"
+    dataset_key: str = "snake_rollout"
+    episodes_target: int = 100
+    episode: int = 0
+    epsilon: float = 1.0
+    mean_reward: float = 0.0
+    mean_length: float | None = None
+    mean_apples: float | None = None
+    curriculum_stage: str | None = None
+    last_outcome: str | None = None
+    error: str | None = None
+
+
+class PolicyEvalRequest(BaseModel):
+    model_key: str = "snake_policy"
+    episodes: int = 100
+    scenario_key: str = "autonomous-watch"
+
+
+class PolicyEvalResult(BaseModel):
+    episodes: int
+    mean_length: float
+    mean_apples: float
+    mean_coverage: float
+    full_board_count: int
+    full_board_rate: float
+    consecutive_full_board_max: int
+    death_breakdown: dict[str, int]
+    oracle_agreement_rate: float
+    passed: bool
+    north_star: str
+    artifact_path: str
+
+
+class SnakeDatasetSummary(BaseModel):
+    dataset_key: str
+    trajectory_count: int
+    transition_count: int
+    manifest_path: str
+    trajectories_path: str
+    transitions_path: str

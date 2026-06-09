@@ -1,36 +1,13 @@
 /**
- * Evidence stage URL slugs (user-facing) ↔ source keys in state (API).
- * Artifacts: ~/.brain-spa/artifacts/evidence/
- *   evidence_notes.json, source_claims.jsonl, evidence_manifest.json
- * Datasets should call GET /api/evidence/approved-claims or read evidence_manifest.json.
+ * Evidence stage URL helpers.
+ * Source keys are user-owned runtime state, so unknown slugs pass through unchanged.
  */
 
-const SOURCE_SLUG_TO_KEY: Record<string, string> = {
-  starter: "starter_voice_refs",
-  composer: "composer_training_interview",
-  recovery: "recovery_commits",
-};
-
-const SOURCE_KEY_TO_SLUG: Record<string, string> = {
-  starter_voice_refs: "starter",
-  composer_training_interview: "composer",
-  recovery_commits: "recovery",
-};
-
-const LEGACY_SOURCE_SLUGS: Record<string, string> = {
-  starter_voice_refs: "starter",
-  composer_training_interview: "composer",
-  recovery_commits: "recovery",
-};
+const SOURCE_SLUG_TO_KEY: Record<string, string> = {};
+const SOURCE_KEY_TO_SLUG: Record<string, string> = {};
 
 export function sourceKeyFromSlug(slug: string): string {
-  if (SOURCE_SLUG_TO_KEY[slug]) {
-    return SOURCE_SLUG_TO_KEY[slug];
-  }
-  if (LEGACY_SOURCE_SLUGS[slug]) {
-    return slug;
-  }
-  return slug;
+  return SOURCE_SLUG_TO_KEY[slug] ?? slug;
 }
 
 export function sourceSlugFromKey(sourceKey: string): string {
@@ -38,10 +15,7 @@ export function sourceSlugFromKey(sourceKey: string): string {
 }
 
 export function canonicalSourceSlug(slugOrKey: string): string {
-  if (SOURCE_SLUG_TO_KEY[slugOrKey]) {
-    return slugOrKey;
-  }
-  return sourceSlugFromKey(slugOrKey);
+  return SOURCE_SLUG_TO_KEY[slugOrKey] ? slugOrKey : sourceSlugFromKey(slugOrKey);
 }
 
 export function evidenceHomePath() {
@@ -52,24 +26,11 @@ export function evidenceSourcePath(slugOrKey: string) {
   return `/evidence/sources/${encodeURIComponent(canonicalSourceSlug(slugOrKey))}`;
 }
 
-export const STARTER_MODEL_SLUG = "starter";
-
-export function isStarterModelSlug(slugOrKey: string) {
-  return canonicalSourceSlug(slugOrKey) === STARTER_MODEL_SLUG;
-}
-
 export function evidenceReviewPath(slugOrKey: string, filter?: string) {
   const base = `/evidence/${encodeURIComponent(canonicalSourceSlug(slugOrKey))}/review`;
-  if (!filter) {
-    return base;
-  }
-  return `${base}?filter=${encodeURIComponent(filter)}`;
+  return filter ? `${base}?filter=${encodeURIComponent(filter)}` : base;
 }
 
 export function evidenceReviewPathWithAdd(slugOrKey: string) {
   return `${evidenceReviewPath(slugOrKey, "pending")}&add=1`;
-}
-
-export function sourceFeedsStarter(feedsModelLabels: string[]) {
-  return feedsModelLabels.some((label) => label.toLowerCase().includes("starter"));
 }

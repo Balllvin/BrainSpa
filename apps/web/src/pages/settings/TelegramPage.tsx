@@ -61,7 +61,7 @@ export function TelegramPage() {
       name,
       bot_token: botToken,
       allowed_chat_id: chatId,
-      model_key: String(form.get("model_key") || "starter_model"),
+      model_key: String(form.get("model_key") || "snake_policy"),
       enabled: true,
     });
     setSaving(false);
@@ -170,8 +170,8 @@ export function TelegramPage() {
         <h3 className="settings-subheading">Add bot</h3>
         <label className="field">
           <span>Name</span>
-          <input name="name" placeholder="starter" required />
-          <small className="field-hint">Use model or notification names such as starter, notify-evidence, or tune-alerts.</small>
+          <input name="name" placeholder="snake-policy" required />
+          <small className="field-hint">Use model or notification names such as snake-policy, notify-evidence, or tune-alerts.</small>
         </label>
         <label className="field">
           <span>Bot token</span>
@@ -183,7 +183,7 @@ export function TelegramPage() {
         </label>
         <label className="field">
           <span>Model</span>
-          <select name="model_key" defaultValue="starter_model">
+          <select name="model_key" defaultValue="snake_policy">
             {models.map((m) => (
               <option key={m.model_key} value={m.model_key}>
                 {m.model_label}

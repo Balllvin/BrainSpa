@@ -1,63 +1,45 @@
-# Brain Spa Custom Harnesses
+# Custom Harnesses
 
-Brain Spa treats Chipmunk as the single supervising operator. Chipmunk can run through Hermes, in-app chat, or Telegram, but the four loop stages are not Hermes agents. They are custom harnesses with their own state, tools, allowed actions, scoring rules, and failure comments.
+A Brain Spa harness is the world, tools, actions, scoring rules, and failure comments an AI receives. Harnesses are used by the resident workers and by models being tested.
 
-## Harness Shape
+## Required Shape
 
-Each stage harness defines:
+Every harness must define:
 
-- `world_state`: the local facts the worker may inspect.
-- `allowed_actions`: the actions the worker may take.
-- `tools`: the external or local tools made available.
-- `scoring_rules`: how useful output is judged.
-- `failure_comments`: the comments that turn failures into the next dataset or tuning requirement.
-- `template_artifacts`: files the stage is expected to write or inspect.
+- `world_state`: serializable facts available at each step
+- `allowed_actions`: legal actions and when they are valid
+- `tools`: local or external tools the worker/model may call
+- `scoring_rules`: reproducible checks, not vibes
+- `failure_comments`: compact labels that can become future dataset requirements
+- `template_artifacts`: files the harness writes or reads
 
-Keep the harness simple, make tool descriptions and artifacts explicit, log decisions, and let the operator sequence the work instead of hardcoding a brittle pipeline.
+## Snake As The Reference
 
-## Stage Defaults
+Snake 10x10 is the reference harness because it proves the full loop without shipping a model:
 
-| Stage | Owner | Default backend | Job |
-| --- | --- | --- | --- |
-| Evidence | Source Model | Grok | Gather cited proof from transcripts, web, and X search before rows exist. |
-| Datasets | Data Model | OpenCode | Convert evidence into SFT rows and preference pairs with leakage checks. |
-| Tune | Training Model | Codex | Dry-run, train, and register adapter artifacts for the selected model. |
-| Test | Harness Model | Codex | Build environments and score behavior in chat, coding, or other task worlds. |
+- the environment is deterministic when seeded
+- actions are explicit: turn left, go straight, turn right, or reverse-blocked behavior
+- rewards are decomposed into named components
+- Test pages expose multiple scenario shapes
+- Tune can start from no checkpoint and train locally
+- Datasets can show rollout rows only after the environment has run
 
-## Telegram Wiring
+Future harnesses should copy that discipline. They should not copy Snake visuals unless the world is a grid game.
 
-Telegram tokens live only in the runtime secret store:
+## Test UI Standard
 
-`~/.brain-spa/secrets/telegram-bots.json`
+Use `/test/snake/autonomous-train` as the quality bar:
 
-The app links:
+- show the world immediately, even before a run starts
+- put primary controls and live stats together
+- show parallel environment instances when parallelism is part of the job
+- avoid decorative wrappers around compact boards
+- keep labels short and metric-backed
+- make one primary action obvious
+- keep generated run artifacts outside the repository
 
-- `chipmunk` bot to Chipmunk's operator route.
-- `starter` bot to `starter_model`, the starter validation model.
+## Shipping Rule
 
-The API never returns bot tokens. It only reports bot name, model key, whether a chat ID is configured, enabled state, and live verification state.
+GitHub gets harness source and instructions. Local runtime gets harness outputs.
 
-The local API also runs a Telegram long-polling worker. This is the part that wakes a wired model from a real Telegram DM:
-
-- `getUpdates` reads messages for each enabled, live-verified bot.
-- Non-Chipmunk model bots route normal messages to the linked local runtime.
-- Chipmunk routes through the operator path when the bot is named `chipmunk` or matches Settings → Chipmunk → Default Telegram bot.
-- Chipmunk Telegram commands can execute the same backend actions as the app: dataset preview/generation, training dry-runs, worker previews, and harness eval checks.
-- The worker sends the answer back with `sendMessage`.
-- The outbound Telegram message ID is stored locally so future replies can be matched to the exact prompt and answer.
-
-Reply feedback is stored in Evidence, not directly in Datasets. A reply to a model bot's answer becomes a source row with the original prompt, the model answer, and user feedback. Dataset generation can later transform that evidence into SFT rows or preference pairs.
-
-## Starter Validation
-
-The Starter workflow uses a small local base model by default. The app can:
-
-- generate grounded SFT rows and preference pairs,
-- write trainer recipes,
-- build a local LoRA adapter when trainer modules and model weights are available,
-- run a fixed 10-question acceptance harness against the adapter,
-- write the acceptance artifact under `~/.brain-spa/artifacts/evals/starter_acceptance.json`.
-
-The served Starter runtime loads the local adapter, then applies the Test harness as a stabilizer before returning an answer. Raw adapter output is not served directly; the runtime returns a clean prompt-intent answer that must pass actionability, generic-slop, directness, role-leak, repetition, and fluency checks.
-
-The target behavior is direct, practical, source-grounded answers — not copied source text, generic self-help, role-label leakage, repeated training fragments, or awkward template phrasing.
+Do not commit generated checkpoints, adapter weights, rollout data, eval output, or screenshots unless the project explicitly changes the public artifact policy.

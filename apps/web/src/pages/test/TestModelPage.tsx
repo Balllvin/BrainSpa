@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
 import { fetchBrainSpaOverview, fetchTestScenarios } from "@/lib/backend";
-import { fallbackScenarios, modelDisplayName } from "@/lib/testScenarios";
+import { fallbackScenarios, mergeTestScenarios, modelDisplayName } from "@/lib/testScenarios";
 import { canonicalModelSlug, modelKeyFromSlug, testScenarioPath } from "@/lib/testRoutes";
 import type { TestScenario } from "@/lib/types";
 
@@ -16,7 +16,7 @@ export function TestModelPage() {
   const [displayName, setDisplayName] = useState(() => modelDisplayName(modelKey));
   const [scenarios, setScenarios] = useState<TestScenario[]>([]);
   const [ready, setReady] = useState(false);
-  const [usedFallback, setUsedFallback] = useState(false);
+  const [apiOffline, setApiOffline] = useState(false);
 
   useEffect(() => {
     void fetchBrainSpaOverview().then((response) => {
@@ -25,13 +25,11 @@ export function TestModelPage() {
     });
     void (async () => {
       const response = await fetchTestScenarios(modelKey);
-      if (response.ok && response.scenarios.length) {
-        setScenarios(response.scenarios);
-        setUsedFallback(false);
-      } else {
-        setScenarios(fallbackScenarios(modelKey));
-        setUsedFallback(true);
-      }
+      const expected = fallbackScenarios(modelKey);
+      const apiScenarios = response.ok ? response.scenarios : [];
+      const merged = mergeTestScenarios(modelKey, apiScenarios);
+      setScenarios(merged.length ? merged : expected);
+      setApiOffline(!response.ok);
       setReady(true);
     })();
   }, [modelKey]);
@@ -42,8 +40,8 @@ export function TestModelPage() {
 
   return (
     <TestShell backTo="/test" backLabel="Test" title={displayName}>
-      {ready && usedFallback ? (
-        <p className="test-warn">Restart API (npm run api) for latest environments.</p>
+      {ready && apiOffline ? (
+        <p className="test-warn">API offline. Run <code>npm run start</code>, then reload.</p>
       ) : null}
       {!ready ? <p className="test-empty">Loading…</p> : null}
       {ready ? (

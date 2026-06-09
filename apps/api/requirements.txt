@@ -10,3 +10,5 @@ transformers
 datasets
 trl
 peft
+
+# Optional policy backend (SB3): pip install stable-baselines3 gymnasium
