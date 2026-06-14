@@ -318,7 +318,7 @@ function HyperparamEditor({ hp, setHp }: { hp: Record<string, number>; setHp: (n
   );
 }
 
-function DatasetManager({ catalog, datasets, onChange }: { catalog: MlCatalog; datasets: MlDataset[]; onChange: (msg: string | null) => void }) {
+function DatasetManager({ catalog, datasets, onChange }: { catalog: MlCatalog | null; datasets: MlDataset[]; onChange: (msg: string | null) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
 
@@ -352,7 +352,7 @@ function DatasetManager({ catalog, datasets, onChange }: { catalog: MlCatalog; d
         </div>
       </div>
       <div className="btn-row studio-builtin-row">
-        {catalog.builtin_datasets.map((b) => (
+        {(catalog?.builtin_datasets ?? []).map((b) => (
           <button
             key={b.name}
             className="secondary"
