@@ -28,6 +28,10 @@ export function TuneHomePage() {
 
   return (
     <TuneShell title="Tune">
+      <Link className="studio-banner" to="/tune/studio">
+        <strong>Studio · train anything</strong>
+        <span>Train an RL policy (CartPole, GridWorld, Snake) or a tabular classifier/regressor from scratch — live metrics, runs, inference.</span>
+      </Link>
       {!ready ? <p className="tune-empty">Loading…</p> : null}
       {ready && error ? <p className="tune-error">{error}</p> : null}
       {ready && !error && !models.length ? (

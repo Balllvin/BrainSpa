@@ -174,6 +174,9 @@ def chipmunk_reply(message: str) -> ChipmunkChatResult:
     lowered = message.lower()
     if _asks_for_status(lowered):
         return _chipmunk_status()
+    ml = _chipmunk_ml_action(lowered, message)
+    if ml is not None:
+        return ml
     if "dataset" in lowered and ("generate" in lowered or "build" in lowered or "preview" in lowered):
         return ChipmunkChatResult(
             reply="Dataset generation is not seeded in this shell. Run Snake autonomous train to create rollout data locally.",
@@ -238,6 +241,126 @@ def looks_like_loop_request(message: str) -> bool:
             "worker",
         )
     )
+
+
+_RL_ENV_KEYWORDS = {"cartpole": "cartpole", "cart pole": "cartpole", "gridworld": "gridworld", "grid world": "gridworld", "maze": "gridworld"}
+_RL_ALGO_KEYWORDS = {
+    "ppo": "ppo",
+    "dqn": "dqn",
+    "reinforce": "reinforce",
+    "q-learning": "q_learning",
+    "q learning": "q_learning",
+    "qlearning": "q_learning",
+    "tabular": "q_learning",
+}
+
+
+def _chipmunk_ml_action(lowered: str, original: str) -> ChipmunkChatResult | None:
+    """Route generic ML platform requests to the brainspa_ml backend."""
+
+    # List experiments / runs.
+    if any(phrase in lowered for phrase in ("list runs", "my runs", "experiments", "training history", "show runs")):
+        from packages.brainspa_ml import runs as ml_runs
+
+        records = ml_runs.list_runs(limit=8)
+        if not records:
+            return ChipmunkChatResult(
+                reply="No training runs yet. Try: 'train cartpole with ppo' or open Tune to launch one.",
+                routed_to="tune",
+                suggested_actions=["Open Tune", "Train CartPole with PPO"],
+            )
+        lines = [f"{r['id']} · {r['algo']} · {r['status']}" for r in records[:6]]
+        return ChipmunkChatResult(
+            reply="Recent runs:\n" + "\n".join(lines),
+            routed_to="tune",
+            suggested_actions=["Open Tune", "Compare two runs"],
+        )
+
+    # List environments.
+    if any(phrase in lowered for phrase in ("list environments", "what environments", "available environments", "which environments")):
+        from packages.brainspa_ml.environments import list_env_specs
+
+        specs = list_env_specs()
+        lines = [f"{s.id} ({s.obs_dim} obs, {s.num_actions} actions)" for s in specs]
+        return ChipmunkChatResult(
+            reply="Trainable environments:\n" + "\n".join(lines),
+            routed_to="test",
+            suggested_actions=["Open Tune", "Train an environment"],
+        )
+
+    # Recommend an algorithm.
+    if any(phrase in lowered for phrase in ("which algorithm", "what algorithm", "recommend algorithm", "best algorithm")):
+        env_id = _detect_rl_env(lowered)
+        if env_id:
+            from packages.brainspa_ml.environments import get_env_spec
+
+            spec = get_env_spec(env_id)
+            rec = "q_learning" if spec.discrete_states is not None else "ppo"
+            return ChipmunkChatResult(
+                reply=f"For {spec.label}, start with {rec}. " + ("It's fully discrete, so a Q-table converges fast." if rec == "q_learning" else "PPO is the robust default for continuous observations."),
+                routed_to="tune",
+                suggested_actions=[f"Train {env_id} with {rec}", "Open Tune"],
+            )
+
+    # Launch a training run for a known environment.
+    env_id = _detect_rl_env(lowered)
+    wants_train = any(word in lowered for word in ("train", "learn", "fit", "run")) or _detect_rl_algo(lowered) is not None
+    if env_id and wants_train:
+        from packages.brainspa_ml import jobs
+
+        algo = _detect_rl_algo(lowered)
+        if algo is None:
+            from packages.brainspa_ml.environments import get_env_spec
+
+            algo = "q_learning" if get_env_spec(env_id).discrete_states is not None else "ppo"
+        hyperparams = _detect_budget(lowered, algo)
+        result = jobs.submit_rl_job(env_id=env_id, algo=algo, hyperparams=hyperparams)
+        if result.get("error"):
+            return ChipmunkChatResult(reply=f"Could not start training: {result['error']}", routed_to="tune", suggested_actions=["Open Tune"])
+        return ChipmunkChatResult(
+            reply=f"Started {algo} on {env_id} as {result['id']}. Watch it in Tune → Studio.",
+            routed_to="tune",
+            suggested_actions=["Open Tune", f"Stop {result['id']}"],
+        )
+
+    # Generate a starter dataset.
+    if any(phrase in lowered for phrase in ("toy dataset", "sample dataset", "starter dataset", "example data", "example dataset")):
+        from packages.brainspa_ml import datasets as ml_ds
+
+        builtin = "moons" if "moon" in lowered else "linear" if ("regress" in lowered or "linear" in lowered) else "blobs"
+        display, content = ml_ds.generate_builtin(builtin)
+        meta = ml_ds.ingest_tabular(f"{display} ({builtin})", content, "jsonl", source="builtin")
+        return ChipmunkChatResult(
+            reply=f"Created starter dataset '{meta['id']}' ({meta['row_count']} rows). Train on it in Tune → Studio.",
+            routed_to="datasets",
+            suggested_actions=["Open Datasets", "Train a classifier"],
+        )
+
+    return None
+
+
+def _detect_rl_env(lowered: str) -> str | None:
+    for keyword, env_id in _RL_ENV_KEYWORDS.items():
+        if keyword in lowered:
+            return env_id
+    return None
+
+
+def _detect_rl_algo(lowered: str) -> str | None:
+    for keyword, algo in _RL_ALGO_KEYWORDS.items():
+        if keyword in lowered:
+            return algo
+    return None
+
+
+def _detect_budget(lowered: str, algo: str) -> dict[str, Any]:
+    match = re.search(r"(\d[\d,]{2,})", lowered)
+    if not match:
+        return {}
+    value = int(match.group(1).replace(",", ""))
+    if algo in {"ppo", "dqn"}:
+        return {"total_steps": value}
+    return {"episodes": value}
 
 
 def _eval_snake_environment(request: EvalRunRequest) -> EvalRunResult:
