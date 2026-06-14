@@ -10,4 +10,12 @@ from apps.api.brainspa_api.main import create_app
 def client(monkeypatch, tmp_path):
     monkeypatch.setenv("BRAIN_SPA_HOME", str(tmp_path))
     monkeypatch.setenv("BRAIN_SPA_DISABLE_TELEGRAM_POLLING", "1")
-    return TestClient(create_app())
+    yield TestClient(create_app())
+    # Drain any background training jobs before the per-test home is torn down,
+    # so a daemon thread can't write into the next test's runtime home.
+    try:
+        from packages.brainspa_ml import jobs
+
+        jobs.wait_for_all(timeout=20.0)
+    except Exception:  # noqa: BLE001
+        pass
