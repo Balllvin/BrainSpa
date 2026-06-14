@@ -15,6 +15,7 @@ and is driven from the UI at **Tune → Studio**.
 | Environment | Obs | Actions | Notes |
 |-------------|-----|---------|-------|
 | `cartpole` | 4 (continuous) | 2 | Classic balance task. Dynamics match Gymnasium `CartPole-v1`. |
+| `mountaincar` | 2 (continuous) | 3 | Build momentum to escape a valley. Sparse reward — exploration matters. |
 | `gridworld` | 4 / discrete | 4 | Maze navigation. Fully discrete state — the home of tabular Q-learning. |
 | `snake` | 11 | 4 | The original reference environment, now trainable through the generic registry. |
 

@@ -101,7 +101,7 @@ def _ensure_builtin_envs() -> None:
         return
     _BUILTINS_LOADED = True
     # Importing the modules triggers their register_env(...) calls.
-    from .envs import cartpole, gridworld, snake_adapter  # noqa: F401
+    from .envs import cartpole, gridworld, mountain_car, snake_adapter  # noqa: F401
 
 
 # Trigger registration on import so callers can use the registry directly.
