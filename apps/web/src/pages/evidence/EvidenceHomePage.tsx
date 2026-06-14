@@ -23,7 +23,10 @@ export function EvidenceHomePage() {
     });
   }, []);
 
-  const active = sources.filter((source) => source.active);
+  // The backend already returns the sources to display; there is no `active`
+  // flag on EvidenceSourceSummary (filtering on it dropped every source and
+  // broke the typecheck). Show what the API returns.
+  const active = sources;
 
   return (
     <EvidenceShell title="Evidence">
