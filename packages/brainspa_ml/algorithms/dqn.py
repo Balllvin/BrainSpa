@@ -156,7 +156,7 @@ def train(
     return {
         "algorithm": "dqn",
         "episodes_completed": episodes_done,
-        "best_mean_return": round(best_mean, 4),
+        "best_mean_return": round(best_mean, 4) if episodes_done else None,
         "checkpoint_path": str(checkpoint_path),
         "evaluation": evaluation,
     }

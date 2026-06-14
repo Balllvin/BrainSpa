@@ -96,8 +96,13 @@ def compare_runs(body: CompareRequest) -> dict[str, Any]:
                 "metric": _metric_name(record),
             }
         )
-    rows.sort(key=lambda r: (r["score"] is not None, r["score"] or float("-inf")), reverse=True)
+    rows.sort(key=_score_sort_key, reverse=True)
     return {"runs": rows, "winner": rows[0]["id"] if rows else None}
+
+
+def _score_sort_key(row: dict[str, Any]) -> tuple[bool, float]:
+    score = row["score"]
+    return score is not None, score if score is not None else float("-inf")
 
 
 def _score_of(record: dict[str, Any]) -> float | None:
@@ -106,8 +111,9 @@ def _score_of(record: dict[str, Any]) -> float | None:
         evaluation = summary.get("evaluation") or {}
         if "mean_return" in evaluation:
             return float(evaluation["mean_return"])
-        if "best_mean_return" in summary:
-            return float(summary["best_mean_return"])
+        best_mean = summary.get("best_mean_return")
+        if best_mean is not None:
+            return float(best_mean)
         return None
     metrics = summary.get("metrics") or {}
     for key in ("accuracy", "r2", "macro_f1"):

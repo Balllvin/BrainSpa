@@ -265,9 +265,9 @@ def _chipmunk_ml_action(lowered: str, original: str) -> ChipmunkChatResult | Non
         records = ml_runs.list_runs(limit=8)
         if not records:
             return ChipmunkChatResult(
-                reply="No training runs yet. Try: 'train cartpole with ppo' or open Tune to launch one.",
+                reply="No training runs yet. Try: 'train gridworld with q-learning' or open Tune to launch one.",
                 routed_to="tune",
-                suggested_actions=["Open Tune", "Train CartPole with PPO"],
+                suggested_actions=["Open Tune", "Train GridWorld with Q-learning"],
             )
         lines = [f"{r['id']} · {r['algo']} · {r['status']}" for r in records[:6]]
         return ChipmunkChatResult(
@@ -295,9 +295,18 @@ def _chipmunk_ml_action(lowered: str, original: str) -> ChipmunkChatResult | Non
             from packages.brainspa_ml.environments import get_env_spec
 
             spec = get_env_spec(env_id)
-            rec = "q_learning" if spec.discrete_states is not None else "ppo"
+            rec = _recommended_rl_algo(env_id)
+            if rec is None:
+                return ChipmunkChatResult(
+                    reply=(
+                        f"{spec.label} needs a neural method, but PyTorch is not installed. "
+                        "Use GridWorld with q_learning or install PyTorch before training continuous-control environments."
+                    ),
+                    routed_to="tune",
+                    suggested_actions=["Open Tune", "Train gridworld with q_learning"],
+                )
             return ChipmunkChatResult(
-                reply=f"For {spec.label}, start with {rec}. " + ("It's fully discrete, so a Q-table converges fast." if rec == "q_learning" else "PPO is the robust default for continuous observations."),
+                reply=f"For {spec.label}, start with {rec}. " + ("It's fully discrete, so a Q-table converges fast." if rec == "q_learning" else "That neural algorithm is available in this runtime."),
                 routed_to="tune",
                 suggested_actions=[f"Train {env_id} with {rec}", "Open Tune"],
             )
@@ -310,9 +319,22 @@ def _chipmunk_ml_action(lowered: str, original: str) -> ChipmunkChatResult | Non
 
         algo = _detect_rl_algo(lowered)
         if algo is None:
-            from packages.brainspa_ml.environments import get_env_spec
-
-            algo = "q_learning" if get_env_spec(env_id).discrete_states is not None else "ppo"
+            algo = _recommended_rl_algo(env_id)
+            if algo is None:
+                return ChipmunkChatResult(
+                    reply=(
+                        "Could not start training: this environment needs DQN, PPO, or REINFORCE, "
+                        "but PyTorch is not installed."
+                    ),
+                    routed_to="tune",
+                    suggested_actions=["Open Tune", "Train gridworld with q_learning"],
+                )
+        elif not _rl_algo_available(algo):
+            return ChipmunkChatResult(
+                reply=f"Could not start training: algorithm '{algo}' needs PyTorch, which is not installed.",
+                routed_to="tune",
+                suggested_actions=["Open Tune", "Choose q_learning for GridWorld"],
+            )
         hyperparams = _detect_budget(lowered, algo)
         result = jobs.submit_rl_job(env_id=env_id, algo=algo, hyperparams=hyperparams)
         if result.get("error"):
@@ -351,6 +373,30 @@ def _detect_rl_algo(lowered: str) -> str | None:
         if keyword in lowered:
             return algo
     return None
+
+
+def _recommended_rl_algo(env_id: str) -> str | None:
+    from packages.brainspa_ml.environments import get_env_spec
+
+    spec = get_env_spec(env_id)
+    if spec.discrete_states is not None:
+        return "q_learning"
+
+    available = _available_rl_algorithms()
+    for algo in ("ppo", "dqn", "reinforce"):
+        if algo in available:
+            return algo
+    return None
+
+
+def _rl_algo_available(algo: str) -> bool:
+    return algo in _available_rl_algorithms()
+
+
+def _available_rl_algorithms() -> set[str]:
+    from packages.brainspa_ml.algorithms import list_algorithm_specs
+
+    return {spec.id for spec in list_algorithm_specs() if spec.to_dict()["available"]}
 
 
 def _detect_budget(lowered: str, algo: str) -> dict[str, Any]:

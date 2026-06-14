@@ -76,6 +76,7 @@ def train(
 
     reward_window: list[float] = []
     best_mean = float("-inf")
+    episodes_done = 0
 
     for episode in range(episodes):
         if should_stop():
@@ -107,10 +108,11 @@ def train(
             reward_window.pop(0)
         mean_reward = sum(reward_window) / len(reward_window)
         best_mean = max(best_mean, mean_reward)
+        episodes_done += 1
 
         on_metric(
             {
-                "episode": episode + 1,
+                "episode": episodes_done,
                 "epsilon": round(epsilon, 4),
                 "episode_return": round(total_reward, 4),
                 "mean_return": round(mean_reward, 4),
@@ -123,8 +125,8 @@ def train(
     evaluation = evaluate_policy(env_factory, policy, episodes=20)
     return {
         "algorithm": "q_learning",
-        "episodes_completed": episode + 1 if episodes else 0,
-        "best_mean_return": round(best_mean, 4),
+        "episodes_completed": episodes_done,
+        "best_mean_return": round(best_mean, 4) if episodes_done else None,
         "checkpoint_path": str(checkpoint_path),
         "evaluation": evaluation,
     }

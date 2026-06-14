@@ -35,7 +35,14 @@ def infer_task(rows: list[Row], target: str) -> str:
     return "classification"
 
 
-def build_encoder(rows: list[Row], feature_cols: list[str], target: str, task: str) -> dict[str, Any]:
+def build_encoder(
+    rows: list[Row],
+    feature_cols: list[str],
+    target: str,
+    task: str,
+    *,
+    class_rows: list[Row] | None = None,
+) -> dict[str, Any]:
     features: list[dict[str, Any]] = []
     for col in feature_cols:
         present = [r.get(col) for r in rows if r.get(col) not in (None, "")]
@@ -50,7 +57,8 @@ def build_encoder(rows: list[Row], feature_cols: list[str], target: str, task: s
             features.append({"name": col, "dtype": "categorical", "vocab": vocab})
     encoder: dict[str, Any] = {"features": features, "target": target, "task": task}
     if task == "classification":
-        encoder["classes"] = sorted({str(r.get(target)) for r in rows if r.get(target) not in (None, "")})
+        label_rows = class_rows or rows
+        encoder["classes"] = sorted({str(r.get(target)) for r in label_rows if r.get(target) not in (None, "")})
     return encoder
 
 
@@ -76,9 +84,21 @@ def transform(rows: list[Row], encoder: dict[str, Any]) -> tuple[list[list[float
     target = encoder["target"]
     if encoder["task"] == "classification":
         classes = encoder["classes"]
-        y = [classes.index(str(r.get(target))) if str(r.get(target)) in classes else 0 for r in rows]
+        class_index = {label: idx for idx, label in enumerate(classes)}
+        y = []
+        for row_number, row in enumerate(rows, start=1):
+            value = _target_value(row, target, row_number)
+            label = str(value)
+            if label not in class_index:
+                raise ValueError(f"Target column '{target}' has unseen label '{label}' at row {row_number}.")
+            y.append(class_index[label])
     else:
-        y = [float(r.get(target)) if ds._is_number(r.get(target)) else 0.0 for r in rows]
+        y = []
+        for row_number, row in enumerate(rows, start=1):
+            value = _target_value(row, target, row_number)
+            if not ds._is_number(value):
+                raise ValueError(f"Target column '{target}' has non-numeric value at row {row_number}.")
+            y.append(float(value))
     return X, y
 
 
@@ -351,8 +371,27 @@ SUPERVISED_ALGORITHMS: dict[str, SupervisedAlgoSpec] = {
 }
 
 
+@dataclass(frozen=True)
+class TrainingPlan:
+    rows: list[Row]
+    features: list[str]
+    task: str
+    spec: SupervisedAlgoSpec
+
+
 def list_supervised_algorithms() -> list[dict[str, Any]]:
     return [spec.to_dict() for spec in SUPERVISED_ALGORITHMS.values()]
+
+
+def validate_training_request(
+    dataset_id: str,
+    *,
+    target: str,
+    features: list[str] | None = None,
+    algo: str = "logreg",
+) -> dict[str, Any]:
+    plan = _prepare_training_plan(dataset_id, target=target, features=features, algo=algo)
+    return {"task": plan.task, "features": plan.features}
 
 
 def train_supervised(
@@ -369,27 +408,15 @@ def train_supervised(
 ) -> dict[str, Any]:
     on_metric = on_metric or (lambda _r: None)
     should_stop = should_stop or (lambda: False)
-    rows = ds.load_rows(dataset_id)
-    if not rows:
-        raise ValueError(f"Dataset '{dataset_id}' has no rows.")
-    if target not in rows[0] and not any(target in r for r in rows):
-        raise ValueError(f"Target column '{target}' not found in dataset.")
-    if features is None:
-        features = [c for c in _all_columns(rows) if c != target]
-    task = infer_task(rows, target)
-
-    spec = SUPERVISED_ALGORITHMS.get(algo)
-    if spec is None:
-        raise ValueError(f"Unknown algorithm '{algo}'. Known: {sorted(SUPERVISED_ALGORITHMS)}")
-    if task not in spec.tasks:
-        raise ValueError(f"Algorithm '{algo}' does not support task '{task}'.")
+    plan = _prepare_training_plan(dataset_id, target=target, features=features, algo=algo)
+    rows = plan.rows
 
     split = ds.split_indices(len(rows), seed=seed)
     train_rows = [rows[i] for i in split["train"]] or rows
     test_rows = [rows[i] for i in (split["test"] or split["train"])] or rows
 
-    encoder = build_encoder(train_rows, features, target, task)
-    merged = {**spec.default_hyperparams, **(hyperparams or {}), "seed": seed}
+    encoder = build_encoder(train_rows, plan.features, target, plan.task, class_rows=rows)
+    merged = {**plan.spec.default_hyperparams, **(hyperparams or {}), "seed": seed}
     X_train, y_train = transform(train_rows, encoder)
     X_test, y_test = transform(test_rows, encoder)
     num_classes = len(encoder.get("classes", [])) or 1
@@ -406,23 +433,23 @@ def train_supervised(
         preds = [_linreg_predict(params, x) for x in X_test]
         metrics = regression_metrics(y_test, preds)
     else:  # mlp
-        params = _train_mlp(X_train, y_train, task, num_classes, merged, on_epoch, should_stop)
-        if task == "classification":
+        params = _train_mlp(X_train, y_train, plan.task, num_classes, merged, on_epoch, should_stop)
+        if plan.task == "classification":
             preds = [_mlp_predict(params, x)[0] for x in X_test]
             metrics = classification_metrics(y_test, preds, num_classes)
         else:
             preds = [_mlp_predict(params, x)[0] for x in X_test]
             metrics = regression_metrics(y_test, preds)
 
-    checkpoint = {"encoder": encoder, "params": params, "algo": algo, "task": task, "features": features, "target": target}
+    checkpoint = {"encoder": encoder, "params": params, "algo": algo, "task": plan.task, "features": plan.features, "target": target}
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(json.dumps(checkpoint, default=_json_default), encoding="utf-8")
 
     return {
         "algorithm": algo,
-        "task": task,
+        "task": plan.task,
         "target": target,
-        "features": features,
+        "features": plan.features,
         "train_rows": len(train_rows),
         "test_rows": len(test_rows),
         "metrics": metrics,
@@ -460,6 +487,58 @@ def _all_columns(rows: list[Row]) -> list[str]:
             if key not in cols:
                 cols.append(key)
     return cols
+
+
+def _prepare_training_plan(dataset_id: str, *, target: str, features: list[str] | None, algo: str) -> TrainingPlan:
+    rows = ds.load_rows(dataset_id)
+    if not rows:
+        raise ValueError(f"Dataset '{dataset_id}' has no rows.")
+
+    feature_cols = _resolve_feature_columns(rows, target, features)
+    task = infer_task(rows, target)
+    _validate_target_values(rows, target, task)
+
+    spec = SUPERVISED_ALGORITHMS.get(algo)
+    if spec is None:
+        raise ValueError(f"Unknown algorithm '{algo}'. Known: {sorted(SUPERVISED_ALGORITHMS)}")
+    if task not in spec.tasks:
+        raise ValueError(f"Algorithm '{algo}' does not support task '{task}'.")
+    return TrainingPlan(rows=rows, features=feature_cols, task=task, spec=spec)
+
+
+def _resolve_feature_columns(rows: list[Row], target: str, features: list[str] | None) -> list[str]:
+    columns = _all_columns(rows)
+    if target not in columns:
+        raise ValueError(f"Target column '{target}' not found in dataset.")
+    if features is None:
+        return [column for column in columns if column != target]
+
+    out: list[str] = []
+    unknown: list[str] = []
+    for column in features:
+        if column == target:
+            raise ValueError(f"Target column '{target}' cannot be used as a feature.")
+        if column not in columns:
+            unknown.append(column)
+        elif column not in out:
+            out.append(column)
+    if unknown:
+        raise ValueError(f"Unknown feature columns: {', '.join(unknown)}.")
+    return out
+
+
+def _validate_target_values(rows: list[Row], target: str, task: str) -> None:
+    for row_number, row in enumerate(rows, start=1):
+        value = _target_value(row, target, row_number)
+        if task == "regression" and not ds._is_number(value):
+            raise ValueError(f"Target column '{target}' has non-numeric value at row {row_number}.")
+
+
+def _target_value(row: Row, target: str, row_number: int) -> Any:
+    value = row.get(target)
+    if value in (None, ""):
+        raise ValueError(f"Target column '{target}' has a missing value at row {row_number}.")
+    return value
 
 
 def _json_default(value: Any) -> Any:

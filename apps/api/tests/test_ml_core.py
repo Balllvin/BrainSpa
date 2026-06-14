@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -53,6 +54,23 @@ def test_q_learning_learns_gridworld(tmp_path):
     assert (tmp_path / "ql.json").exists()
 
 
+def test_q_learning_handles_empty_episode_runs(tmp_path):
+    from packages.brainspa_ml.algorithms import train_algorithm
+    from packages.brainspa_ml.environments import get_env_spec, make_env
+
+    for episodes in (0, -1):
+        result = train_algorithm(
+            "q_learning",
+            lambda: make_env("gridworld"),
+            hyperparams={"episodes": episodes},
+            checkpoint_path=tmp_path / f"ql-{episodes}.json",
+            env_spec=get_env_spec("gridworld"),
+        )
+        assert result["episodes_completed"] == 0
+        assert result["best_mean_return"] is None
+        assert (tmp_path / f"ql-{episodes}.json").exists()
+
+
 def test_supervised_classification_blobs(tmp_path):
     from packages.brainspa_ml import datasets as ds
     from packages.brainspa_ml import supervised
@@ -77,12 +95,58 @@ def test_supervised_regression_linear(tmp_path):
     assert out["metrics"]["r2"] > 0.7
 
 
+def test_supervised_rejects_target_leakage_and_missing_targets(tmp_path):
+    from packages.brainspa_ml import datasets as ds
+    from packages.brainspa_ml import supervised
+
+    _, content = ds.generate_builtin("blobs", n=80, seed=3)
+    meta = ds.ingest_tabular("blobs-guard", content, "jsonl")
+    with pytest.raises(ValueError, match="cannot be used as a feature"):
+        supervised.train_supervised(
+            meta["id"],
+            target="label",
+            features=["x1", "label"],
+            algo="logreg",
+            checkpoint_path=tmp_path / "leak.json",
+        )
+
+    missing = "x1,x2,label\n1,2,a\n3,4,\n"
+    missing_meta = ds.ingest_tabular("missing-target", missing, "csv")
+    with pytest.raises(ValueError, match="missing value"):
+        supervised.train_supervised(
+            missing_meta["id"],
+            target="label",
+            algo="logreg",
+            checkpoint_path=tmp_path / "missing.json",
+        )
+
+
+def test_supervised_class_vocab_covers_held_out_labels(tmp_path):
+    from packages.brainspa_ml import datasets as ds
+    from packages.brainspa_ml import supervised
+
+    rows = [{"x": i, "label": "common"} for i in range(4)] + [{"x": 99, "label": "rare"}]
+    content = "\n".join(json.dumps(row) for row in rows) + "\n"
+    meta = ds.ingest_tabular("rare-label", content, "jsonl")
+
+    supervised.train_supervised(
+        meta["id"],
+        target="label",
+        algo="logreg",
+        hyperparams={"epochs": 2},
+        checkpoint_path=tmp_path / "rare.json",
+    )
+    checkpoint = json.loads((tmp_path / "rare.json").read_text(encoding="utf-8"))
+    assert checkpoint["encoder"]["classes"] == ["common", "rare"]
+
+
 def test_dataset_profile_detects_dtypes():
     from packages.brainspa_ml import datasets as ds
 
     rows = [{"a": "1", "b": "cat"}, {"a": "2", "b": "dog"}, {"a": "3", "b": "cat"}]
     profile = {c["name"]: c for c in ds.profile_columns(rows)}
     assert profile["a"]["dtype"] == "numeric"
+    assert profile["a"]["unique"] == 3
     assert profile["b"]["dtype"] == "categorical"
     assert profile["b"]["unique"] == 2
 
@@ -126,6 +190,13 @@ def test_jobs_rl_flow_and_inference(tmp_path):
     assert record["status"] == "complete"
     inference = jobs.run_inference(rid)
     assert inference["kind"] == "rl" and inference["steps"] > 0
+
+
+def test_jobs_rejects_incompatible_rl_algorithm():
+    from packages.brainspa_ml import jobs
+
+    result = jobs.submit_rl_job(env_id="cartpole", algo="q_learning")
+    assert result["error"] == "Algorithm 'q_learning' requires a discrete-state environment."
 
 
 def _wait_for(run_id: str, runs, timeout: float = 30.0) -> None:

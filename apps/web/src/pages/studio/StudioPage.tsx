@@ -116,7 +116,14 @@ export function StudioPage() {
         }}
       />
 
-      <RunsGallery runs={runs} onDelete={async (id) => { await deleteMlRun(id); await loadRuns(); }} />
+      <RunsGallery
+        runs={runs}
+        onDelete={async (id) => {
+          const res = await deleteMlRun(id);
+          if (!res.ok) setFlash(res.error ?? "Could not remove run.");
+          await loadRuns();
+        }}
+      />
     </TuneShell>
   );
 }
@@ -210,8 +217,13 @@ function SupervisedLauncher({
   const [datasetId, setDatasetId] = useState(datasets[0]?.id ?? "");
   const dataset = datasets.find((d) => d.id === datasetId);
   const [target, setTarget] = useState("");
-  const [algoId, setAlgoId] = useState(catalog.supervised_algorithms[0]?.id ?? "");
-  const algo = catalog.supervised_algorithms.find((a) => a.id === algoId);
+  const targetTask = useMemo(() => inferSupervisedTask(dataset, target), [dataset, target]);
+  const algos = useMemo(
+    () => catalog.supervised_algorithms.filter((a) => !targetTask || (a.tasks ?? []).includes(targetTask)),
+    [catalog.supervised_algorithms, targetTask],
+  );
+  const [algoId, setAlgoId] = useState(algos[0]?.id ?? "");
+  const algo = algos.find((a) => a.id === algoId);
   const [hp, setHp] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -222,6 +234,9 @@ function SupervisedLauncher({
       setTarget(dataset.columns[dataset.columns.length - 1]?.name ?? "");
     }
   }, [dataset, target]);
+  useEffect(() => {
+    if (!algos.find((a) => a.id === algoId)) setAlgoId(algos[0]?.id ?? "");
+  }, [algos, algoId]);
   useEffect(() => {
     if (algo) setHp(numericDefaults(algo));
   }, [algo?.id]);
@@ -258,7 +273,7 @@ function SupervisedLauncher({
       <div className="studio-pick">
         <h3 className="studio-h3">Algorithm</h3>
         <div className="studio-card-grid">
-          {catalog.supervised_algorithms.map((a) => (
+          {algos.map((a) => (
             <AlgoCard key={a.id} algo={a} active={a.id === algoId} onClick={() => a.available && setAlgoId(a.id)} subtitle={(a.tasks ?? []).join(" / ")} />
           ))}
         </div>
@@ -432,7 +447,7 @@ function RunsGallery({ runs, onDelete }: { runs: MlRun[]; onDelete: (id: string)
                 </td>
                 <td>{scoreOf(r)}</td>
                 <td>
-                  <button className="studio-link-danger" type="button" onClick={() => onDelete(r.id)}>
+                  <button className="studio-link-danger" type="button" disabled={!isTerminalRun(r.status)} onClick={() => onDelete(r.id)}>
                     remove
                   </button>
                 </td>
@@ -458,6 +473,18 @@ function numericDefaults(algo: MlAlgoSpec): Record<string, number> {
 function describeTarget(run: MlRun): string {
   if (run.kind === "rl") return String(run.target.env_id ?? "");
   return `${String(run.target.dataset_name ?? run.target.dataset_id ?? "")} → ${String(run.target.target_column ?? "")}`;
+}
+
+function inferSupervisedTask(dataset: MlDataset | undefined, target: string): "classification" | "regression" | null {
+  const column = dataset?.columns.find((c) => c.name === target);
+  if (!dataset || !column) return null;
+  if (column.dtype !== "numeric") return "classification";
+  const unique = column.unique ?? dataset.row_count;
+  return unique > Math.max(15, Math.floor(dataset.row_count / 20)) ? "regression" : "classification";
+}
+
+function isTerminalRun(status: string): boolean {
+  return ["complete", "failed", "stopped"].includes(status);
 }
 
 export function scoreOf(run: MlRun): string {

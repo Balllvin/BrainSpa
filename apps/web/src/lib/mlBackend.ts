@@ -201,8 +201,13 @@ export const fetchAgentSkills = () => getJson<{ workers: MlSkillWorker[]; skills
 
 // --- Live metrics stream ---------------------------------------------------
 
-export function streamMlRun(runId: string, onEvent: (event: { type: string; metrics?: MlMetric[]; run?: Partial<MlRun> }) => void): () => void {
-  const source = new EventSource(backendUrl(`/api/ml/runs/${encodeURIComponent(runId)}/stream`));
+export function streamMlRun(
+  runId: string,
+  onEvent: (event: { type: string; metrics?: MlMetric[]; run?: Partial<MlRun> }) => void,
+  offset = 0,
+): () => void {
+  const query = offset > 0 ? `?offset=${offset}` : "";
+  const source = new EventSource(backendUrl(`/api/ml/runs/${encodeURIComponent(runId)}/stream${query}`));
   source.onmessage = (message) => {
     try {
       const event = JSON.parse(message.data);

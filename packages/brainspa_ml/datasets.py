@@ -104,6 +104,7 @@ def profile_columns(rows: list[Row]) -> list[dict[str, Any]]:
                     "max": round(max(numeric_vals), 4),
                     "mean": round(mean, 4),
                     "std": round(math.sqrt(variance), 4),
+                    "unique": len({str(v) for v in present}),
                 }
             )
         else:

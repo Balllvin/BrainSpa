@@ -179,7 +179,12 @@ def stop_ml_run(run_id: str) -> dict[str, Any]:
 
 @router.delete("/runs/{run_id}")
 def delete_ml_run(run_id: str) -> dict[str, bool]:
-    return {"deleted": runs.delete_run(run_id)}
+    result = jobs.delete_run(run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    if result.get("error"):
+        raise HTTPException(status_code=409, detail=result["error"])
+    return {"deleted": bool(result["deleted"])}
 
 
 @router.post("/runs/{run_id}/infer")
@@ -191,9 +196,9 @@ def infer_ml_run(run_id: str, body: InferRequest) -> dict[str, Any]:
 
 
 @router.get("/runs/{run_id}/stream")
-def stream_ml_run(run_id: str):
+def stream_ml_run(run_id: str, offset: int = 0):
     async def event_stream():
-        sent = 0
+        sent = max(0, offset)
         while True:
             record = runs.read_run(run_id)
             if record is None:

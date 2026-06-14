@@ -18,6 +18,7 @@ from .paths import ensure_ml_dirs
 _THREADS: dict[str, threading.Thread] = {}
 _STOP_FLAGS: dict[str, bool] = {}
 _LOCK = threading.Lock()
+_TERMINAL_STATUSES = {"complete", "failed", "stopped"}
 
 
 def submit_rl_job(*, env_id: str, algo: str, hyperparams: dict[str, Any] | None = None, label: str | None = None) -> dict[str, Any]:
@@ -28,6 +29,8 @@ def submit_rl_job(*, env_id: str, algo: str, hyperparams: dict[str, Any] | None 
     algo_spec = get_algorithm(algo)  # validates algo exists
     if algo_spec.needs_torch and not _torch_available():
         return {"error": f"Algorithm '{algo}' needs PyTorch, which is not installed."}
+    if "discrete-state" in algo_spec.tags and env_spec.discrete_states is None:
+        return {"error": f"Algorithm '{algo}' requires a discrete-state environment."}
 
     merged = {**algo_spec.default_hyperparams, **(hyperparams or {})}
     record = runs.create_run(
@@ -89,6 +92,10 @@ def submit_supervised_job(
         return {"error": f"Unknown algorithm '{algo}'."}
     if spec.needs_torch and not _torch_available():
         return {"error": f"Algorithm '{algo}' needs PyTorch, which is not installed."}
+    try:
+        supervised.validate_training_request(dataset_id, target=target, features=features, algo=algo)
+    except ValueError as error:
+        return {"error": str(error)}
 
     record = runs.create_run(
         kind="supervised",
@@ -130,8 +137,29 @@ def submit_supervised_job(
 
 
 def stop_run(run_id: str) -> dict[str, Any] | None:
+    record = runs.read_run(run_id)
+    if record is None:
+        return None
+    if record.get("status") in _TERMINAL_STATUSES:
+        return record
+
     _STOP_FLAGS[run_id] = True
+    thread = _THREADS.get(run_id)
+    if thread is None or not thread.is_alive():
+        return runs.update_run(run_id, status="stopped")
     return runs.update_run(run_id, status="stopping")
+
+
+def delete_run(run_id: str) -> dict[str, Any] | None:
+    record = runs.read_run(run_id)
+    if record is None:
+        return None
+    if record.get("status") not in _TERMINAL_STATUSES:
+        return {"deleted": False, "error": "Stop the run before removing it."}
+    with _LOCK:
+        _STOP_FLAGS.pop(run_id, None)
+        _THREADS.pop(run_id, None)
+    return {"deleted": runs.delete_run(run_id)}
 
 
 def wait_for_all(timeout: float = 15.0) -> None:

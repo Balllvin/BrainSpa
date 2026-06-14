@@ -15,25 +15,39 @@ export function StudioRunPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let stop = () => {};
+    let cancelled = false;
+    let stopStream = () => {};
+    setError(null);
+    setRun(null);
+    setMetrics([]);
+
     void fetchMlRun(runId).then((res) => {
+      if (cancelled) return;
       if (!res.ok || !res.data) {
         setError(res.error ?? "Run not found.");
         return;
       }
+      const initialMetrics = res.data.metrics ?? [];
       setRun(res.data);
-      setMetrics(res.data.metrics ?? []);
+      setMetrics(initialMetrics);
       if (["complete", "failed", "stopped"].includes(res.data.status)) return;
-      stop = streamMlRun(runId, (event) => {
-        if (event.metrics) setMetrics((prev) => [...prev, ...event.metrics!]);
+      stopStream = streamMlRun(runId, (event) => {
+        if (cancelled) return;
+        const batch = event.metrics ?? [];
+        if (batch.length) setMetrics((prev) => [...prev, ...batch]);
         if (event.run) setRun((prev) => (prev ? { ...prev, ...event.run } : prev));
         if (event.type === "done" && event.run) {
           setRun(event.run as MlRun);
-          void fetchMlRun(runId).then((r) => r.ok && r.data && setMetrics(r.data.metrics ?? []));
+          void fetchMlRun(runId).then((r) => {
+            if (!cancelled && r.ok && r.data) setMetrics(r.data.metrics ?? []);
+          });
         }
-      });
+      }, initialMetrics.length);
     });
-    return () => stop();
+    return () => {
+      cancelled = true;
+      stopStream();
+    };
   }, [runId]);
 
   const chartSeries = useMemo(() => buildSeries(run, metrics), [run, metrics]);
@@ -43,6 +57,7 @@ export function StudioRunPage() {
   if (!run) return <TuneShell title="Run" backTo="/tune/studio" backLabel="Studio"><p className="tune-empty">Loading…</p></TuneShell>;
 
   const running = !["complete", "failed", "stopped"].includes(run.status);
+  const canStop = ["queued", "running"].includes(run.status);
 
   return (
     <TuneShell title={`Run · ${run.id}`} backTo="/tune/studio" backLabel="Studio">
@@ -62,7 +77,16 @@ export function StudioRunPage() {
           <Stat label={run.kind === "rl" ? "mean return" : "test score"} value={scoreOf(run)} />
           <Stat label="last" value={lastMetricLabel(run)} />
           {running ? (
-            <button className="secondary" type="button" onClick={async () => { await stopMlRun(run.id); }}>
+            <button
+              className="secondary"
+              type="button"
+              disabled={!canStop}
+              onClick={async () => {
+                const res = await stopMlRun(run.id);
+                if (res.ok && res.data) setRun(res.data);
+                else setError(res.error ?? "Could not stop run.");
+              }}
+            >
               Stop
             </button>
           ) : null}
