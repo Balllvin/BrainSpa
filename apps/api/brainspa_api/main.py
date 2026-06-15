@@ -174,6 +174,8 @@ from .workflows import (
     training_dry_run,
     looks_like_loop_request,
 )
+from .ml_api import router as ml_router
+from .agents_api import router as agents_router
 
 
 def create_app() -> FastAPI:
@@ -828,6 +830,9 @@ def create_app() -> FastAPI:
 
         engine = "faster-whisper" if any("faster-whisper" in note for note in notes) else "local-stt"
         return ChipmunkTranscribeResult(text=text, engine=engine, notes=notes)
+
+    app.include_router(ml_router)
+    app.include_router(agents_router)
 
     return app
 

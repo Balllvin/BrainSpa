@@ -2,6 +2,8 @@ import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { canonicalModelSlug, tuneHomePath, tuneModelPath } from "@/lib/tuneRoutes";
 
+import { StudioPage } from "../studio/StudioPage";
+import { StudioRunPage } from "../studio/StudioRunPage";
 import { TuneBuildPage } from "./TuneBuildPage";
 import { TuneHomePage } from "./TuneHomePage";
 import { TuneModelPage } from "./TuneModelPage";
@@ -17,6 +19,8 @@ export function TuneRoutes() {
   return (
     <Routes>
       <Route index element={<TuneHomePage />} />
+      <Route path="studio" element={<StudioPage />} />
+      <Route path="studio/runs/:runId" element={<StudioRunPage />} />
       <Route path=":modelSlug" element={<TuneModelPage />} />
       <Route path=":modelSlug/build" element={<TuneBuildPage />} />
       <Route path=":modelSlug/status" element={<TuneStatusPage />} />
