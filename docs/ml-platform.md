@@ -116,3 +116,7 @@ The implementations are compact and educational, grounded in well-known work:
 
 These are referenced for algorithmic correctness; all code here is original and
 dependency-light (Torch is optional; tabular and linear paths need nothing).
+
+For a broader map of pretraining, SFT, preference tuning, RL post-training,
+agentic environments, data pipelines, and eval harnesses we can borrow from,
+see [training-methods-open-source.md](training-methods-open-source.md).

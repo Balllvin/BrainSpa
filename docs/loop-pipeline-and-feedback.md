@@ -37,6 +37,13 @@ For future harnesses, capture:
 - the failure comment
 - the artifact path for the run
 
+## Method Expansion
+
+Open-source methods and repos that can widen Evidence, Datasets, Tune, and Test
+(pretraining, SFT, preference tuning, RL post-training, agentic environments,
+eval harnesses, automation sketches) are cataloged in
+[training-methods-open-source.md](training-methods-open-source.md).
+
 ## Repository Boundary
 
 Commit source code, tests, docs, and small config. Do not commit:

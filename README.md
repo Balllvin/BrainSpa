@@ -2,7 +2,7 @@
 
 Local app for changing model behavior through a four-stage loop: **Evidence -> Datasets -> Tune -> Test**.
 
-Snake Policy is the reference environment, but the **Studio** (Tune → Studio) lets you train *any* compact model from scratch on your machine: reinforcement-learning policies (CartPole, GridWorld, Snake) with tabular Q-learning, DQN, PPO, or REINFORCE, and tabular classifiers/regressors (logistic/linear regression with no dependencies, or an MLP). Every run streams live metrics and stays inspectable. See [docs/ml-platform.md](docs/ml-platform.md).
+Snake Policy is the reference environment, but the **Studio** (Tune → Studio) lets you train *any* compact model from scratch on your machine: reinforcement-learning policies (CartPole, GridWorld, Snake) with tabular Q-learning, DQN, PPO, or REINFORCE, and tabular classifiers/regressors (logistic/linear regression with no dependencies, or an MLP). Every run streams live metrics and stays inspectable. See [docs/ml-platform.md](docs/ml-platform.md). Broader open-source training methods to borrow from (pretrain, SFT, preference, RL, agentic envs, eval): [docs/training-methods-open-source.md](docs/training-methods-open-source.md).
 
 The public shell includes the UI, APIs, environment package, generic ML core, rollout dataset tooling, policy trainer, and tests needed to run the full loop from scratch. It does not ship trained model weights, checkpoints, generated screenshots, local runtime state, secrets, or previous run artifacts.
 
