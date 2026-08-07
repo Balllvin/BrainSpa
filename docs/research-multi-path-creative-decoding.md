@@ -8,6 +8,15 @@ assembling the best answer from the strongest parts.
 This sits under the language-model path in [ml-model-types.md](ml-model-types.md).
 It does not change the Evidence → Datasets → Tune → Test loop today.
 
+**Stacked on the OSS training catalog:** how to *build and train* the models that
+run this decode policy is not reinvented here. Borrow construction recipes from
+[training-methods.md](training-methods.md) and its deep dives — especially
+[token-level-credit.md](token-level-credit.md) (prefix forks / vines),
+[rl-post-training.md](rl-post-training.md) (GRPO / VinePPO / RLVR), and
+[oss-tune-backends.md](oss-tune-backends.md) (Unsloth / MLX / vLLM). This note
+is the **decode / creativity research direction**; those docs are the **how to
+construct** handbook.
+
 ## The Core Idea
 
 Standard autoregressive decode is mostly local:
@@ -171,13 +180,21 @@ almost nobody has published the full creative quality–cost curve for the combo
 
 ### Phase 2 — Only if Phase 1 wins
 
-1. Train a cheap **path/chunk preference** head from Brain Spa preference pairs
-   (better than brittle self-vote).
-2. Optional: Medusa/MTP-style **draft tree** retargeted for diversity (reject
-   near-paraphrase siblings) to make branching cheaper — still quality-first.
-3. Optional: thin **path-summary encoder** that conditions the merge step on
-   sibling chunk embeddings (the “different encoder” idea) — only after plain
-   GoT-style prompt aggregation plateaus.
+Construct adapters with the training-methods handbook — do not invent a new
+Tune stack:
+
+1. Train a cheap **path/chunk preference** head or LoRA from fork / splice
+   pairs (`token-dpo` / DPO / ORPO via Unsloth or MLX — see
+   [oss-tune-backends.md](oss-tune-backends.md)).
+2. Optional dense credit: `vine-ppo` or selective vines at entropy peaks
+   ([token-level-credit.md](token-level-credit.md)).
+3. Optional: Medusa/MTP-style **draft tree** retargeted for diversity (reject
+   near-paraphrase siblings) to make branching cheaper — still quality-first;
+   accelerate rollouts with vLLM/SGLang/mlx-lm workers already listed in the
+   backends doc.
+4. Optional: thin **path-summary encoder** that conditions the merge step on
+   sibling chunk embeddings — only after plain GoT-style prompt aggregation
+   plateaus.
 
 ### Phase 3 — Non-goals / traps
 
@@ -194,6 +211,84 @@ almost nobody has published the full creative quality–cost curve for the combo
 | Aggregate > select at same cost | Invest in better merge (PRM / path encoder) |
 | Adaptive branch ≈ fixed ToT width | Keep fixed width; entropy gate is optional polish |
 | Nothing beats BoN | Multi-path is mostly parallel sampling; optimize BoN + judge |
+
+## Borrowing Construction From The Training-Methods Stack
+
+Do not invent a parallel training story. The open-source catalog already says
+how to wire Evidence → Datasets → Tune → Test for forking routes and teaching
+the model from them. Multi-path creative decode is a **Test-time (and later
+Tune-time) policy** that should emit the same kinds of artifacts.
+
+### Map: research idea → existing construction docs
+
+| Multi-path piece | Borrow from | How it helps construct the model |
+|------------------|-------------|-------------------------------|
+| Branch at uncertain tokens / chunks | [token-level-credit.md](token-level-credit.md) top-k inspect + selective vines | Same MDP view: prefix = state, next token/chunk = action; reset is free |
+| Keep alternate routes from one prefix | `fork-routes` skill + vine JSONL shape | Evidence/Dataset records already sketched for chosen vs alt continuations |
+| Score branches later | [rl-post-training.md](rl-post-training.md) RLVR / harness rewards; PRMs in token doc | Verifiers and process scores become branch / splice judges |
+| Teach “this fork was better” | TDPO, `token-dpo`, `vine-ppo`, `token-grpo`, `edit-sft`, `reject-at-token` | Preference and RL recipes that credit the decision point, not only the full essay |
+| Cheap local adapters | [oss-tune-backends.md](oss-tune-backends.md) Unsloth (CUDA) / MLX (Apple Silicon) | Construct LoRA/QLoRA policies without vendoring megatrain stacks |
+| Group of full answers (BoN baseline) | GRPO / GSPO group rollouts | Train and eval with the same “several futures per prompt” mindset |
+| Dense credit along a path | VinePPO MC vines; Math-Shepherd-style step labels | Train the model to value prefixes that recover from early ambiguity |
+| Rollout workers | vLLM / SGLang / mlx-lm logprobs | Volume for BoN, vines, and entropy-gated expand without a custom engine |
+| Clean multi-path datasets | [datasets-cleaning.md](datasets-cleaning.md) | Dedup near-paraphrase siblings so branches stay diverse |
+| Method / repo lookup | [training-method-catalog.md](training-method-catalog.md) | Pick SFT / preference / RL / eval harnesses without ad-hoc googling |
+
+### Operator loop (reuse, then extend)
+
+Token-level credit already defines:
+
+`inspect-token` → `fork-routes` → `rows-from-forks` → `train-recipe`
+
+For creative multi-path, extend the same loop at **chunk** grain:
+
+```text
+inspect-entropy / inspect-chunk
+  → expand-chunks (ToT-style thoughts, entropy-gated)
+  → score-branches (harness / PRM / vote)
+  → select OR aggregate (GoT-style merge)
+  → rows-from-forks / rows-from-splices
+  → train-recipe: unsloth-* | mlx-* | token-dpo | vine-ppo | grpo | …
+```
+
+Chipmunk skills stay the automation surface; do not invent a fifth product
+pillar. New skills are thin wrappers over the existing fork → rows → recipe
+pattern in [training-methods.md](training-methods.md#automation-sketch).
+
+### Constructing a model that *wants* multi-path behavior
+
+Decode-only multi-path works on a frozen classic LM (Phase 0/1). To make the
+behavior stick in weights, borrow this construction order from the training
+stack:
+
+1. **SFT / LoRA** on traces that include explicit plans, branch markers, or
+   merge rationales (Unsloth or MLX path).
+2. **Preference** on path pairs and splice accept/reject (`token-dpo` / DPO /
+   ORPO) using fork artifacts.
+3. **RLVR / GRPO** when a harness can score creative recovery or splice gain
+   (same scorer for Test and Tune — see RLVR pitfalls in
+   [rl-post-training.md](rl-post-training.md#reward-design-pitfalls)).
+4. **VinePPO / selective vines** when credit must land on the ambiguous prefix,
+   not the whole completion ([token-level-credit.md](token-level-credit.md#vineppo--mc-credit-without-a-critic)).
+
+Architecture add-ons (Medusa heads, path-summary encoder) come **after** this
+loop shows splice-gain. Construction backends stay Unsloth/MLX/TRL; do not
+vendor NeMo/Megatron into the public shell ([training-methods.md](training-methods.md)
+rule).
+
+### Relationship to token vines (not a duplicate)
+
+| | [token-level-credit.md](token-level-credit.md) | This research note |
+|-|-----------------------------------------------|--------------------|
+| Grain | Token (or step) edit + K vines | Chunk / thought tree + optional splice |
+| Primary goal | Credit assignment and correction | Creative exploration and recombination |
+| Typical train | TDPO, VinePPO, edit-SFT | Same recipes + path/splice preference |
+| Typical test | Fork UI / alternate routes | Entropy-gated ToT/GoT policy + metrics |
+
+Use token vines as the **instrumentation and training substrate**. Use this
+note for the **search + merge policy** and creative falsifiers. They stack:
+entropy-gated chunk expand can call the same fork/score artifact writer as
+token inspect.
 
 ## What Classic Transformers Already Give Us
 
@@ -372,20 +467,24 @@ fails and the work collapses to cheaper search — still useful, but narrower.
 
 ## Fit In Brain Spa (Later, Not Now)
 
-When this moves from research note to experiment:
+When this moves from research note to experiment, reuse the training-methods
+loop map rather than inventing parallel stages:
 
-| Loop stage | Possible artifact |
-|------------|-------------------|
-| Evidence | Cases where single-path decode fails but multi-path recovers |
-| Datasets | Preference pairs over paths; splice accept/reject rows; branch-point labels |
-| Tune | Dry-run of branch controller; optional verifier / draft-head adapters |
-| Test | Harness that scores recovery, diversity, splice quality, and cost |
+| Loop stage | Possible artifact | Borrow construction from |
+|------------|-------------------|--------------------------|
+| Evidence | Cases where single-path fails but multi-path recovers; token/chunk fork inspect dumps | [token-level-credit.md](token-level-credit.md) artifact shape |
+| Datasets | Path preference pairs; splice accept/reject; vine rows; cleaned shards | [datasets-cleaning.md](datasets-cleaning.md) · `rows-from-forks` |
+| Tune | LoRA/QLoRA via Unsloth or MLX; `token-dpo` / `vine-ppo` / `grpo`; dry-run | [oss-tune-backends.md](oss-tune-backends.md) · [rl-post-training.md](rl-post-training.md) |
+| Test | Harness scores recovery, diversity, splice gain, cost; same scorers as RLVR rewards | [training-method-catalog.md](training-method-catalog.md#evaluation) · RLVR section |
 
 Chipmunk / resident workers stay operators of the loop. Multi-path decode is a
 **generation policy** under Test (and later Tune), not a fifth product pillar.
+Automation extends `inspect-token` / `fork-routes` / `rows-from-forks` /
+`train-recipe` from [training-methods.md](training-methods.md#automation-sketch).
 
 Public shell reminder: do not invent a persona demo around this. Keep any
-future harness explicit, artifact-driven, and measurable.
+future harness explicit, artifact-driven, and measurable. Do not commit
+weights, rollouts, or screenshots.
 
 ## Open Questions
 
@@ -414,20 +513,25 @@ future harness explicit, artifact-driven, and measurable.
 
 ## Suggested First Experiment (When Implementation Starts)
 
-Align with **Phase 0 → Phase 1** above. Smallest honest test on a classic
-decoder LM, leaning on open-source ToT/GoT/EGB ideas rather than new weights:
+Align with **Phase 0 → Phase 1** above and the construction handbook in
+[training-methods.md](training-methods.md). Smallest honest test on a classic
+decoder LM, leaning on open-source ToT/GoT/EGB ideas and existing fork
+artifacts rather than new weights:
 
 1. Fixed prompts where early greed fails (ToT creative writing style + one
    planning/constraint task).
 2. Baselines: greedy · nucleus · Best-of-N · ToT-select · GoT-aggregate.
 3. Treatment: entropy-gated chunk branch (high-entropy only) + both select and
    aggregate finishes under a fixed expansion budget.
-4. Log branch points, path scores, merge decisions, latency, expand count, and
-   judge/harness scores as Test artifacts under `~/.brain-spa` — never commit
-   weights or run dumps.
-5. Apply the Phase 1 decision rule before any encoder or Medusa-head work.
+4. Emit fork / branch records in the JSONL shape from
+   [token-level-credit.md](token-level-credit.md#artifact-shape) (extend with
+   `chunk` grain and optional `splice` fields). Log expand count, latency, and
+   judge/harness scores under `~/.brain-spa` — never commit weights or dumps.
+5. If splice-gain wins, construct a LoRA with `rows-from-forks` + Unsloth or
+   MLX preference/RL recipes before any encoder or Medusa-head work.
 
 That experiment answers the user’s question directly: does keeping multiple
 **chunk** options open, then choosing or stitching later, produce better
-creative answers than committing to the highest local probability — and is
-that gain new relative to existing open-source search?
+creative answers than committing to the highest local probability — and can
+we **train** that behavior using the same OSS methods catalog already stacked
+under this research note?

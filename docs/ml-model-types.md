@@ -8,7 +8,7 @@ Language-model work uses evidence-backed text rows, preference pairs, dry-runs, 
 
 The public shell does not seed a language model. Add one only when the target behavior, evidence source, dataset route, tune route, and test harness are all explicit.
 
-Research note (proposal only): [multi-path creative decoding](research-multi-path-creative-decoding.md) — explore several decode futures, then select or recombine the best parts.
+Research note (proposal only): [multi-path creative decoding](research-multi-path-creative-decoding.md) — explore several decode futures, then select or recombine the best parts. Construction (SFT/RL/vines/backends) borrows [training-methods.md](training-methods.md).
 
 ## Policy Models
 
