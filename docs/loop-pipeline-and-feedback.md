@@ -39,10 +39,8 @@ For future harnesses, capture:
 
 ## Method Expansion
 
-Open-source methods and repos that can widen Evidence, Datasets, Tune, and Test
-(pretraining, SFT, preference tuning, RL post-training, agentic environments,
-eval harnesses, automation sketches) are cataloged in
-[training-methods-open-source.md](training-methods-open-source.md).
+Open-source methods that can widen Evidence, Datasets, Tune, and Test are
+indexed in [training-methods.md](training-methods.md).
 
 ## Repository Boundary
 
