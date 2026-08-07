@@ -18,6 +18,7 @@ Index: [training-methods.md](training-methods.md).
 | LitGPT | https://github.com/Lightning-AI/litgpt |
 | TinyLlama | https://github.com/jzhang38/TinyLlama |
 | Unsloth | https://github.com/unslothai/unsloth |
+| mlx-lm / mlx-tune (CPT on Apple Silicon) | https://github.com/ml-explore/mlx-lm · https://github.com/arahim3/mlx-tune |
 | Megatron-LM | https://github.com/NVIDIA/Megatron-LM |
 | NeMo | https://github.com/NVIDIA/NeMo |
 | Nanotron | https://github.com/huggingface/nanotron |
@@ -86,11 +87,14 @@ Deep dive: [rl-post-training.md](rl-post-training.md).
 | PPO | Actor + critic + reward |
 | GRPO | Group-relative advantages; no critic |
 | GSPO | Sequence-level IS + clip |
+| Hierarchical GRPO | Role- and problem-aware comparison sets (multi-agent) |
+| RAE | Role-conditioned advantage baselines |
 | RLOO | Leave-one-out baseline |
 | DAPO / Dr.GRPO / … | Long-CoT stability knobs |
 | RLVR | Verifier rewards |
 | VinePPO | MC vines for credit |
 | Agentic RL | Multi-turn env/tool rollouts |
+| Multi-agent Env | Judge / self-play / user-sim programmed over Agents |
 | MOPD / on-policy distill | Teacher token advantages |
 
 | Repo | Link |
@@ -100,6 +104,7 @@ Deep dive: [rl-post-training.md](rl-post-training.md).
 | TRL GRPO | https://github.com/huggingface/trl |
 | Open-R1 | https://github.com/huggingface/open-r1 |
 | OpenThoughts | https://github.com/open-thoughts/open-thoughts |
+| **prime-rl / verifiers** | https://github.com/PrimeIntellect-ai/prime-rl · https://github.com/PrimeIntellect-ai/verifiers |
 | NeMo RL | https://github.com/NVIDIA-NeMo/RL |
 | verl | https://github.com/verl-project/verl |
 | OpenRLHF | https://github.com/OpenRLHF/OpenRLHF |
@@ -129,14 +134,20 @@ Already in [ml-platform.md](ml-platform.md). Do not conflate with LLM post-train
 
 Harness = world, tools, actions, scoring — [environment-harness-spec.md](environment-harness-spec.md).
 
+Multi-agent Agent/Env patterns (judge, self-play, user-sim, Hierarchical GRPO):
+[rl-post-training.md](rl-post-training.md#multi-agent-rl-prime-intellect).
+
 | Repo | Link |
 |------|------|
 | OpenEnv | https://github.com/huggingface/OpenEnv · https://huggingface.co/openenv |
 | NeMo Gym | https://github.com/NVIDIA-NeMo/Gym |
+| **verifiers** (Prime Intellect) | https://github.com/PrimeIntellect-ai/verifiers |
+| **prime-rl** | https://github.com/PrimeIntellect-ai/prime-rl |
+| Prime Environments Hub | https://app.primeintellect.ai/dashboard/environments |
 | BrowserGym | https://github.com/ServiceNow/BrowserGym |
 | TextArena | https://github.com/TextArena/TextArena |
 | SWE-bench | https://github.com/SWE-bench/SWE-bench |
-
+| PettingZoo (classic multi-agent) | https://github.com/Farama-Foundation/PettingZoo |
 ## Data Cleaning
 
 Deep dive: [datasets-cleaning.md](datasets-cleaning.md).
@@ -167,7 +178,7 @@ Post-Tune: `eval-harness` → report → fails to Evidence.
 
 | Mature enough to wire first | Promising | Research / later |
 |-----------------------------|-----------|------------------|
-| Unsloth SFT/DPO/GRPO, mlx-lm infer+LoRA, TRL, Open-R1 recipes | mlx-tune / mlx-lm-lora GRPO/DPO, GSPO, VinePPO vines in Test UI, ORPO/KTO/SimPO, PRMs | TreePO, TP-GRPO, MOPD, full counterfactual SCMs, Megatron-scale CPT |
+| Unsloth SFT/DPO/GRPO, mlx-lm infer+LoRA, TRL, Open-R1 recipes | verifiers+prime-rl multi-agent (judge/self-play/user-sim), Hierarchical GRPO/RAE, mlx-tune GRPO/DPO, GSPO, VinePPO vines in Test UI, ORPO/KTO/SimPO, PRMs | TreePO, TP-GRPO, MOPD, full counterfactual SCMs, Megatron-scale CPT |
 
 Novelty without a Chipmunk skill + artifact type stays a bookmark.
 

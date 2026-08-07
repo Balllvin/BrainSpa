@@ -94,13 +94,74 @@ https://github.com/open-thought/tiny-grpo · https://github.com/JialiangFan/mini
 | 1× NVIDIA GPU | Unsloth + vLLM + TRL recipes |
 | Multi-GPU single node | TRL / Axolotl + Accelerate/FSDP or DeepSpeed |
 | Multi-node RLHF/RLVR | verl, OpenRLHF, NeMo RL |
-| Env catalog + agent RL | NeMo Gym or OpenEnv + one of the above |
+| Env catalog + agent RL | NeMo Gym, OpenEnv, or **verifiers + prime-rl** |
+| Multi-agent RL (judge / self-play / user-sim) | **verifiers ≥0.3 + prime-rl ≥0.8** — see [below](#multi-agent-rl-prime-intellect) |
 | Teach yourself GRPO | tiny-grpo / mini-grpo / Open-R1 / MLX-GRPO |
 
 Also: AReaL (algorithm matrix), SkyRL, ROLL — research cousins; study, don’t
 vendor. Links in [training-method-catalog.md](training-method-catalog.md).
 
 MLX backend detail: [oss-tune-backends.md](oss-tune-backends.md#mlx).
+
+## Multi-Agent RL (Prime Intellect) {#multi-agent-rl-prime-intellect}
+
+Source: [Multi-Agent Systems in PRIME-RL](https://www.primeintellect.ai/blog/multi-agent-systems) (Aug 2026).  
+Stack: [verifiers](https://github.com/PrimeIntellect-ai/verifiers) (≥0.3.0) + [prime-rl](https://github.com/PrimeIntellect-ai/prime-rl) (≥0.8.0).  
+Hub: [Environments Hub](https://app.primeintellect.ai/dashboard/environments) · CLI: https://github.com/PrimeIntellect-ai/prime
+
+### Abstractions to borrow
+
+| Piece | Signature / idea | Brain Spa rhyme |
+|-------|------------------|-----------------|
+| **Agent** | `run(task) -> Trace` — owns Taskset/Harness/Runtime for one role | One resident worker or Test actor |
+| **Env** | `run(task, agents) -> Episode` — programs multi-agent control flow | Harness that can host *multiple* agents, not one policy |
+| **Trace / Episode** | Auditable rollout artifacts; every agent run joins the episode | Evidence + Test run records |
+| **SingleAgentEnv** | One-line collapse of classic single-agent RL | Current Snake / Studio default |
+
+Choose **which roles learn** (freeze judge or user-sim; train solver/assistant). Credit is assigned across the **full interaction**, not one isolated completion.
+
+### Interaction patterns shipped in the post
+
+| Env | Flow | Training signal |
+|-----|------|-----------------|
+| **AgenticJudgeEnv** | Solver runs task → judge agent explores (e.g. codebase/tests) and grades | Fixes narrow deterministic graders that zero valid solutions |
+| **ProposerSolverEnv** | Proposer builds a task from a seed → N solvers attempt it | Proposer reward = learnability `4·p·(1−p)` (peak at ~50% solve); Absolute Zero–style curriculum |
+| **KuhnPokerEnv** | Two policies play; env holds private cards / legal actions | Self-play moving curriculum; no separate opponent service |
+| **UserSimEnv** | Turn-by-turn user ↔ assistant; user frozen by default | Assistant scored on original task; user persona is pluggable |
+
+### Credit assignment beyond flat GRPO
+
+Classic GRPO assumes one comparison set. Multi-agent needs structure:
+
+| Method | Idea | When |
+|--------|------|------|
+| **Hierarchical GRPO** | Keep comparison groups per role and per proposed problem (don’t mix proposer traces with solver traces, or easy vs hard proposals) | Proposer–solver / nested episodes |
+| **Role-Conditioned Advantage Estimation (RAE)** | Baseline per role from that role’s reward history, not one shared baseline | Heterogeneous rewards (poker seats, judge vs solver) |
+
+These sit next to VinePPO / token forks in the “credit is the product” theme —
+[token-level-credit.md](token-level-credit.md).
+
+### Brain Spa angles
+
+- Chipmunk / workers already look like **roles**; multi-agent Env is how Test
+  programs their interaction (coach, arena, judge, user-sim).
+- Snake dual-arena / human-vs-AI is a tiny instance of self-play Env — keep the
+  product loop general ([harness-and-test-ui-guide.md](harness-and-test-ui-guide.md)).
+- Agentic judging → Evidence failure comments that are richer than unit-test fail.
+- Proposer–solver → Datasets that regenerate hard tasks without static JSONL.
+- User-sim → assistant Tune without real users; freeze user Trace.
+- Traces as synthetic data (post’s “agents beyond RL”) → Datasets pipelines.
+
+### Automation lean
+
+| Skill / recipe | Role |
+|----------------|------|
+| `env-multi-agent` | Run judge / self-play / user-sim episode → Episode artifact |
+| `train-recipe: hierarchical-grpo` | Role-aware groups from Episode |
+| `rows-from-episode` | Split traces by role into Datasets |
+| `agentic-judge` | Promote Test miss → judge Trace → Evidence |
+
+Study verifiers/prime-rl; don’t vendor as required public-shell deps.
 
 ## Reward design pitfalls
 
@@ -116,6 +177,7 @@ MLX backend detail: [oss-tune-backends.md](oss-tune-backends.md#mlx).
 |----------------|------|
 | `train-recipe: unsloth-grpo` / `unsloth-gspo` / `mlx-grpo` | Local reasoning RL (CUDA vs Apple Silicon) |
 | `train-recipe: grpo-trl` | Plain TRL path (CUDA) |
+| `env-multi-agent` / `hierarchical-grpo` | Judge / self-play / user-sim via verifiers+prime-rl patterns |
 | `eval-harness` | Same verifiers as rewards, offline report |
 | Harness score → reward fn | Shared scorer module for Test and Tune |
 

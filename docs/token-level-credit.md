@@ -104,8 +104,9 @@ your local model’s distribution; reward hacking on “looks like a good step.�
 | MCTS-guided decode | Search with discriminators / PRMs | PPL-MCTS and survey literature |
 | Counterfactual token SCMs | Formal “if token i changed under fixed noise…” | https://arxiv.org/abs/2409.17027 |
 
-Survey of credit assignment: https://arxiv.org/abs/2604.09459 (VinePPO, PRMs,
-hindsight/counterfactual credit families).
+Credit assignment survey and related families (CCPO / hindsight): see also
+Prime Intellect **Hierarchical GRPO** and **RAE** for multi-agent roles —
+[rl-post-training.md](rl-post-training.md#multi-agent-rl-prime-intellect).
 
 For Brain Spa Test, start simpler: top-k + forced-token fork + K random vines.
 Add MCTS only if operators need deep search UIs.
