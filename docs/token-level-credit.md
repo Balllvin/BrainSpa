@@ -148,8 +148,9 @@ Chipmunk: `inspect-token` → `fork-routes` → `rows-from-forks` → `train-rec
 
 ## Logprobs sources
 
+- **mlx-lm** batch/generate APIs on Apple Silicon (see [oss-tune-backends.md](oss-tune-backends.md#mlx))
 - HF `generate(..., output_scores=True, return_dict_in_generate=True)`
-- vLLM / SGLang logprob APIs (preferred for volume)
+- vLLM / SGLang logprob APIs (preferred for CUDA volume)
 - See [oss-tune-backends.md](oss-tune-backends.md#inference-and-rollout-workers)
 
 ## Pitfalls

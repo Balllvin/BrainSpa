@@ -17,22 +17,23 @@ Studio lineage (CleanRL, Gymnasium, Spinning Up): [ml-platform.md](ml-platform.m
 
 ## Priority Order
 
-1. [Unsloth](oss-tune-backends.md#unsloth) — local SFT / QLoRA / GRPO / GSPO / DPO
-2. [Token-level credit](token-level-credit.md) — inspect token, mark correction, fork routes, RL
-3. [OpenEnv / NeMo Gym](training-method-catalog.md#agentic-environments) — harness contracts
-4. [Data cleaning](datasets-cleaning.md) — dedup, filters, QC before Tune
-5. [CleanRL / Studio](ml-platform.md) — compact env + algorithm registry
-6. [TRL + GRPO / RLVR](rl-post-training.md) — reasoning and verifiable rewards
-7. [Preference methods](training-method-catalog.md#preference-and-alignment) — DPO / ORPO / KTO / SPIN
-8. [Eval harnesses](training-method-catalog.md#evaluation) — lm-eval, Inspect, LightEval
-9. [NVIDIA refs](oss-tune-backends.md#nvidia) — NeMo RL / Gym / Curator (study, don’t ship)
-10. [Pretrain / CPT](training-method-catalog.md#pretraining) — nanoGPT / LitGPT honesty path
+1. [Unsloth](oss-tune-backends.md#unsloth) — local SFT / QLoRA / GRPO / GSPO / DPO (NVIDIA GPU)
+2. [MLX](oss-tune-backends.md#mlx) — Apple Silicon inference + LoRA / GRPO Tune and Test
+3. [Token-level credit](token-level-credit.md) — inspect token, mark correction, fork routes, RL
+4. [OpenEnv / NeMo Gym](training-method-catalog.md#agentic-environments) — harness contracts
+5. [Data cleaning](datasets-cleaning.md) — dedup, filters, QC before Tune
+6. [CleanRL / Studio](ml-platform.md) — compact env + algorithm registry
+7. [TRL + GRPO / RLVR](rl-post-training.md) — reasoning and verifiable rewards
+8. [Preference methods](training-method-catalog.md#preference-and-alignment) — DPO / ORPO / KTO / SPIN
+9. [Eval harnesses](training-method-catalog.md#evaluation) — lm-eval, Inspect, LightEval
+10. [NVIDIA refs](oss-tune-backends.md#nvidia) — NeMo RL / Gym / Curator (study, don’t ship)
+11. [Pretrain / CPT](training-method-catalog.md#pretraining) — nanoGPT / LitGPT honesty path
 
 ## Doc Map
 
 | Doc | Contents |
 |-----|----------|
-| [oss-tune-backends.md](oss-tune-backends.md) | Unsloth, NVIDIA stack, vLLM / SGLang / export |
+| [oss-tune-backends.md](oss-tune-backends.md) | Unsloth, MLX, NVIDIA, vLLM / SGLang / export |
 | [rl-post-training.md](rl-post-training.md) | GRPO, GSPO, PPO, RLVR, Open-R1, stack choice |
 | [token-level-credit.md](token-level-credit.md) | Why-token, corrections, vines, TDPO, PRMs |
 | [datasets-cleaning.md](datasets-cleaning.md) | Dedup, filters, synthetic data, QC artifacts |
@@ -50,11 +51,11 @@ Studio lineage (CleanRL, Gymnasium, Spinning Up): [ml-platform.md](ml-platform.m
 | `rows-from-forks` | Data | Token-edit / vine rows |
 | `reject-sample` | Data | Keep verifier-passers |
 | `dry-run-train` | Training | Deps, VRAM, template check |
-| `train-recipe` | Training | `unsloth-*`, `token-dpo`, `vine-ppo`, `grpo`, … |
+| `train-recipe` | Training | `unsloth-*`, `mlx-*`, `token-dpo`, `vine-ppo`, `grpo`, … |
 | `eval-harness` | Harness | Post-train report → Evidence on fail |
 | `close-the-loop` | Chipmunk | Chain the above |
 
-Skills call `/api/*` and write under `~/.brain-spa`. Recipe shape can mirror Unsloth / TRL / Axolotl flags.
+Skills call `/api/*` and write under `~/.brain-spa`. Recipe shape can mirror Unsloth / MLX-LM / TRL / Axolotl flags.
 
 ## Boundaries
 

@@ -38,6 +38,8 @@ Backends: [oss-tune-backends.md](oss-tune-backends.md).
 | Repo | Link |
 |------|------|
 | Unsloth | https://github.com/unslothai/unsloth |
+| **MLX / mlx-lm** | https://github.com/ml-explore/mlx · https://github.com/ml-explore/mlx-lm |
+| mlx-tune / mlx-lm-lora | https://github.com/arahim3/mlx-tune · https://github.com/Goekdeniz-Guelmez/mlx-lm-lora |
 | TRL `SFTTrainer` | https://github.com/huggingface/trl |
 | Axolotl | https://github.com/axolotl-ai-cloud/axolotl |
 | LLaMA-Factory | https://github.com/hiyouga/LLaMA-Factory |
@@ -63,8 +65,9 @@ Pair data unless noted.
 
 | Repo | Link |
 |------|------|
-| TRL DPO/KTO | https://github.com/huggingface/trl |
 | Unsloth | https://github.com/unslothai/unsloth |
+| TRL DPO/KTO | https://github.com/huggingface/trl |
+| mlx-lm / mlx-tune / mlx-lm-lora | https://github.com/ml-explore/mlx-lm · https://github.com/arahim3/mlx-tune · https://github.com/Goekdeniz-Guelmez/mlx-lm-lora |
 | Axolotl RLHF | https://docs.axolotl.ai/docs/rlhf.html |
 | OpenRLHF | https://github.com/OpenRLHF/OpenRLHF |
 | SPIN | https://github.com/uclaml/SPIN |
@@ -93,6 +96,7 @@ Deep dive: [rl-post-training.md](rl-post-training.md).
 | Repo | Link |
 |------|------|
 | Unsloth | https://github.com/unslothai/unsloth |
+| mlx-lm / mlx-tune / MLX-GRPO | https://github.com/ml-explore/mlx-lm · https://github.com/arahim3/mlx-tune · https://github.com/Doriandarko/MLX-GRPO |
 | TRL GRPO | https://github.com/huggingface/trl |
 | Open-R1 | https://github.com/huggingface/open-r1 |
 | OpenThoughts | https://github.com/open-thoughts/open-thoughts |
@@ -105,6 +109,7 @@ Deep dive: [rl-post-training.md](rl-post-training.md).
 | VinePPO | https://github.com/McGill-NLP/VinePPO |
 | tiny-grpo / mini-grpo | https://github.com/open-thought/tiny-grpo · https://github.com/JialiangFan/mini-grpo |
 | vLLM / SGLang | https://github.com/vllm-project/vllm · https://github.com/sgl-project/sglang |
+| llama.cpp (Metal/CUDA) | https://github.com/ggml-org/llama.cpp |
 
 ## Classic RL (Studio)
 
@@ -162,7 +167,7 @@ Post-Tune: `eval-harness` → report → fails to Evidence.
 
 | Mature enough to wire first | Promising | Research / later |
 |-----------------------------|-----------|------------------|
-| Unsloth SFT/DPO/GRPO, TRL, Open-R1 recipes | GSPO, VinePPO vines in Test UI, ORPO/KTO/SimPO, PRMs | TreePO, TP-GRPO, MOPD, full counterfactual SCMs, Megatron-scale CPT |
+| Unsloth SFT/DPO/GRPO, mlx-lm infer+LoRA, TRL, Open-R1 recipes | mlx-tune / mlx-lm-lora GRPO/DPO, GSPO, VinePPO vines in Test UI, ORPO/KTO/SimPO, PRMs | TreePO, TP-GRPO, MOPD, full counterfactual SCMs, Megatron-scale CPT |
 
 Novelty without a Chipmunk skill + artifact type stays a bookmark.
 

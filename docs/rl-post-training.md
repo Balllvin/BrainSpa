@@ -88,16 +88,19 @@ https://github.com/open-thought/tiny-grpo · https://github.com/JialiangFan/mini
 
 ## Stack choice
 
-| Scale | Stack |
-|-------|-------|
-| 1 GPU local | Unsloth + vLLM + TRL recipes |
+| Scale / machine | Stack |
+|-----------------|-------|
+| Apple Silicon Mac | **mlx-lm** / mlx-tune / mlx-lm-lora / MLX-GRPO; Test via mlx-lm or llama.cpp Metal |
+| 1× NVIDIA GPU | Unsloth + vLLM + TRL recipes |
 | Multi-GPU single node | TRL / Axolotl + Accelerate/FSDP or DeepSpeed |
 | Multi-node RLHF/RLVR | verl, OpenRLHF, NeMo RL |
 | Env catalog + agent RL | NeMo Gym or OpenEnv + one of the above |
-| Teach yourself GRPO | tiny-grpo / mini-grpo / Open-R1 scripts |
+| Teach yourself GRPO | tiny-grpo / mini-grpo / Open-R1 / MLX-GRPO |
 
 Also: AReaL (algorithm matrix), SkyRL, ROLL — research cousins; study, don’t
 vendor. Links in [training-method-catalog.md](training-method-catalog.md).
+
+MLX backend detail: [oss-tune-backends.md](oss-tune-backends.md#mlx).
 
 ## Reward design pitfalls
 
@@ -111,8 +114,8 @@ vendor. Links in [training-method-catalog.md](training-method-catalog.md).
 
 | Skill / recipe | Role |
 |----------------|------|
-| `train-recipe: unsloth-grpo` / `unsloth-gspo` | Local reasoning RL |
-| `train-recipe: grpo-trl` | Plain TRL path |
+| `train-recipe: unsloth-grpo` / `unsloth-gspo` / `mlx-grpo` | Local reasoning RL (CUDA vs Apple Silicon) |
+| `train-recipe: grpo-trl` | Plain TRL path (CUDA) |
 | `eval-harness` | Same verifiers as rewards, offline report |
 | Harness score → reward fn | Shared scorer module for Test and Tune |
 

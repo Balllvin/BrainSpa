@@ -56,9 +56,10 @@ Treat numbers as orientation, not guarantees — re-measure on the target GPU in
 
 | Use Unsloth | Prefer something else |
 |-------------|------------------------|
-| Single/dual GPU local Tune | Multi-node Megatron-scale (NeMo RL / Megatron) |
+| Single/dual NVIDIA GPU local Tune | Apple Silicon → [MLX](#mlx) |
 | SFT / DPO / GRPO / GSPO adapters | Classic env RL in Studio (CleanRL path) |
-| Fast iterate + export to llama.cpp / Ollama | Pure research on new loss with no Unsloth support yet → plain TRL |
+| Fast iterate + export to llama.cpp / Ollama | Multi-node Megatron-scale (NeMo RL / Megatron) |
+|  | Pure research on new loss with no Unsloth support yet → plain TRL |
 
 ### Pitfalls
 
@@ -72,6 +73,97 @@ Treat numbers as orientation, not guarantees — re-measure on the target GPU in
 `train-recipe: unsloth-sft | unsloth-dpo | unsloth-grpo | unsloth-gspo | unsloth-cpt`  
 Dry-run checks: VRAM estimate, template hash, base model pin, max seq, output path
 `~/.brain-spa/artifacts/training/<run>/`.
+
+---
+
+## MLX {#mlx}
+
+Apple Silicon path for **inference and Tune** when the machine is a Mac (unified
+memory / Metal). Complements Unsloth (CUDA/NVIDIA); do not treat MLX as a CUDA
+replacement on Linux GPUs.
+
+### Core repos
+
+| Repo | Role | Link |
+|------|------|------|
+| **MLX** | Array framework for Apple silicon (NumPy-like; Python / C++ / C / Swift) | https://github.com/ml-explore/mlx |
+| **mlx-lm** | LLM generate, quantize, LoRA/QLoRA/full FT, HF Hub, distributed `mx.distributed` | https://github.com/ml-explore/mlx-lm |
+| mlx-examples | Reference examples (LLaMA, LoRA, Whisper, SD, …) | https://github.com/ml-explore/mlx-examples |
+| mlx-swift | Swift API for MLX | https://github.com/ml-explore/mlx-swift |
+| **mlx-swift-lm** | Native Swift LLM/VLM load, generate, fine-tune for macOS/iOS apps | https://github.com/ml-explore/mlx-swift-lm |
+| **mlx-vlm** | Vision-language infer + fine-tune on MLX | https://github.com/Blaizzy/mlx-vlm |
+| MLX Community (HF) | Thousands of pre-converted / quantized MLX weights | https://huggingface.co/mlx-community |
+
+Docs hub: https://ml-explore.github.io/mlx/  
+LoRA guide (in-repo): https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LORA.md
+
+### What mlx-lm gives you
+
+- CLI / Python generate and chat (`mlx_lm.generate`, streaming)
+- Convert + quantize HF models (`mlx_lm.convert -q`) and upload to Hub
+- LoRA / DoRA / full fine-tune on quantized bases (`mlx_lm.lora`)
+- Fuse adapters back into a standalone MLX model for Test
+- Prompt cache, batch generate, per-token logprobs (needed for token forks)
+- Optional multi-device via `mx.distributed`
+
+Default community model often used in docs: `mlx-community/Llama-3.2-3B-Instruct-4bit`.
+
+### Preference and RL on MLX
+
+| Project | Role | Link |
+|---------|------|------|
+| mlx-lm tuner (upstream) | SFT + DPO offline; GRPO trainer landing in mlx-lm | https://github.com/ml-explore/mlx-lm · [GRPO PR](https://github.com/ml-explore/mlx-lm/pull/1421) |
+| **mlx-lm-lora** | Extended PEFT trainers: SFT, DPO, ORPO, KTO, SimPO, GRPO-style | https://github.com/Goekdeniz-Guelmez/mlx-lm-lora |
+| **mlx-tune** | Unsloth-shaped API on MLX (SFT / DPO / GRPO / KTO / SimPO / ORPO / CPT) | https://github.com/arahim3/mlx-tune |
+| **MLX-GRPO** | Pure-MLX GRPO + CoT rewards (e.g. GSM8K) | https://github.com/Doriandarko/MLX-GRPO |
+
+GRPO on MLX mirrors the CUDA story: group completions → reward_fn → group
+advantages → LoRA update. Wire Brain Spa harness scores the same way as
+Unsloth/TRL (`reward_fn(completions, prompt) -> scores`).
+
+### Inference placement (Apple Silicon)
+
+| Need | Prefer |
+|------|--------|
+| Experiment / custom loop / logprobs / vines | **mlx-lm** Python |
+| Ship a Mac/iOS app with pinned local model | **mlx-swift-lm** |
+| Packaged multi-model server on Mac | llama.cpp Metal, Ollama, or a localhost MLX HTTP wrapper |
+| Vision + language | **mlx-vlm** |
+| Already have GGUF only | llama.cpp Metal / Ollama (still fine; convert to MLX when you need LoRA) |
+
+Large models vs RAM: mlx-lm notes slowness when the model is large vs total
+unified memory; macOS 15+ can wire model/cache memory — raise
+`iogpu.wired_limit_mb` when the model fits RAM but needs wired headroom.
+
+### Why it fits Brain Spa
+
+- Many self-host users are on Macs; CUDA Unsloth won’t run there
+- Adapter artifacts still local under `~/.brain-spa`
+- Generate + top-k / logprobs feed [token-level-credit.md](token-level-credit.md)
+- Same loop: Evidence → Datasets → `mlx-sft` / `mlx-grpo` → Test via mlx-lm
+- Export story: MLX adapter → fuse → Test; or convert paths toward GGUF when needed
+
+### When to use vs Unsloth / vLLM
+
+| Use MLX | Use Unsloth + vLLM / CUDA |
+|---------|---------------------------|
+| Apple Silicon Mac for Tune + Test | NVIDIA GPU Linux / Windows |
+| mlx-community 4-bit LoRA iterate | Max CUDA GRPO throughput, NeMo/verl scale |
+| Swift desktop/iOS Test shell later | Cluster Ray / FSDP / Megatron |
+
+### Pitfalls
+
+- MLX weights ≠ HF/CUDA checkpoints — pin format in dry-run (`mlx` vs `hf` vs `gguf`)
+- Quantized 4-bit → GGUF export is limited; fuse/export rules differ from Unsloth
+- Don’t assume TRL scripts run unmodified; use mlx-lm / mlx-tune / mlx-lm-lora
+- Unified memory thrash looks like “slow GPU” — watch RAM pressure
+- GRPO still needs a real verifier; Metal doesn’t fix sparse rewards
+
+### Brain Spa recipes
+
+`train-recipe: mlx-sft | mlx-dpo | mlx-grpo | mlx-cpt`  
+`infer-backend: mlx-lm` for Test / `inspect-token` / `fork-routes` on Mac  
+Dry-run: model id (prefer `mlx-community/…`), adapter path, RAM estimate, template.
 
 ---
 
@@ -121,21 +213,25 @@ Token inspect and GRPO both need fast generate + logprobs.
 
 | System | Role | Link |
 |--------|------|------|
-| **vLLM** | Batched rollouts, logprobs/top-k, GRPO workhorse | https://github.com/vllm-project/vllm |
+| **MLX / mlx-lm** | Apple Silicon generate, quantize, logprobs, LoRA serve | https://github.com/ml-explore/mlx-lm |
+| **mlx-vlm** | Apple Silicon vision-language infer | https://github.com/Blaizzy/mlx-vlm |
+| **vLLM** | CUDA batched rollouts, logprobs/top-k, GRPO workhorse | https://github.com/vllm-project/vllm |
 | **SGLang** | Radix attention, structured decode; verl backend | https://github.com/sgl-project/sglang |
-| FlashAttention | Attention kernel baseline under many trainers | https://github.com/Dao-AILab/flash-attention |
+| FlashAttention | Attention kernel baseline under many CUDA trainers | https://github.com/Dao-AILab/flash-attention |
 | bitsandbytes | 4/8-bit quant used with QLoRA stacks | https://github.com/bitsandbytes-foundation/bitsandbytes |
-| llama.cpp | Local GGUF Test/deploy after Tune | https://github.com/ggml-org/llama.cpp |
+| llama.cpp | Local GGUF Test/deploy (Metal on Mac, CUDA/CPU elsewhere) | https://github.com/ggml-org/llama.cpp |
 | Ollama | Convenience runner for exported models | https://ollama.com |
 
 ### Brain Spa angles
 
 - Test / token-fork viewer: request `top_k` / `logprobs` per step; store compact
-  top-k only (not full vocab) in Evidence
-- Tune GRPO: Unsloth+vLLM colocated, or separate rollout worker later
+  top-k only (not full vocab) in Evidence — mlx-lm on Mac, vLLM/SGLang on CUDA
+- Tune GRPO: Unsloth+vLLM (CUDA) or mlx-lm / mlx-tune / MLX-GRPO (Apple Silicon)
 - Structured harness actions: SGLang / XGrammar-style guided decode when tools
   need valid JSON/action tags
-- Export path after Tune: adapter → (optional merge) → HF or GGUF for Test
+- Export path after Tune: adapter → (optional merge/fuse) → HF, MLX, or GGUF for Test
+- Pick **one** primary infer backend per machine in Settings; don’t mix CUDA and
+  MLX in the same worker process
 
 ### Related trainers (cluster / research)
 
