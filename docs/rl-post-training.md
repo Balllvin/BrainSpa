@@ -151,6 +151,8 @@ These sit next to VinePPO / token forks in the “credit is the product” theme
 - Proposer–solver → Datasets that regenerate hard tasks without static JSONL.
 - User-sim → assistant Tune without real users; freeze user Trace.
 - Traces as synthetic data (post’s “agents beyond RL”) → Datasets pipelines.
+- Creative multi-path decode (ideator / critic / merger roles, blind critique,
+  splice scoring) → [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md).
 
 ### Automation lean
 
@@ -190,3 +192,4 @@ Feedback rule: misses become Evidence, then better rewards or datasets —
 - [token-level-credit.md](token-level-credit.md)
 - [training-method-catalog.md](training-method-catalog.md)
 - [ml-platform.md](ml-platform.md) — classic env RL (separate lane)
+- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — uses multi-agent Env/judge patterns for creative path scoring and merge
