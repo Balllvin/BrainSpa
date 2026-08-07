@@ -17,24 +17,25 @@ the shell.
 
 | Loop stage | Methods that feed it | What to automate next |
 |------------|----------------------|------------------------|
-| Evidence | Failure traces, judge scores, env rollouts, eval harness logs | Capture world state + action + score + failure comment into Evidence automatically |
-| Datasets | Cleaning, dedup, SFT rows, preference pairs, RL transitions, synthetic pipelines | Clean → filter → type rows (instruction, chosen/rejected, transition) from Evidence/Test |
-| Tune | Pretrain / CPT, SFT, DPO/ORPO/KTO/SimPO, PPO/GRPO/GSPO, classic RL, distillation | Job recipes with dry-run → train → artifact register; Chipmunk skill routing |
-| Test | Gym envs, agentic envs, LM eval harnesses, Inspect / NeMo Gym tasks | Score behavior in harnesses; feed misses back as Evidence |
+| Evidence | Failure traces, judge scores, env rollouts, eval harness logs, **token forks + logits** | Capture world state + action + score + failure comment; also prefix, chosen token, alts, and why |
+| Datasets | Cleaning, dedup, SFT rows, preference pairs, RL transitions, **token edits / vine rollouts** | Clean → filter → type rows; emit `token_edit` and `prefix_branch` rows from Evidence |
+| Tune | Pretrain / CPT, SFT, DPO/ORPO/KTO/SimPO, PPO/GRPO/GSPO, **token-level RL / VinePPO / TDPO**, distillation | Job recipes with dry-run → train → artifact register; Chipmunk skill routing |
+| Test | Gym envs, agentic envs, LM eval harnesses, Inspect / NeMo Gym, **alternate-route viewers** | Score behavior; fork from any token and compare routes; promote misses to Evidence |
 
 ## Priority Borrow List For Brain Spa
 
 Ordered by fit to the current shell (local, artifact-driven, harness-first):
 
 1. **Unsloth** — fast local SFT / QLoRA / GRPO / GSPO / DPO on one GPU; TRL-compatible; strongest near-term LLM Tune backend for Brain Spa machines.
-2. **OpenEnv + Gymnasium (+ NeMo Gym patterns)** — standardize custom harnesses and remote env servers without changing the UI loop.
-3. **Data cleaning pipeline (Datatrove / Dolma / NeMo Curator ideas)** — exact/fuzzy/semantic dedup, heuristic quality filters, language ID, PII scrub before Datasets → Tune.
-4. **CleanRL / Studio expansion** — more envs and single-file algorithms; keep educational and dependency-light.
-5. **TRL trainers (via Unsloth or plain HF)** — SFT, DPO/KTO, GRPO when LLM Tune is in scope.
-6. **distilabel / Argilla / SPIN-style self-play** — Evidence and Datasets automation for synthetic pairs, judges, and preference from SFT alone.
-7. **Inspect AI / lm-eval / NeMo Gym eval surfaces** — Test-stage scoring that is not Snake-specific.
-8. **NVIDIA NeMo RL / Gym / Curator / Megatron** — study orchestration, env catalogs, GPU curation, and recipes; do not absorb wholesale.
-9. **nanoGPT / LitGPT** — optional small pretrain/CPT path for Studio honesty.
+2. **Token-level credit + counterfactual forks** — inspect why a token was chosen, mark a better token, RL on that edit, and explore alternate routes from the same prefix (see dedicated section below).
+3. **OpenEnv + Gymnasium (+ NeMo Gym patterns)** — standardize custom harnesses and remote env servers without changing the UI loop.
+4. **Data cleaning pipeline (Datatrove / Dolma / NeMo Curator ideas)** — exact/fuzzy/semantic dedup, heuristic quality filters, language ID, PII scrub before Datasets → Tune.
+5. **CleanRL / Studio expansion** — more envs and single-file algorithms; keep educational and dependency-light.
+6. **TRL trainers (via Unsloth or plain HF)** — SFT, DPO/KTO, GRPO when LLM Tune is in scope.
+7. **distilabel / Argilla / SPIN-style self-play** — Evidence and Datasets automation for synthetic pairs, judges, and preference from SFT alone.
+8. **Inspect AI / lm-eval / NeMo Gym eval surfaces** — Test-stage scoring that is not Snake-specific.
+9. **NVIDIA NeMo RL / Gym / Curator / Megatron** — study orchestration, env catalogs, GPU curation, and recipes; do not absorb wholesale.
+10. **nanoGPT / LitGPT** — optional small pretrain/CPT path for Studio honesty.
 
 ---
 
@@ -259,12 +260,111 @@ Datasets stage, not an afterthought.
 (lang → heuristics → exact dedup → optional fuzzy) writing a new dataset
 artifact and a short QC report (kept / dropped counts).
 
-### 8. Novel And Emerging Methods (Borrow Selectively)
+### 8. Token-Level Credit, Counterfactual Edits, Alternate Routes
+
+This is the method family closest to: *“RL on whether a token was right, see
+why it was chosen, mark another token that should have been chosen, train on
+that, and inspect other routes if one token changed.”*
+
+Language generation is an MDP where the state is the prefix (prompt + tokens so
+far) and the action is the next token. That property is the whole game: you can
+**reset to any prefix** by re-feeding it, then sample different continuations
+(“vines” / forks). Brain Spa can treat that as a first-class Test + Evidence
+surface, then feed dense signals into Tune.
+
+#### Operator loop (what the UI should eventually do)
+
+1. **Run** a generation (or harness trajectory) and keep per-step logits / top-k.
+2. **Inspect a token** — show chosen token, probability, rank, and top-k
+   alternatives (the “why this token” view).
+3. **Mark a correction** — pick another token that *should* have been chosen at
+   that index (human, verifier, or judge).
+4. **Fork routes** — from that prefix, sample K continuations with the original
+   token vs the corrected token (and optionally other top-k alts).
+5. **Score branches** — outcome reward (pass/fail), PRM step scores, or harness
+   metrics on each fork.
+6. **Emit training rows** — token preference, dense advantages, or counterfactual
+   edit pairs → Datasets → Tune.
+7. **RL update** — upweight the better token / better vines; downweight the bad
+   choice at that prefix.
+
+```text
+prefix s_t = [prompt + tokens_0..t-1]
+action a_t = token_t          (factual)
+action a'_t = corrected token (counterfactual)
+
+fork A: continue from (s_t, a_t)  → routes R1..Rk   score each
+fork B: continue from (s_t, a'_t) → routes R'1..R'k score each
+
+advantage ≈ mean(score|a'_t) - mean(score|a_t)   # or MC value at s_t
+Evidence artifact stores: prefix, a_t, a'_t, top-k, forks, scores
+```
+
+#### Building blocks to borrow
+
+| Piece | What it gives you | Repo / paper |
+|-------|-------------------|--------------|
+| **Prefix reset + MC vines** | Unbiased value / credit at any token by resampling continuations | [VinePPO](https://github.com/McGill-NLP/VinePPO) · [arxiv:2410.01679](https://arxiv.org/abs/2410.01679) |
+| **Token-level preference (TDPO)** | DPO-style loss at token granularity, not whole sequence | [Token-level DPO](https://github.com/vance0124/Token-level-Direct-Preference-Optimization) |
+| **Process reward models (PRM)** | Score intermediate steps / tokens without waiting for final answer | Math-Shepherd lineage · PRM-guided tree search papers |
+| **Tree / MCTS search** | Explicit alternate routes at decode time (ToT, MCTS, TreePO) | [Tree of Thoughts](https://github.com/princeton-nlp/tree-of-thought-llm) · [TreePO](https://github.com/multimodal-art-projection/TreePO) · PPL-MCTS |
+| **Counterfactual token SCMs** | Formal “what would have been generated if token i changed” under fixed noise | [Counterfactual Token Generation](https://arxiv.org/abs/2409.17027) |
+| **Hindsight / counterfactual credit** | Attribute final reward back to specific tokens or turns | Survey: [Credit Assignment in RL for LLMs](https://arxiv.org/abs/2604.09459) · CCPO / C3 / HCAPO family |
+| **TP-GRPO / generative PRM** | Teach the model to judge its own thinking steps for denser RL | [TP-GRPO](https://github.com/cs-holder/tp_grpo) |
+| **Top-k / logit dumps at Test** | Cheap “why this token” without a new trainer | Any HF `generate(..., output_scores=True)` or vLLM logprobs |
+
+#### Artifact shape (Evidence / Datasets)
+
+Keep one inspectable JSONL-ish record per fork point:
+
+```json
+{
+  "prefix_id": "...",
+  "prefix_tokens": ["..."],
+  "index": 17,
+  "chosen": {"token": "therefore", "prob": 0.41, "rank": 1},
+  "alternatives": [
+    {"token": "however", "prob": 0.22, "rank": 2},
+    {"token": "because", "prob": 0.09, "rank": 3}
+  ],
+  "correction": {"token": "however", "source": "human|verifier|judge"},
+  "branches": [
+    {"from": "chosen", "continuation_id": "c1", "score": 0.0, "fail": "wrong final"},
+    {"from": "correction", "continuation_id": "c2", "score": 1.0, "fail": null}
+  ]
+}
+```
+
+Tune recipes that can consume these rows:
+
+| Recipe | Signal |
+|--------|--------|
+| `token-dpo` / TDPO | chosen vs corrected token (or best vs worst vine) at index `t` |
+| `vine-ppo` / dense PPO | MC advantages from prefix forks |
+| `token-grpo` | Group of continuations from same prefix; relative scores |
+| `edit-sft` | Force-decode corrected token then continue (teacher-style) |
+| `reject-at-token` | Keep only vines that pass after the edit |
+
+#### Why this fits Brain Spa
+
+- Test already shows live world state; a **token fork viewer** is the LM analogue
+  of watching alternate Snake trajectories from the same board.
+- Evidence becomes precise: not “bad answer,” but “at index 17, `therefore` beat
+  `however`; forks prove `however` recovers.”
+- Datasets stay typed and local under `~/.brain-spa`.
+- Chipmunk can own `inspect-token` → `fork-routes` → `rows-from-forks` →
+  `train-recipe: vine-ppo|token-dpo`.
+
+### 9. Novel And Emerging Methods (Borrow Selectively)
 
 Newer ideas that change *how* a loop stage works — not just which trainer:
 
 | Method | Novelty | Brain Spa angle |
 |--------|---------|-----------------|
+| **Token-level RL / VinePPO** | MC credit at any prefix via continuation forks | Core of token inspect → correct → RL (section 8) |
+| **TDPO / token preference** | Preference loss on individual tokens | Human “this token should’ve been X” → Tune |
+| **Counterfactual token forks** | Change one token, resample the rest | Alternate-route viewer in Test |
+| **Tree search / MCTS / TreePO** | Explicit multi-path decode + train on trees | Explore routes without waiting for full RL |
 | **ORPO** | One-stage SFT + preference (odds ratio) | Fewer Tune jobs; single recipe from preference-ish Evidence |
 | **SimPO** | No reference model; avg logprob as implicit reward | Lower VRAM preference tune |
 | **SPIN** | Self-play against older self using only SFT data | Improve models when no preference labels exist |
@@ -274,13 +374,13 @@ Newer ideas that change *how* a loop stage works — not just which trainer:
 | **RLVR** | Verifiable rewards (unit tests, math checkers) | Map harness scorers → reward fns directly |
 | **On-policy distillation / MOPD** | Dense teacher token advantages on student rollouts | Merge specialist teachers without Mix-RL pain |
 | **Rejection sampling / best-of-N → SFT** | Filter generations with a verifier, then SFT | Simple Datasets→Tune path before full RL |
-| **Process reward models (PRM)** | Step-level rewards for reasoning | Score intermediate harness steps, not only finals |
+| **Process reward models (PRM)** | Step-level rewards for reasoning | Score intermediate steps / tokens, not only finals |
 | **Async / disagg rollouts** | Inference workers ≠ train workers | Parallel Test boards already rhyme; LLM Tune can copy |
 | **Curriculum / difficulty filters** | Train on solvable-but-hard prompts only | Evidence tagging by failure mode + hardness |
 | **Constitutional / RLAIF judges** | Model-written critiques → preferences | Evidence auto-judge before human review |
 | **SteerLM-style attribute control** | Condition on multi-attribute scores | Multi-label Evidence → controlled generation |
 
-### 9. Evaluation Harnesses (Test Stage)
+### 10. Evaluation Harnesses (Test Stage)
 
 | Repo | What it is | Link |
 |------|------------|------|
@@ -298,11 +398,14 @@ Newer ideas that change *how* a loop stage works — not just which trainer:
 | Skill shape | Worker | Trigger |
 |-------------|--------|---------|
 | `ingest-failure` | Source (Evidence) | Test miss or harness failure comment |
+| `inspect-token` | Source / Harness | Dump top-k logits at index `t`; record why-chosen |
+| `fork-routes` | Harness (Test) | From prefix, sample vines for chosen vs corrected (vs other alts) |
 | `clean-dataset` | Data (Datasets) | Raw corpus or Evidence dump → filtered shard + QC report |
 | `rows-from-evidence` | Data (Datasets) | Evidence batch → SFT / preference / transition / SPIN pairs |
+| `rows-from-forks` | Data (Datasets) | Token-edit / vine-score records → TDPO / VinePPO / edit-SFT rows |
 | `reject-sample` | Data (Datasets) | Generate N, keep verifier-passers as SFT rows |
 | `dry-run-train` | Training (Tune) | Validate recipe, deps, VRAM, token budget |
-| `train-recipe` | Training (Tune) | `unsloth-sft`, `unsloth-dpo`, `unsloth-grpo`, `ppo-env`, `cpt`, `spin` |
+| `train-recipe` | Training (Tune) | `unsloth-sft`, `unsloth-dpo`, `unsloth-grpo`, `token-dpo`, `vine-ppo`, `ppo-env`, `cpt`, `spin` |
 | `eval-harness` | Harness (Test) | Post-train eval; write report artifact |
 | `close-the-loop` | Chipmunk | Chain miss → Evidence → clean/rows → Tune → Test |
 
