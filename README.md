@@ -38,7 +38,7 @@ brain-spa/
   apps/web/src/                     React + Vite UI
   packages/brainspa_environments/   Environment implementations
   packages/brainspa_training/       Training helpers
-  docs/                             Architecture and harness guidance
+  docs/                             Architecture, harness guidance, research notes
   scripts/                          Dev and smoke-test scripts
 ```
 
