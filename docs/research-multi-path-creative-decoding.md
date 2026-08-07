@@ -48,6 +48,153 @@ Creativity here means **structured exploration plus late judgment**, not higher
 temperature alone. Temperature widens one local draw. Multi-path decode keeps
 several coherent worlds open and then edits across them.
 
+## Has This Been Done Before?
+
+**Short answer:** most pieces already exist. Chunk-level multi-path search,
+adaptive branching, late selection, and even thought aggregation are published
+and have open-source code. What is *not* settled — and where Brain Spa can add
+something real — is combining those pieces for **measurable creative quality**,
+especially **recombination that beats picking a single winner**, on a classic
+decoder with a honest cost curve.
+
+### Prior-art map
+
+| Idea in this note | Already studied as | Status |
+|-------------------|--------------------|--------|
+| Keep several futures instead of greedy next-token | Beam search; Best-of-N; Self-Consistency (CoT-SC) | Mature |
+| Branch on **chunks / thoughts**, not only tokens | Tree of Thoughts (ToT) — thoughts are coherent text units | Mature, open source |
+| Explore, score, backtrack | ToT BFS/DFS; LLM + MCTS; MCT Self-Refine | Mature-ish |
+| **When** to branch vs commit | Entropy-Gated Branching (EGB); EDEN; Adaptive Beam Search | Recent (2025–2026), open source |
+| Pull best parts together (not just pick one path) | Graph of Thoughts (GoT) **aggregation**; Self-Refine; multi-agent edit pipelines | GoT is the closest formal match |
+| Multi-token / tree drafts | Medusa, EAGLE, DeepSeek-style MTP, speculative decoding | Mature for **speed**, not creativity |
+| Extra encoder / heads over futures | Medusa heads; MTP modules; path scorers / PRMs | Exists for draft or reward, rarely for creative merge |
+| Creative writing specifically | ToT creative-writing task (plan → passage + vote) | Exists but mostly **select**, not splice |
+
+So: inventing “multi-path decode” from zero would duplicate ToT/beam/BoN.
+Inventing “chunking” from zero would duplicate ToT/GoT’s thought unit.
+The live research question is narrower and sharper:
+
+> Can **entropy-gated, chunk-level branching + GoT-style aggregation** produce
+> creative answers that beat **Best-of-N / ToT-select** at the same compute —
+> and can Brain Spa prove that with harness artifacts?
+
+### What is relatively underexplored
+
+1. **Recombination vs selection for creativity.** GoT aggregates thoughts for
+   sorting/keyword tasks; ToT creative writing usually *votes* among plans and
+   passages. Cross-path **splice** that must stay coherent is thinner.
+2. **Entropy gating + chunk grain + aggregation in one stack.** EGB/EDEN gate
+   token/step expand for math/code; rarely wired to creative merge.
+3. **Diversity-first tree drafts.** Medusa/EAGLE trees optimize acceptance for
+   speed; using the same tree machinery for *divergent* creative options is
+   secondary in those repos.
+4. **Falsifiable creative harnesses** with recovery, splice-gain, and $/quality
+   curves (Brain Spa’s Test stage strength) rather than vibes or single LLM
+   judge scores.
+
+## Open-Source Landscape (Practical Building Blocks)
+
+Prefer standing on these rather than rewriting search from scratch.
+
+### Thought / chunk search and merge
+
+| Project | What it gives you | Link |
+|---------|-------------------|------|
+| **Tree of Thoughts** | Chunk-level branch, value/vote, BFS/DFS; includes a **creative writing** task | https://github.com/princeton-nlp/tree-of-thought-llm |
+| **Graph of Thoughts** | Arbitrary thought graph + **aggregate** (combine advantages of several thoughts) — closest to “pull best parts together” | https://github.com/spcl/graph-of-thoughts |
+| **MCTSr / mcts-llm** | MCTS over answer versions with self-critique / refine | https://github.com/BrendanGraham14/mcts-llm · https://github.com/trotsky1997/MathBlackBox |
+
+### Adaptive “when to branch”
+
+| Project | What it gives you | Link |
+|---------|-------------------|------|
+| **Entropy-Gated Branching (EGB)** | Branch only at high token entropy; PRM prune; large speedups vs fixed beam on math | https://github.com/JXL884/entropy_gated_branching |
+| **Adaptive Beam Search (ABS)** | Entropy-guided adaptive beam for multi-step reasoning | https://github.com/yoongja/ABS |
+| **EDEN** (paper) | Branching factor monotone in entropy; plug-and-play decode | arXiv:2605.09745 |
+
+### Multi-token / tree draft (speed substrate; optional later)
+
+| Project | What it gives you | Link |
+|---------|-------------------|------|
+| **Medusa** | Extra decode heads + tree attention; parallel candidate continuations | https://github.com/FasterDecoding/Medusa |
+| **Speculative-Decoding catalog** | Side-by-side MTP, EAGLE-3, Medusa-1, draft models | https://github.com/shreyansh26/Speculative-Decoding |
+| Serving engines | Production speculative / MTP paths (vLLM, SGLang, etc.) | use only if accelerating a proven quality policy |
+
+### Multi-agent creative pipelines (orchestration, not decode)
+
+Long-form systems (e.g. Novel-OS-style agent stacks) already draft → critique →
+revise outside the token loop. Useful as a **baseline for “agent edit”**, but
+they are not a replacement for studying decode-time multi-path on a classic LM.
+
+## Recommended Way Forward
+
+Do **not** start with a new encoder or Medusa-style heads. Start with
+inference-time composition of existing open-source ideas, measure hard, then
+only add architecture if recombination still wins under equal FLOPs.
+
+### Phase 0 — Baselines (weeks of engineering, not invention)
+
+On one small open decoder (local Hugging Face causal LM):
+
+1. Greedy
+2. Temperature / nucleus sample
+3. Best-of-N (full answers, pick by self-vote or small judge)
+4. ToT-select (reuse princeton-nlp prompts/search; creative writing + one
+   constrained planning task)
+5. GoT-aggregate (reuse spcl ops where the task admits aggregation)
+
+Record quality, diversity, latency, and token expand count as Test artifacts.
+If GoT-aggregate already dominates ToT-select and BoN on your creative metrics,
+the “novel architecture” story shrinks — productize the controller instead.
+
+### Phase 1 — Best immediate research stack (recommended)
+
+Compose three existing ideas into one Brain Spa decode policy:
+
+```text
+entropy gate (EGB/EDEN)  →  chunk expand (ToT thought unit)
+                           →  score / prune (vote, value, or small PRM)
+                           →  aggregate (GoT merge) OR select (ToT/BoN)
+```
+
+Concrete defaults:
+
+- **Branch unit:** sentence / paragraph / plan step (ToT thought), not every token.
+- **Branch trigger:** high next-token (or first-token-of-chunk) entropy; else commit.
+- **Width:** small (2–5) live chunks; hard budget on expansions.
+- **Finish:** run **both** select and aggregate; the falsifier is whether
+  aggregate’s **splice gain** > 0 at equal expand count.
+- **Do not** train new heads until Phase 1 shows a stable win.
+
+This is the highest-leverage path: prior work already proved each component;
+almost nobody has published the full creative quality–cost curve for the combo.
+
+### Phase 2 — Only if Phase 1 wins
+
+1. Train a cheap **path/chunk preference** head from Brain Spa preference pairs
+   (better than brittle self-vote).
+2. Optional: Medusa/MTP-style **draft tree** retargeted for diversity (reject
+   near-paraphrase siblings) to make branching cheaper — still quality-first.
+3. Optional: thin **path-summary encoder** that conditions the merge step on
+   sibling chunk embeddings (the “different encoder” idea) — only after plain
+   GoT-style prompt aggregation plateaus.
+
+### Phase 3 — Non-goals / traps
+
+- Rewriting ToT/GoT from scratch without baselines.
+- Calling Medusa “creative” because it explores a token tree (it optimizes speed).
+- Spending budget on a custom encoder before splice-gain is measured.
+- Shipping a persona demo; keep any future harness explicit and scored.
+
+### Decision rule
+
+| Result after Phase 1 | Next move |
+|----------------------|-----------|
+| Aggregate ≈ select at same cost | Creativity claim weak; ship adaptive branch + select as a Test policy |
+| Aggregate > select at same cost | Invest in better merge (PRM / path encoder) |
+| Adaptive branch ≈ fixed ToT width | Keep fixed width; entropy gate is optional polish |
+| Nothing beats BoN | Multi-path is mostly parallel sampling; optimize BoN + judge |
+
 ## What Classic Transformers Already Give Us
 
 A decoder-only transformer already emits a full next-token distribution and can
@@ -243,33 +390,44 @@ future harness explicit, artifact-driven, and measurable.
 ## Open Questions
 
 1. Is the right branch unit token, subword span, sentence, or learned chunk?
-2. Can a path-summary encoder improve merge quality more than extra samples?
-3. How do we prevent mode collapse where all branches paraphrase one idea?
-4. Should critique paths use a different temperature / system prior / expert?
-5. How much of “creativity” is search at inference vs training that rewards
+   (Prior art strongly suggests starting with ToT-style thoughts.)
+2. Does GoT-style aggregation beat ToT/BoN select on creative metrics at equal
+   expand count? (Primary falsifier.)
+3. Does entropy gating transfer from math (EGB/EDEN) to creative open-ended
+   text, where baseline entropy is higher?
+4. Can a path-summary encoder improve merge quality more than better prompting
+   or a small preference head?
+5. How do we prevent mode collapse where all branches paraphrase one idea?
+6. Should critique paths use a different temperature / system prior / expert?
+7. How much of “creativity” is search at inference vs training that rewards
    recoverable exploration?
-6. What KV-sharing / trie layout keeps exponential branching practical?
+8. What KV-sharing / trie layout keeps exponential branching practical?
 
 ## Non-Goals For This Note
 
 - No new API routes, UI, or training code in this PR.
 - No claim that branching alone equals creativity.
-- No commitment to a specific paper recipe (beam vs ToT vs MCTS vs speculative
-  trees). Those are toolkits for the experiments above.
+- No claim of a wholly new paradigm: ToT/GoT/EGB/Medusa already cover large
+  parts; the bet is a measured composition aimed at creative splice-gain.
+- No commitment to a single paper recipe in production — use them as toolkit
+  baselines in Phase 0/1.
 
 ## Suggested First Experiment (When Implementation Starts)
 
-Smallest honest test on a classic decoder LM:
+Align with **Phase 0 → Phase 1** above. Smallest honest test on a classic
+decoder LM, leaning on open-source ToT/GoT/EGB ideas rather than new weights:
 
-1. Fixed prompts where early greed fails (ambiguous creative writing, planning,
-   constrained generation).
-2. Adaptive top-k branch only at high-entropy steps; commit elsewhere.
-3. Chunk every N tokens or at punctuation; keep B paths.
-4. Compare: greedy · temperature · best-of-N · multi-path select · multi-path
-   recombine.
-5. Log branch points, path scores, splice decisions, latency, and judge scores
-   as Test artifacts under `~/.brain-spa` — never commit weights or run dumps.
+1. Fixed prompts where early greed fails (ToT creative writing style + one
+   planning/constraint task).
+2. Baselines: greedy · nucleus · Best-of-N · ToT-select · GoT-aggregate.
+3. Treatment: entropy-gated chunk branch (high-entropy only) + both select and
+   aggregate finishes under a fixed expansion budget.
+4. Log branch points, path scores, merge decisions, latency, expand count, and
+   judge/harness scores as Test artifacts under `~/.brain-spa` — never commit
+   weights or run dumps.
+5. Apply the Phase 1 decision rule before any encoder or Medusa-head work.
 
 That experiment answers the user’s question directly: does keeping multiple
-options open, then choosing (and stitching) later, produce better creative
-answers than committing to the highest local probability at every step?
+**chunk** options open, then choosing or stitching later, produce better
+creative answers than committing to the highest local probability — and is
+that gain new relative to existing open-source search?
