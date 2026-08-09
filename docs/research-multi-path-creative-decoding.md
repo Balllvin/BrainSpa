@@ -213,7 +213,9 @@ revisions; **normative build steps are now in the plan**. Research summary:
 
 Deep dive for implementers: see plan P4 and
 [rl-post-training.md](rl-post-training.md) (`expand-*` recipes) +
-[token-level-credit.md](token-level-credit.md).
+[token-level-credit.md](token-level-credit.md).  
+**Full graphs, losses, repo warps:**
+[plan-path-rl-architecture.md](plan-path-rl-architecture.md).
 
 ## Reasoning traces and multi-teacher distill (summary)
 
@@ -225,7 +227,9 @@ Two data engines, one schema:
 | Multi-teacher fanout | Lock start `S` → 2–4 OSS teachers with different priors → distill passers + path prefs |
 
 **Plan warp:** both are Path Env modes (`edit`, `fanout`), not separate
-products ([plan P3/P5](plan-multi-path-creative-model.md)).
+products ([plan P3/P5](plan-multi-path-creative-model.md)).  
+**Training graph + teacher disagreement → expand labels:**
+[plan-path-rl-architecture.md §4.3](plan-path-rl-architecture.md#43-multi-teacher-distill--edit-precise).
 
 Pitfalls (research): single-teacher homogenization; editing finals not
 reasoning; unverified agent edits; training on failures without reject/pref;

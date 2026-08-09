@@ -174,4 +174,5 @@ Chipmunk: `inspect-token` → `fork-routes` → `rows-from-forks` → `train-rec
 - [oss-tune-backends.md](oss-tune-backends.md)
 - [loop-pipeline-and-feedback.md](loop-pipeline-and-feedback.md)
 - [environment-harness-spec.md](environment-harness-spec.md)
-- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — chunk-level multi-path + splice research; uses this doc’s vines/recipes to construct models
+- [plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) — Path Env / phased build
+- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — research; uses this doc’s vines/recipes
