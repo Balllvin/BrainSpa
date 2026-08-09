@@ -175,4 +175,5 @@ Chipmunk: `inspect-token` → `fork-routes` → `rows-from-forks` → `train-rec
 - [loop-pipeline-and-feedback.md](loop-pipeline-and-feedback.md)
 - [environment-harness-spec.md](environment-harness-spec.md)
 - [plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) — Path Env / phased build
+- [plan-path-rl-architecture.md](plan-path-rl-architecture.md) — expand/vine RL graphs + repo warps
 - [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — research; uses this doc’s vines/recipes
