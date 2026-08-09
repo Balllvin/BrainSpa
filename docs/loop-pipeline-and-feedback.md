@@ -37,6 +37,11 @@ For future harnesses, capture:
 - the failure comment
 - the artifact path for the run
 
+## Method Expansion
+
+Open-source methods that can widen Evidence, Datasets, Tune, and Test are
+indexed in [training-methods.md](training-methods.md).
+
 ## Repository Boundary
 
 Commit source code, tests, docs, and small config. Do not commit:
