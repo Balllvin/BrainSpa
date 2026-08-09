@@ -204,7 +204,7 @@ Evidence (fuel for P3 edits).
 
 | Borrow | Warp |
 |--------|------|
-| Multi-teacher distill (research Phase 1d) | Teachers are **data workers**, not product; prefer local mlx-lm/vLLM |
+| Multi-teacher distill (research) | Teachers are **data workers**, not product; prefer local mlx-lm/vLLM |
 | Correct-the-reasoning (research) | `edit` mode; Chipmunk `edit-reasoning` |
 | Token vines | `fork` mode; same artifact family |
 | Hierarchical GRPO / RAE | **Do not train yet** — only ensure Episode/role tags exist on artifacts |
