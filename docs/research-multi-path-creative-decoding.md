@@ -115,7 +115,10 @@ prime-rl patterns already catalogued. The live research question is sharper:
 5. **Learned, cost-aware expand placement** — not only entropy thresholds: a
    small policy that predicts *where* multi-path helps, under a global budget
    (see [Learned Expand Controller](#learned-expand-controller-model--rl-architecture)).
-6. **Falsifiable creative harnesses** with recovery, splice-gain, diversity
+6. **Reasoning-trace Env + multi-teacher distill** — correct-the-reasoning edits
+   and 2–4 OSS continuation paths from a locked start
+   ([Phase 1d](#phase-1d--reasoning-trace-env--multi-teacher-path-distillation)).
+7. **Falsifiable creative harnesses** with recovery, splice-gain, diversity
    under quality, and $/quality curves (Brain Spa Test strength).
 
 ## Open-Source Landscape (Practical Building Blocks)
@@ -164,8 +167,10 @@ for studying decode-time multi-path on a classic LM.
 ### Training / rollout construction (do not re-document)
 
 Use the handbook, do not fork it: Unsloth, MLX, VinePPO, TDPO, PRM800K,
-Open-R1, Datatrove cleaning — see Doc Map in
-[training-methods.md](training-methods.md).
+Open-R1, OpenThoughts, Datatrove cleaning — see Doc Map in
+[training-methods.md](training-methods.md). Multi-teacher fanout and
+reasoning-edit Envs are specified in
+[Reasoning Trace Env And Multi-Teacher Path Distillation](#reasoning-trace-env-and-multi-teacher-path-distillation).
 
 ## Recommended Way Forward
 
@@ -255,22 +260,57 @@ Short version:
 Enter Phase 1c once Phase 1 heuristics beat fixed-width ToT at equal expands;
 exit when `π_b` matches or beats the oracle/heuristic Pareto curve.
 
-### Phase 2 — Only if Phase 1 / 1b / 1c wins
+### Phase 1d — Reasoning Trace Env + multi-teacher path distillation
+
+Two complementary data engines for teaching *how* to continue from a shared
+problem start — not only what the final answer is.
+
+**A. Correct-the-reasoning Env (human or agent editor)**
+
+1. Model (or teacher) emits a reasoning plan / partial solution.
+2. You or an agent **edits the reasoning** (not only the final answer).
+3. Store `(prefix, bad_continue, good_continue)` → preference / edit-SFT /
+   token-dpo rows ([token-level-credit.md](token-level-credit.md)).
+4. Optional: re-roll vines from the corrected prefix to score recovery.
+
+**B. Multi-teacher continuation distill (2–4 OSS agents)**
+
+1. Fix a **shared start** (problem statement + optional first reasoning steps
+   you approve).
+2. Prompt **2–4 different open-source models/agents** with different
+   continuation priors (e.g. careful, algebraic, tool-using, creative).
+3. Keep full traces per path; score with the same harness/verifier.
+4. Train the student on:
+   - all *passing* complete traces (multi-path SFT / distill), and/or
+   - preference pairs across paths (best vs worst), and/or
+   - prefix-conditioned mixtures so the student learns several valid ways to
+     continue from the same start.
+
+Full design:
+[Reasoning Trace Env And Multi-Teacher Distill](#reasoning-trace-env-and-multi-teacher-path-distillation).
+
+This is the Brain Spa-shaped way to get diverse path data without inventing
+teachers in-house: Open-R1 / OpenThoughts-style distill, plus your Env for
+corrections.
+
+### Phase 2 — Only if Phase 1 / 1b / 1c / 1d wins
 
 Construct adapters with the training-methods handbook:
 
 1. **Expand controller LoRA / head** (`train-recipe: expand-grpo` /
    `expand-ppo`) — primary efficiency win; see architecture section.
-2. **Preference / LoRA** on path pairs and splice accept/reject (`token-dpo` /
-   DPO / ORPO via Unsloth or MLX —
+2. **Multi-path / multi-teacher SFT** (`trace-sft` / `distill-paths`) on
+   approved complete traces from Phase 1d.
+3. **Preference / LoRA** on path pairs, reasoning edits, and splice
+   accept/reject (`token-dpo` / DPO / ORPO / `edit-sft` via Unsloth or MLX —
    [oss-tune-backends.md](oss-tune-backends.md)).
-3. **Dense credit:** `vine-ppo` or selective vines at controller-chosen expand
+4. **Dense credit:** `vine-ppo` or selective vines at controller-chosen expand
    points ([token-level-credit.md](token-level-credit.md)).
-4. **Group RL:** GRPO / GSPO on full answers; GAPO-style group diversity reward
+5. **Group RL:** GRPO / GSPO on full answers; GAPO-style group diversity reward
    if mode collapse shows up; Hierarchical GRPO if multi-agent Episodes exist.
-5. **Draft tree (optional):** Medusa/MTP retargeted for diversity; accelerate
+6. **Draft tree (optional):** Medusa/MTP retargeted for diversity; accelerate
    with vLLM/SGLang/mlx-lm workers.
-6. **Path-summary encoder (optional):** condition merge on sibling embeddings —
+7. **Path-summary encoder (optional):** condition merge on sibling embeddings —
    only after prompt aggregation plateaus.
 
 ### Phase 3 — Traps
@@ -284,13 +324,15 @@ Construct adapters with the training-methods handbook:
 
 ### Decision rule
 
-| Result after Phase 1 / 1b / 1c | Next move |
-|-------------------------------|-----------|
+| Result after Phase 1 / 1b / 1c / 1d | Next move |
+|------------------------------------|-----------|
 | Aggregate ≈ select at same cost | Creativity claim weak; ship adaptive branch + select |
 | Aggregate > select at same cost | Invest in merge (PRM / path encoder / merger LoRA) |
 | Heuristic entropy gate ≈ fixed ToT width | Keep fixed width; skip learned controller |
 | Learned `π_b` > heuristic on quality@budget | Ship expand controller; freeze generator |
 | Learned `π_b` ≈ heuristic | Keep entropy gate; controller not worth params |
+| Multi-teacher traces beat single-teacher SFT | Keep 2–4 teachers; diversify continuation priors |
+| Human/agent reasoning edits beat outcome-only labels | Invest in Correct-the-reasoning Env |
 | Single judge collapses diversity | Blind peer review / separate critic role |
 | Nothing beats BoN | Multi-path ≈ parallel sampling; optimize BoN + judge |
 | Multi-agent Episode helps scoring only | Keep roles at Test; delay Hierarchical GRPO |
@@ -316,6 +358,7 @@ families the catalog already defines.
 | Learn where to spend expands | [Learned Expand Controller](#learned-expand-controller-model--rl-architecture); GRPO/VinePPO recipes | Train `π_b` without retraining full LM |
 | Rollout workers | vLLM / SGLang / mlx-lm logprobs | Volume for BoN / vines / expand |
 | Clean multi-path datasets | [datasets-cleaning.md](datasets-cleaning.md) | Dedup near-paraphrase siblings |
+| Multi-teacher traces + reasoning edits | Phase 1d; Open-R1/OpenThoughts cold start | Build path corpora without inventing teachers |
 | Method / repo lookup | [training-method-catalog.md](training-method-catalog.md) | SFT / preference / RL / eval |
 
 ### Operator loop (reuse, then extend)
@@ -332,8 +375,9 @@ inspect-entropy / inspect-chunk
   → expand-chunks when beneficial (ToT thoughts, diversity filter)
   → score-branches (harness / PRM / vote / agentic-judge)
   → select OR aggregate (GoT) [+ optional self-refine]
-  → rows-from-forks / rows-from-splices / rows-from-episode / oracle_expand
-  → train-recipe: expand-sft | expand-grpo | expand-vine-ppo
+  → optional: lock-start → fanout-teachers → edit-reasoning
+  → rows-from-forks / rows-from-splices / rows-from-traces / oracle_expand
+  → train-recipe: expand-sft | expand-grpo | distill-paths | edit-sft | path-dpo
                   | unsloth-* | mlx-* | token-dpo | vine-ppo | grpo | …
 ```
 
@@ -913,20 +957,222 @@ corpora:
 Rejection sampling: generate N assemblies, keep verifier-/harness-passers only
 (`reject-sample` skill).
 
+## Reasoning Trace Env And Multi-Teacher Path Distillation
+
+Goal: teach the student **several valid ways to continue** from a shared
+problem start, and teach it to **accept corrections** to its own reasoning —
+not only to match a final answer.
+
+This is the data/Env twin of multi-path decode: decode explores paths at Test
+time; this section **manufactures path corpora** for Tune.
+
+### Why this belongs next to multi-path decode
+
+| Decode-time multi-path | Trace Env / multi-teacher distill |
+|------------------------|-----------------------------------|
+| Explore continuations while generating | Collect continuations offline from teachers / editors |
+| Expand controller spends budget online | Dataset already encodes which starts fork into diverse paths |
+| Splice / select at the end | Train on complete traces + pairwise path preferences |
+| Needs good path diversity | Teachers + continuation priors supply diversity |
+
+Same artifact family as vines and fork rows
+([token-level-credit.md](token-level-credit.md)): shared `prefix`, multiple
+`continuation_id`s, scores, optional corrections.
+
+### Env A — Correct-the-reasoning
+
+A Test/Evidence environment (harness contract later) with one primary loop:
+
+```text
+problem → draft reasoning (student or teacher)
+       → editor (you | agentic judge | Self-Refine critic)
+       → corrected reasoning + optional final answer
+       → artifact → Datasets → Tune
+```
+
+#### Episode fields
+
+| Field | Purpose |
+|-------|---------|
+| `problem` | Task statement |
+| `start` | Optional approved opening steps (how we should start) |
+| `draft_trace` | Model’s reasoning before edit |
+| `edit_ops` | Span/chunk replacements, inserts, deletes (not only a whole rewrite) |
+| `corrected_trace` | Gold reasoning after edit |
+| `final_answer` | Optional; may be unchanged even when reasoning changed |
+| `editor` | `human` \| `agent` \| `self-refine` |
+| `scores` | Draft vs corrected on harness / verifier |
+
+#### Train recipes from Env A
+
+| Recipe | Rows | Intent |
+|--------|------|--------|
+| `edit-sft` | Force corrected tokens/chunks from edit spans | Imitate the fix |
+| `token-dpo` / DPO | `(draft_trace, corrected_trace)` or span-local pairs | Prefer good reasoning |
+| `reject-at-token` | Keep vines that pass only after the edit | Outcome-ground the edit |
+| `vine-ppo` | Advantages from corrected prefix vs draft prefix | Credit the reasoning fork |
+
+UI rhyme: like Snake coach replay — show the draft plan, apply a correction,
+store the before/after. Keep the page sparse: one primary Run, adjacent scores
+([harness-and-test-ui-guide.md](harness-and-test-ui-guide.md)).
+
+Editors can be:
+
+- **You** (highest trust, lowest volume)
+- **AgenticJudge** from
+  [rl-post-training.md](rl-post-training.md#multi-agent-rl-prime-intellect)
+  (explore tests / constraints, propose edits)
+- **Self-Refine** critic (cheap; verify with harness)
+
+Never treat ungrounded LLM rewrites as gold without a verifier or human spot
+check ([datasets-cleaning.md](datasets-cleaning.md) preference scrub).
+
+### Env B — Multi-teacher continuation distill
+
+Use open-source models as **path generators**, not as the product.
+
+```text
+approved start S = problem ⊕ first_steps
+                 ├─ teacher_1  (prior: careful / CoT)
+                 ├─ teacher_2  (prior: tools / code)
+                 ├─ teacher_3  (prior: algebraic / formal)
+                 └─ teacher_4  (prior: creative / alternate plan)
+                        │
+                        ▼
+              score each full trace
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+   passers → SFT    best vs worst    prefix mixture:
+   distill          preference       train P(continue|S)
+```
+
+#### Protocol
+
+1. **Author the start.** Human or student proposes how to begin; you lock `S`
+   (first k reasoning chunks). Same idea as “give it how we should start.”
+2. **Fan out 2–4 teachers.** Different OSS checkpoints and/or system prompts
+   (continuation priors). Run via mlx-lm / vLLM / HF — backends in
+   [oss-tune-backends.md](oss-tune-backends.md).
+3. **Keep complete traces** per teacher (reasoning + answer), not only finals.
+4. **Score** with the shared Test verifier (RLVR). Drop failures or mark as
+   rejected paths.
+5. **Distill into the student:**
+
+| Objective | How |
+|-----------|-----|
+| Multi-path SFT | Train on all passing traces conditioned on `S` |
+| Path preference | DPO/ORPO: best passing path vs failing / worst path |
+| Mixture continue | At each chunk after `S`, expose multiple teacher next-chunks (closer to train-time multi-path) |
+| On-policy distill / MOPD | Teacher token advantages on student rollouts from `S` (NeMo RL pattern — study, don’t vendor) |
+
+Open-R1 / OpenThoughts already ship distilled reasoning corpora — use them as
+cold-start teachers/data, then **your** Env B regenerates domain-specific
+multi-path traces ([rl-post-training.md](rl-post-training.md),
+[datasets-cleaning.md](datasets-cleaning.md)).
+
+#### Teacher diversity checklist
+
+| Knob | Why |
+|------|-----|
+| Different model families | Avoid cloning one teacher’s tics |
+| Different system priors | Careful vs bold vs tool-first |
+| Temperature / seed | Mild; don’t rely on this alone |
+| Tool access on/off | Alternate solution graphs |
+| Dedup sibling traces | Fuzzy/semantic dedup within `S` |
+
+If all teachers paraphrase one plan, Env B collapses to single-path distill —
+fix with GAPO-style diversity pressure later or stronger prior prompts.
+
+### Combined loop (A + B)
+
+```text
+lock start S
+  → Env B: 2–4 OSS teachers continue → scored traces
+  → optional Env A: edit the best / fix a failing promising path
+  → clean (dedup, preference scrub)
+  → train-recipe: distill-paths | trace-sft | edit-sft | path-dpo | grpo
+  → Test: student must solve from S with / without multi-path decode
+```
+
+Chipmunk skills (thin wrappers):
+
+| Skill | Job |
+|-------|-----|
+| `lock-start` | Save approved problem start `S` |
+| `fanout-teachers` | Run 2–4 OSS continuations from `S` |
+| `edit-reasoning` | Human/agent correction UI → edit artifact |
+| `rows-from-traces` | Build SFT / preference / mixture rows |
+| `distill-paths` | Unsloth/MLX SFT or DPO over path corpus |
+| `reject-sample` | Keep verifier-passers only |
+
+### Artifact shape (shared start, many paths)
+
+```json
+{
+  "problem_id": "...",
+  "start": {"text": "...", "locked_by": "human"},
+  "paths": [
+    {
+      "path_id": "t1",
+      "source": "teacher:qwen-7b",
+      "prior": "careful",
+      "trace": "...",
+      "score": 1.0,
+      "pass": true
+    },
+    {
+      "path_id": "t2",
+      "source": "teacher:llama-8b",
+      "prior": "tools",
+      "trace": "...",
+      "score": 0.0,
+      "pass": false
+    }
+  ],
+  "edits": [
+    {
+      "from_path": "t2",
+      "editor": "human",
+      "corrected_trace": "...",
+      "score": 1.0
+    }
+  ]
+}
+```
+
+Store under `~/.brain-spa`; never commit traces or teacher dumps.
+
+### Relation to expand controller
+
+Env B corpora are excellent **offline labels** for `π_b`: prefixes where
+teachers disagree are natural expand points (`y*=1`); prefixes where all
+passers agree can stay `commit`. Feed disagreement entropy into Phase 1c
+oracle collection.
+
+### Pitfalls
+
+- Distilling one closed teacher’s style → homogenization; use ≥2 families.
+- Editing finals but not reasoning → model still fails novel forks.
+- Unverified agent edits → reward hacking on fluent nonsense.
+- Training on all traces including failures without preference/reject → noise.
+- Leaking private problems into teacher API logs — prefer local OSS teachers.
+
 ## Fit In Brain Spa (Later, Not Now)
 
 Reuse the training-methods loop map:
 
 | Loop stage | Possible artifact | Borrow construction from |
 |------------|-------------------|--------------------------|
-| Evidence | Recovery cases; chunk fork dumps; judge Traces | token-level-credit · agentic-judge |
-| Datasets | Path pairs; splice accept/reject; vine rows; role-split Episode rows; cleaned shards | datasets-cleaning · `rows-from-forks` · `rows-from-episode` |
-| Tune | Unsloth/MLX LoRA; `expand-sft` / `expand-grpo` / `token-dpo` / `vine-ppo` / `hierarchical-grpo` | oss-tune-backends · rl-post-training · expand controller |
-| Test | Creative harness; multi-agent Env optional; shared RLVR scorers | catalog eval · multi-agent section |
+| Evidence | Recovery cases; chunk fork dumps; judge Traces; **reasoning edits** | token-level-credit · agentic-judge · Env A |
+| Datasets | Path pairs; splice rows; vine rows; **multi-teacher traces**; cleaned shards | datasets-cleaning · `rows-from-forks` · `rows-from-traces` |
+| Tune | Unsloth/MLX; `expand-*` / `distill-paths` / `edit-sft` / `path-dpo` / `vine-ppo` / `hierarchical-grpo` | oss-tune-backends · rl-post-training |
+| Test | Creative / reasoning harness; Correct-the-reasoning Env; multi-agent optional | catalog eval · multi-agent · Env A/B |
 
 Chipmunk / resident workers stay loop operators. Multi-path is a **generation
 policy** under Test (and later Tune), not a fifth pillar. Automation extends
-existing skills plus `env-multi-agent` / `agentic-judge`.
+existing skills plus `env-multi-agent` / `agentic-judge` / `fanout-teachers` /
+`edit-reasoning` / `distill-paths`.
 
 Public shell: no persona demo; no committed weights, rollouts, or screenshots.
 
@@ -944,6 +1190,11 @@ Public shell: no persona demo; no committed weights, rollouts, or screenshots.
 10. Practical KV trie limits for live width 2–5 on local Unsloth/MLX boxes?
 11. When does Hierarchical GRPO beat flat GRPO for ideator/merger roles?
 12. Should `π_g` stay frozen forever, or jointly adapt after `π_b` stabilizes?
+13. Do multi-teacher path corpora beat single-teacher Open-R1-style distill on
+    recovery / splice metrics?
+14. Are reasoning edits (Env A) higher leverage per hour than more teacher
+    fanout (Env B)?
+15. How many continuation priors (2 vs 4) before diversity saturates after dedup?
 
 ## Non-Goals For This Note
 
@@ -958,22 +1209,26 @@ Public shell: no persona demo; no committed weights, rollouts, or screenshots.
 
 ## Suggested First Experiment (When Implementation Starts)
 
-Align with **Phase 0 → Phase 1 → Phase 1c** (1b optional) and
+Align with **Phase 0 → Phase 1 → Phase 1c / 1d** (1b optional) and
 [training-methods.md](training-methods.md):
 
-1. Prompt set with early-greed traps (creative writing + constrained plan).
+1. Prompt set with early-greed traps (creative writing + constrained plan /
+   math-or-code with verifier).
 2. Baselines: greedy · nucleus · BoN · ToT-select · GoT-aggregate · Self-Refine ·
    entropy-gated expand.
 3. Treatment A: entropy-gated chunk branch + select **and** aggregate under fixed
    `E_max`; diversity filter on siblings.
 4. Treatment B (Phase 1c): freeze `π_g`; train `π_b` via oracle commit-vs-expand
-   labels (`expand-sft`) then `expand-grpo` with `R = Q − λC`; compare Pareto to
-   entropy gate.
-5. Optional 1b: frozen critic Agent scores chunks blind; merger aggregates.
-6. Emit extended fork/splice JSONL including `action`, `oracle_expand`,
-   `expand_count`; log splice gain and diversity under `~/.brain-spa`.
-7. Decision rule → only then splice LoRA / Hierarchical GRPO / path encoder.
+   labels (`expand-sft`) then `expand-grpo` with `R = Q − λC`.
+5. Treatment C (Phase 1d): lock starts `S`; fan out 2–4 local OSS teachers;
+   optional human/agent reasoning edits; `distill-paths` + `path-dpo` /
+   `edit-sft`; compare to single-teacher SFT.
+6. Optional 1b: frozen critic Agent scores chunks blind; merger aggregates.
+7. Emit fork/splice/trace JSONL including `action`, `oracle_expand`, teacher
+   `path_id`s; log splice gain and diversity under `~/.brain-spa`.
+8. Decision rule → only then Hierarchical GRPO / path encoder.
 
 That answers: can we keep multiple **chunk** options open only where it helps,
-stitch or select later, and **learn** the expand policy with the stacked OSS
-training catalog — instead of paying exponential compute everywhere?
+stitch or select later, **learn** the expand policy, and **train** from
+corrected reasoning plus multi-teacher continuation traces — using the stacked
+OSS catalog instead of paying exponential compute everywhere?

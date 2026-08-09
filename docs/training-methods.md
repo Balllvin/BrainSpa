@@ -38,7 +38,7 @@ Studio lineage (CleanRL, Gymnasium, Spinning Up): [ml-platform.md](ml-platform.m
 | [token-level-credit.md](token-level-credit.md) | Why-token, corrections, vines, TDPO, PRMs |
 | [datasets-cleaning.md](datasets-cleaning.md) | Dedup, filters, synthetic data, QC artifacts |
 | [training-method-catalog.md](training-method-catalog.md) | Method + repo tables (pretrain through eval) |
-| [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) | Research: chunk multi-path decode + splice; borrows vines, GRPO, **multi-agent Env**, Unsloth/MLX to construct models |
+| [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) | Research: chunk multi-path + splice + **learned expand** + **reasoning-trace / multi-teacher distill**; borrows this catalog |
 
 ## Automation Sketch
 
@@ -53,7 +53,10 @@ Studio lineage (CleanRL, Gymnasium, Spinning Up): [ml-platform.md](ml-platform.m
 | `reject-sample` | Data | Keep verifier-passers |
 | `dry-run-train` | Training | Deps, VRAM, template check |
 | `env-multi-agent` | Harness | Judge / self-play / user-sim episode |
-| `train-recipe` | Training | `unsloth-*`, `mlx-*`, `expand-grpo`, `hierarchical-grpo`, `token-dpo`, `vine-ppo`, … |
+| `fanout-teachers` | Harness / Data | 2–4 OSS continuations from a locked start |
+| `edit-reasoning` | Source / Harness | Human or agent correction of a reasoning trace |
+| `rows-from-traces` | Data | Multi-path SFT / preference rows from teachers + edits |
+| `train-recipe` | Training | `unsloth-*`, `mlx-*`, `expand-grpo`, `distill-paths`, `edit-sft`, `hierarchical-grpo`, `token-dpo`, `vine-ppo`, … |
 | `eval-harness` | Harness | Post-train report → Evidence on fail |
 | `close-the-loop` | Chipmunk | Chain the above |
 
