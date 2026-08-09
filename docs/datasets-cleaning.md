@@ -91,8 +91,9 @@ Store under `~/.brain-spa/artifacts/datasets/<id>/`. Never commit corpora.
 | PRM / step labels | Auto vine-to-answer labels (Math-Shepherd idea) or PRM800K |
 
 Open-R1 / OpenThoughts: [rl-post-training.md](rl-post-training.md).  
-Multi-teacher fanout + Correct-the-reasoning Env:
-[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#reasoning-trace-env-and-multi-teacher-path-distillation).
+Path Env fanout + reasoning edits (plan) / research rationale:
+[plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) ·
+[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md).
 
 ## Chipmunk skill
 
@@ -113,4 +114,5 @@ Multi-teacher fanout + Correct-the-reasoning Env:
 - [oss-tune-backends.md](oss-tune-backends.md)
 - [loop-pipeline-and-feedback.md](loop-pipeline-and-feedback.md)
 - [token-level-credit.md](token-level-credit.md)
-- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#reasoning-trace-env-and-multi-teacher-path-distillation)
+- [plan-multi-path-creative-model.md](plan-multi-path-creative-model.md)
+- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md)

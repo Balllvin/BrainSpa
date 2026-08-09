@@ -38,7 +38,8 @@ Studio lineage (CleanRL, Gymnasium, Spinning Up): [ml-platform.md](ml-platform.m
 | [token-level-credit.md](token-level-credit.md) | Why-token, corrections, vines, TDPO, PRMs |
 | [datasets-cleaning.md](datasets-cleaning.md) | Dedup, filters, synthetic data, QC artifacts |
 | [training-method-catalog.md](training-method-catalog.md) | Method + repo tables (pretrain through eval) |
-| [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) | Research: chunk multi-path + splice + **learned expand** + **reasoning-trace / multi-teacher distill**; borrows this catalog |
+| [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) | Research: prior art, architecture rationale, open questions |
+| [plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) | **Build plan:** unified Path Env, P0–P6 phases, borrow→warp, pretrain→post-train |
 
 ## Automation Sketch
 
@@ -73,4 +74,5 @@ See [public-shell-boundary.md](public-shell-boundary.md) and [loop-pipeline-and-
 - [environment-harness-spec.md](environment-harness-spec.md)
 - [custom-harnesses.md](custom-harnesses.md)
 - [ml-model-types.md](ml-model-types.md)
-- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — creative multi-path / chunk decode + recombination; reuses vines, GRPO, multi-agent Env/judge patterns, and Tune backends from this index
+- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — research reference (prior art / rationale)
+- [plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) — Brain Spa phased plan (Path Env, pretrain→expand→distill)

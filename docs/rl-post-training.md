@@ -169,8 +169,10 @@ Study verifiers/prime-rl; don’t vendor as required public-shell deps.
 
 When Test uses multi-path decode, **compute placement** is itself an RL
 problem: which chunk boundaries deserve `chunk_B` vs `commit` under budget
-`E_max`. Full architecture lives in
-[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#learned-expand-controller-model--rl-architecture).
+`E_max`. Build order:
+[plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) P4–P5.
+Rationale:
+[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#learned-expand-controller-summary).
 
 | Recipe | Role |
 |--------|------|
@@ -194,7 +196,9 @@ Offline path corpora for the same multi-path story:
   `edit-sft` / `token-dpo`.
 
 Spec:
-[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#reasoning-trace-env-and-multi-teacher-path-distillation).
+[plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) (Path Env
+modes + P3/P5) · research rationale
+[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#reasoning-traces-and-multi-teacher-distill-summary).
 Cold-start data: Open-R1 / OpenThoughts above. Prefer local teachers via
 [oss-tune-backends.md](oss-tune-backends.md).
 
@@ -228,4 +232,5 @@ Feedback rule: misses become Evidence, then better rewards or datasets —
 - [token-level-credit.md](token-level-credit.md)
 - [training-method-catalog.md](training-method-catalog.md)
 - [ml-platform.md](ml-platform.md) — classic env RL (separate lane)
-- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — multi-path decode, expand controller, reasoning-trace Env / multi-teacher distill
+- [plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) — Path Env + phased build
+- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — research reference

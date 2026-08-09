@@ -113,7 +113,8 @@ Add MCTS only if operators need deep search UIs.
 
 Creative multi-path decode adds a **learned expand policy** (when to spend
 vines / chunk branches under budget) —
-[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#learned-expand-controller-model--rl-architecture)
+[plan P4](plan-multi-path-creative-model.md) ·
+[research](research-multi-path-creative-decoding.md#learned-expand-controller-summary)
 and `expand-grpo` in [rl-post-training.md](rl-post-training.md).
 
 ## Artifact shape
