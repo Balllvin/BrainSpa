@@ -183,6 +183,21 @@ Freeze the generator first; train a tiny LoRA/head as `π_b`. Pair with Unsloth
 or MLX backends. This sits next to VinePPO / token forks: same prefix MDP,
 different action (search width vs token edit).
 
+### Multi-teacher path distill + reasoning edits
+
+Offline path corpora for the same multi-path story:
+
+- Lock an approved problem **start**, fan out **2–4 OSS teachers** with
+  different continuation priors, score full traces, distill passers /
+  preferences into the student (`distill-paths`, `path-dpo`).
+- Or run a **Correct-the-reasoning** Env: draft → human/agent edit →
+  `edit-sft` / `token-dpo`.
+
+Spec:
+[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#reasoning-trace-env-and-multi-teacher-path-distillation).
+Cold-start data: Open-R1 / OpenThoughts above. Prefer local teachers via
+[oss-tune-backends.md](oss-tune-backends.md).
+
 ## Reward design pitfalls
 
 - Sparse 0/1 only → slow credit; add format rewards carefully (easy to hack)
@@ -198,6 +213,8 @@ different action (search width vs token edit).
 | `train-recipe: unsloth-grpo` / `unsloth-gspo` / `mlx-grpo` | Local reasoning RL (CUDA vs Apple Silicon) |
 | `train-recipe: grpo-trl` | Plain TRL path (CUDA) |
 | `train-recipe: expand-sft` / `expand-grpo` / `expand-vine-ppo` | Learned when-to-expand for multi-path decode |
+| `train-recipe: distill-paths` / `path-dpo` / `edit-sft` | Multi-teacher traces + reasoning corrections |
+| `fanout-teachers` / `edit-reasoning` / `rows-from-traces` | Build path corpora from locked starts |
 | `env-multi-agent` / `hierarchical-grpo` | Judge / self-play / user-sim via verifiers+prime-rl patterns |
 | `eval-harness` | Same verifiers as rewards, offline report |
 | Harness score → reward fn | Shared scorer module for Test and Tune |
@@ -211,4 +228,4 @@ Feedback rule: misses become Evidence, then better rewards or datasets —
 - [token-level-credit.md](token-level-credit.md)
 - [training-method-catalog.md](training-method-catalog.md)
 - [ml-platform.md](ml-platform.md) — classic env RL (separate lane)
-- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — uses multi-agent Env/judge patterns for creative path scoring and merge
+- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — multi-path decode, expand controller, reasoning-trace Env / multi-teacher distill

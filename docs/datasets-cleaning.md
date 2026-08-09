@@ -86,9 +86,13 @@ Store under `~/.brain-spa/artifacts/datasets/<id>/`. Never commit corpora.
 | SFT rows | Prompt → strong model completion → filter |
 | Preference pairs | Two completions → judge / PairRM → chosen/rejected |
 | Reasoning SFT | Distilled traces (Open-R1 Mixture-of-Thoughts, OpenThoughts) |
+| **Multi-path reasoning** | Locked start → 2–4 OSS teachers continue → keep passers + path prefs |
+| **Reasoning edits** | Draft trace → human/agent fix → edit-SFT / DPO pairs |
 | PRM / step labels | Auto vine-to-answer labels (Math-Shepherd idea) or PRM800K |
 
-Open-R1 / OpenThoughts: [rl-post-training.md](rl-post-training.md).
+Open-R1 / OpenThoughts: [rl-post-training.md](rl-post-training.md).  
+Multi-teacher fanout + Correct-the-reasoning Env:
+[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#reasoning-trace-env-and-multi-teacher-path-distillation).
 
 ## Chipmunk skill
 
@@ -109,3 +113,4 @@ Open-R1 / OpenThoughts: [rl-post-training.md](rl-post-training.md).
 - [oss-tune-backends.md](oss-tune-backends.md)
 - [loop-pipeline-and-feedback.md](loop-pipeline-and-feedback.md)
 - [token-level-credit.md](token-level-credit.md)
+- [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#reasoning-trace-env-and-multi-teacher-path-distillation)
