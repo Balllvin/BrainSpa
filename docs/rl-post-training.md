@@ -165,6 +165,24 @@ These sit next to VinePPO / token forks in the “credit is the product” theme
 
 Study verifiers/prime-rl; don’t vendor as required public-shell deps.
 
+### Learned expand controller (multi-path / creative decode)
+
+When Test uses multi-path decode, **compute placement** is itself an RL
+problem: which chunk boundaries deserve `chunk_B` vs `commit` under budget
+`E_max`. Full architecture lives in
+[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#learned-expand-controller-model--rl-architecture).
+
+| Recipe | Role |
+|--------|------|
+| `expand-sft` | Clone oracle commit-vs-expand labels |
+| `expand-grpo` | On-policy groups with reward `Q − λC` (or hard `E_max`) |
+| `expand-vine-ppo` | Dense credit at prefixes where the controller acted |
+| `expand-delta-reg` | Fit marginal-gain head `V_Δ` |
+
+Freeze the generator first; train a tiny LoRA/head as `π_b`. Pair with Unsloth
+or MLX backends. This sits next to VinePPO / token forks: same prefix MDP,
+different action (search width vs token edit).
+
 ## Reward design pitfalls
 
 - Sparse 0/1 only → slow credit; add format rewards carefully (easy to hack)
@@ -179,6 +197,7 @@ Study verifiers/prime-rl; don’t vendor as required public-shell deps.
 |----------------|------|
 | `train-recipe: unsloth-grpo` / `unsloth-gspo` / `mlx-grpo` | Local reasoning RL (CUDA vs Apple Silicon) |
 | `train-recipe: grpo-trl` | Plain TRL path (CUDA) |
+| `train-recipe: expand-sft` / `expand-grpo` / `expand-vine-ppo` | Learned when-to-expand for multi-path decode |
 | `env-multi-agent` / `hierarchical-grpo` | Judge / self-play / user-sim via verifiers+prime-rl patterns |
 | `eval-harness` | Same verifiers as rewards, offline report |
 | Harness score → reward fn | Shared scorer module for Test and Tune |

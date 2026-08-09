@@ -53,7 +53,7 @@ Studio lineage (CleanRL, Gymnasium, Spinning Up): [ml-platform.md](ml-platform.m
 | `reject-sample` | Data | Keep verifier-passers |
 | `dry-run-train` | Training | Deps, VRAM, template check |
 | `env-multi-agent` | Harness | Judge / self-play / user-sim episode |
-| `train-recipe` | Training | `unsloth-*`, `mlx-*`, `hierarchical-grpo`, `token-dpo`, `vine-ppo`, … |
+| `train-recipe` | Training | `unsloth-*`, `mlx-*`, `expand-grpo`, `hierarchical-grpo`, `token-dpo`, `vine-ppo`, … |
 | `eval-harness` | Harness | Post-train report → Evidence on fail |
 | `close-the-loop` | Chipmunk | Chain the above |
 

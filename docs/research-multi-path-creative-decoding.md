@@ -15,13 +15,14 @@ construction from [training-methods.md](training-methods.md) and deep dives:
 | Handbook | What this research borrows |
 |----------|----------------------------|
 | [token-level-credit.md](token-level-credit.md) | Prefix = state; top-k inspect; vines; TDPO; VinePPO; fork JSONL |
-| [rl-post-training.md](rl-post-training.md) | GRPO / GSPO / RLVR; **multi-agent Env** (Prime Intellect verifiers + prime-rl); Hierarchical GRPO / RAE |
+| [rl-post-training.md](rl-post-training.md) | GRPO / GSPO / RLVR; **multi-agent Env**; Hierarchical GRPO / RAE; **learned expand controller RL** |
 | [oss-tune-backends.md](oss-tune-backends.md) | Unsloth (CUDA), MLX (Apple Silicon), vLLM / SGLang / mlx-lm rollouts |
 | [datasets-cleaning.md](datasets-cleaning.md) | Exact/fuzzy/semantic dedup so sibling branches are not paraphrases |
 | [training-method-catalog.md](training-method-catalog.md) | Method/repo lookup (preference, eval, agentic envs) |
 
 This note is the **decode / creativity research direction**. Those docs are the
-**how to construct** handbook — including role-aware multi-agent Test/Tune.
+**how to construct** handbook — including role-aware multi-agent Test/Tune and
+the RL recipes for a **learned when-to-expand** controller.
 
 ## The Core Idea
 
@@ -85,6 +86,7 @@ and the same construction stack as [training-methods.md](training-methods.md).
 | Multi-token / tree drafts | Medusa, EAGLE, DeepSeek-style MTP, speculative decoding | Mature for **speed**, not creativity |
 | Extra encoder / heads over futures | Medusa heads; MTP modules; path scorers / PRMs | Exists for draft or reward, rarely for creative merge |
 | Role-split ideate / judge / merge | Prime Intellect Agent/Env; AgenticJudge; Proposer–Solver; blind peer review | Emerging; construction in [rl-post-training.md](rl-post-training.md#multi-agent-rl-prime-intellect) |
+| **Learn which steps deserve extra compute** | Input-adaptive BoN/routing; adaptive thinking budgets; learned decoding adapters; RL draft depth | Emerging — see [Learned Expand Controller](#learned-expand-controller-model--rl-architecture) |
 | Train for diversity of valid futures | GAPO (group-aware GRPO); rejection sampling | Emerging |
 | Creative writing specifically | ToT creative-writing (plan → passage + vote); LLM Review | Exists; often **select** or revise, not cross-path splice |
 
@@ -110,7 +112,10 @@ prime-rl patterns already catalogued. The live research question is sharper:
 4. **Role-conditioned multi-path** (ideate vs critic vs merger) with Hierarchical
    GRPO / RAE credit — construction exists in the training catalog; creative
    decode policies that *emit* those Episodes are not productized here.
-5. **Falsifiable creative harnesses** with recovery, splice-gain, diversity
+5. **Learned, cost-aware expand placement** — not only entropy thresholds: a
+   small policy that predicts *where* multi-path helps, under a global budget
+   (see [Learned Expand Controller](#learned-expand-controller-model--rl-architecture)).
+6. **Falsifiable creative harnesses** with recovery, splice-gain, diversity
    under quality, and $/quality curves (Brain Spa Test strength).
 
 ## Open-Source Landscape (Practical Building Blocks)
@@ -187,24 +192,26 @@ metrics, productize the controller — skip architecture.
 ### Phase 1 — Best immediate research stack (recommended)
 
 ```text
-entropy gate (EGB/EDEN)
+heuristic expand gate (EGB/EDEN features)
   → chunk expand (ToT thought unit; diversity-aware sampling)
   → score / prune (vote, value, PRM, or AgenticJudge role)
   → aggregate (GoT merge) OR select (ToT/BoN)
   → optional Self-Refine pass on the winner
+  → log (prefix features, expand?, Δquality) for controller dataset
 ```
 
 Defaults:
 
 - **Branch unit:** sentence / paragraph / plan step (ToT thought).
-- **Branch trigger:** high first-token-of-chunk entropy (or low top-1/top-2
-  margin); else commit.
-- **Width:** 2–5 live chunks; hard expand budget.
+- **Branch trigger (heuristic baseline):** high first-token-of-chunk entropy
+  (or low top-1/top-2 margin); else commit. This is the control to beat.
+- **Width:** 2–5 live chunks; hard expand budget `E_max`.
 - **Diversity:** reject near-duplicate siblings (embedding or MinHash — same
   tools as [datasets-cleaning.md](datasets-cleaning.md)).
 - **Finish:** run **both** select and aggregate; falsifier = splice gain > 0
   at equal expand count.
-- **Do not** train new heads until Phase 1 shows a stable win.
+- **Log counterfactuals:** at a sample of prefixes, force both commit and
+  expand; record quality delta vs expand cost → oracle labels for Phase 1c.
 
 ### Phase 1b — Multi-agent scoring (borrow PR #6 patterns)
 
@@ -227,20 +234,43 @@ Credit for later Tune: Hierarchical GRPO (don’t mix judge traces with ideator
 traces) and RAE (role-conditioned baselines). Study verifiers/prime-rl; do not
 vendor as required public-shell deps.
 
-### Phase 2 — Only if Phase 1 / 1b wins
+### Phase 1c — Learned Expand Controller (recommended architecture)
+
+Entropy gates waste expands on high-entropy but low-stakes tokens and miss
+low-entropy forks that still change the story. Replace the fixed threshold with
+a **small learned policy** that chooses *where* to spend multi-path compute.
+
+Full design: [Learned Expand Controller](#learned-expand-controller-model--rl-architecture).
+
+Short version:
+
+1. Freeze (or slowly update) generator `π_g`.
+2. Train expand policy `π_b` (tiny head / LoRA) at chunk boundaries:
+   `{commit, local_branch, chunk_branch, collapse}` under budget.
+3. Train offline from oracle Δquality labels, then on-policy RL with
+   `R = quality − λ·expand_cost` (or constrained GRPO under `E_max`).
+4. Credit ambiguous prefixes with VinePPO-style vines
+   ([token-level-credit.md](token-level-credit.md)).
+
+Enter Phase 1c once Phase 1 heuristics beat fixed-width ToT at equal expands;
+exit when `π_b` matches or beats the oracle/heuristic Pareto curve.
+
+### Phase 2 — Only if Phase 1 / 1b / 1c wins
 
 Construct adapters with the training-methods handbook:
 
-1. **Preference / LoRA** on path pairs and splice accept/reject (`token-dpo` /
+1. **Expand controller LoRA / head** (`train-recipe: expand-grpo` /
+   `expand-ppo`) — primary efficiency win; see architecture section.
+2. **Preference / LoRA** on path pairs and splice accept/reject (`token-dpo` /
    DPO / ORPO via Unsloth or MLX —
    [oss-tune-backends.md](oss-tune-backends.md)).
-2. **Dense credit:** `vine-ppo` or selective vines at entropy peaks
-   ([token-level-credit.md](token-level-credit.md)).
-3. **Group RL:** GRPO / GSPO on full answers; GAPO-style group diversity reward
+3. **Dense credit:** `vine-ppo` or selective vines at controller-chosen expand
+   points ([token-level-credit.md](token-level-credit.md)).
+4. **Group RL:** GRPO / GSPO on full answers; GAPO-style group diversity reward
    if mode collapse shows up; Hierarchical GRPO if multi-agent Episodes exist.
-4. **Draft tree (optional):** Medusa/MTP retargeted for diversity; accelerate
+5. **Draft tree (optional):** Medusa/MTP retargeted for diversity; accelerate
    with vLLM/SGLang/mlx-lm workers.
-5. **Path-summary encoder (optional):** condition merge on sibling embeddings —
+6. **Path-summary encoder (optional):** condition merge on sibling embeddings —
    only after prompt aggregation plateaus.
 
 ### Phase 3 — Traps
@@ -254,11 +284,13 @@ Construct adapters with the training-methods handbook:
 
 ### Decision rule
 
-| Result after Phase 1 / 1b | Next move |
-|---------------------------|-----------|
+| Result after Phase 1 / 1b / 1c | Next move |
+|-------------------------------|-----------|
 | Aggregate ≈ select at same cost | Creativity claim weak; ship adaptive branch + select |
 | Aggregate > select at same cost | Invest in merge (PRM / path encoder / merger LoRA) |
-| Adaptive branch ≈ fixed ToT width | Keep fixed width; entropy gate optional |
+| Heuristic entropy gate ≈ fixed ToT width | Keep fixed width; skip learned controller |
+| Learned `π_b` > heuristic on quality@budget | Ship expand controller; freeze generator |
+| Learned `π_b` ≈ heuristic | Keep entropy gate; controller not worth params |
 | Single judge collapses diversity | Blind peer review / separate critic role |
 | Nothing beats BoN | Multi-path ≈ parallel sampling; optimize BoN + judge |
 | Multi-agent Episode helps scoring only | Keep roles at Test; delay Hierarchical GRPO |
@@ -281,7 +313,7 @@ families the catalog already defines.
 | Teach diversity of valid futures | GAPO-style group rewards; rejection sample | Fight paraphrase collapse |
 | Cheap local adapters | Unsloth (CUDA) / MLX (Apple Silicon) | LoRA/QLoRA without megatrain |
 | Group of full answers | GRPO / GSPO | Same “several futures per prompt” mindset |
-| Dense credit along a path | VinePPO; Math-Shepherd-style step labels | Value recoverable prefixes |
+| Learn where to spend expands | [Learned Expand Controller](#learned-expand-controller-model--rl-architecture); GRPO/VinePPO recipes | Train `π_b` without retraining full LM |
 | Rollout workers | vLLM / SGLang / mlx-lm logprobs | Volume for BoN / vines / expand |
 | Clean multi-path datasets | [datasets-cleaning.md](datasets-cleaning.md) | Dedup near-paraphrase siblings |
 | Method / repo lookup | [training-method-catalog.md](training-method-catalog.md) | SFT / preference / RL / eval |
@@ -296,12 +328,13 @@ Creative multi-path (chunk grain + optional multi-agent):
 
 ```text
 inspect-entropy / inspect-chunk
-  → expand-chunks (ToT thoughts, entropy-gated, diversity filter)
+  → expand-policy π_b (or heuristic gate) → commit | local_k | chunk_B | collapse
+  → expand-chunks when beneficial (ToT thoughts, diversity filter)
   → score-branches (harness / PRM / vote / agentic-judge)
   → select OR aggregate (GoT) [+ optional self-refine]
-  → rows-from-forks / rows-from-splices / rows-from-episode
-  → train-recipe: unsloth-* | mlx-* | token-dpo | vine-ppo
-                  | grpo | hierarchical-grpo | …
+  → rows-from-forks / rows-from-splices / rows-from-episode / oracle_expand
+  → train-recipe: expand-sft | expand-grpo | expand-vine-ppo
+                  | unsloth-* | mlx-* | token-dpo | vine-ppo | grpo | …
 ```
 
 Chipmunk skills stay the automation surface
@@ -468,6 +501,236 @@ open-ended text has higher baseline H than GSM8K). Cap total expansions
 newline / sentence end / plan delimiter) so siblings are comparable units for
 later splice.
 
+**Heuristic gates are the baseline, not the end state.** Entropy correlates with
+ambiguity but not with *marginal value of search*. High entropy on style words
+wastes budget; low entropy on a plot-critical name can still be a trap. The
+next subsection replaces fixed `τ` with a learned expand policy.
+
+### Learned Expand Controller: Model + RL Architecture
+
+Goal: spend multi-path compute only where it is expected to improve the final
+answer enough to justify the cost. Explore further ideas when beneficial;
+commit elsewhere.
+
+Related external work (borrow ideas, don’t vendor): input-adaptive allocation
+of LM computation (arXiv:2410.04707); constrained test-time budgets
+(Solve-then-Learn); adaptive thinking budgets; learned decoding adapters
+(arXiv:2603.09065); RL for speculative draft depth (LTD). Brain Spa wiring
+stays via [token-level-credit.md](token-level-credit.md) and
+[rl-post-training.md](rl-post-training.md).
+
+#### Why a separate controller
+
+| Approach | Problem |
+|----------|---------|
+| Always branch | Exponential / linear waste on easy spans |
+| Fixed entropy threshold | Domain-specific; false positives on noisy open-ended text; misses calm but consequential forks |
+| Query-level BoN budget only | Too coarse — hard *tokens/chunks* inside an easy prompt still matter |
+| Fine-tune full LM to “think more” | Mixes content policy with compute policy; hard to constrain expands |
+
+Split **what to say** (`π_g`) from **how hard to search** (`π_b`).
+
+#### Modules
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Generator π_g  (classic decoder LM; freeze or slow LoRA)│
+│  hidden h_t, next-token dist p(·|s_t)                    │
+└───────────────────────────┬─────────────────────────────┘
+                            │ features φ(s_t)
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│  Expand policy π_b  (tiny MLP / LoRA head on h_t)        │
+│  action a_t ∈ {commit, local_k, chunk_B, collapse}       │
+│  optional: width B_t, depth d_t                          │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+         commit ────────────┤
+         expand ────────────┼──► Path memory / trie (B siblings)
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│  Optional Δ-value head V_Δ(s_t, budget)                  │
+│  predicts E[quality | expand] − E[quality | commit]      │
+└─────────────────────────────────────────────────────────┘
+```
+
+| Module | Params | Train? | Role |
+|--------|--------|--------|------|
+| `π_g` | Full LM | Freeze first; optional slow SFT/LoRA later | Propose tokens / chunks |
+| `π_b` | ~0.1–1% via LoRA or 1–2 layer head on `h_t` | **Yes — primary** | Decide expand vs commit |
+| `V_Δ` | Same size as `π_b` or shared trunk | Yes (regression) | Marginal gain of one expand |
+| Scorer / PRM / harness | External | Freeze or separate | Terminal quality `Q` |
+
+Default Brain Spa lean: Unsloth or MLX LoRA for `π_b` (+ optional `V_Δ`) on a
+frozen backbone ([oss-tune-backends.md](oss-tune-backends.md)).
+
+#### Decision points (token vs chunk)
+
+Do **not** call `π_b` on every token if chunking is the grain.
+
+| Mode | When `π_b` runs | Action semantics |
+|------|-----------------|------------------|
+| **Chunk-gated (default)** | Chunk boundaries only (sentence / plan step / `\n\n`) | `commit` = decode one chunk greedily/sample; `chunk_B` = sample B chunk candidates |
+| **Token-gated** | Every step or every k tokens | `local_k` = keep top-k token beams briefly; then collapse |
+| **Hybrid** | Chunk by default; token gate if `critical_span` feature fires (numbers, names, tool args) | Mix of above |
+
+Chunk-gated is the efficiency default: fewer decisions, siblings align for
+splice, matches ToT/GoT units.
+
+#### State features φ(s_t)
+
+Cheap features first (no extra forward):
+
+| Feature | Source |
+|---------|--------|
+| Entropy H, top-1/top-2 margin | `p(·\|s_t)` from `π_g` |
+| Top-k token ids / probs | logprobs API |
+| Budget remaining `E_max − e_used`, live width | controller bookkeeping |
+| Boundary flags | punctuation / plan delimiter |
+| Position fraction `t/T_max` | decode step |
+| Role prior | ideate vs safe (if multi-agent) |
+
+Optional richer features:
+
+| Feature | Source |
+|---------|--------|
+| `h_t` pooled | last hidden of `π_g` |
+| Self-certainty / margin of a quick draft | 1-step lookahead logprob |
+| PRM step score on current prefix | process reward model |
+| Novelty vs siblings so far | embedding distance |
+
+#### MDP / POMDP
+
+- **State:** `s_t` = prefix (+ φ features; partially observed via `h_t`).
+- **Action:** `a_t ∈ A` as above (discrete). Continuous alt: predict expand
+  width `B_t ∈ {0…B_max}` with `0 = commit`.
+- **Transition:** execute action; append chosen chunk(s); update trie / scores.
+- **Terminal reward:**
+
+```text
+R = Q(final) − λ · C(expands) + β · DiversityBonus − γ · ConstraintFail
+```
+
+Or **constrained** form (preferred for honest budgets):
+
+```text
+maximize E[Q]  s.t.  E[C] ≤ B_target
+```
+
+Implement via Lagrange multiplier `λ` (binary-search `λ` so mean expands match
+budget — Solve-then-Learn pattern) or reject groups that exceed `E_max` in
+GRPO filtering.
+
+`Q` = same harness / judge used in Test (RLVR rule). `C` = expand count (or
+token×beam FLOPs proxy). DiversityBonus only if siblings clear the novelty
+filter (avoid rewarding gibberish).
+
+#### Oracle labels (Solve stage)
+
+Before RL, build a supervised expand dataset:
+
+For sampled prefixes on training prompts:
+
+1. Run **commit** continuation → score `Q_commit` (or K vines mean —
+   VinePPO).
+2. Run **expand** (width B) + select/aggregate → score `Q_expand`.
+3. Label:
+
+```text
+y* = 1[ Q_expand − Q_commit > κ · ΔC ]
+```
+
+Also store regression target `δ* = Q_expand − Q_commit` for `V_Δ`.
+
+Cap how many prefixes you oracle per prompt (expensive). Prefer uncertain /
+boundary prefixes; random subsample the rest. Artifacts → Datasets
+(`rows-from-forks` extended with `oracle_expand`).
+
+#### Learn stage — training recipes
+
+Ordered from stable to ambitious. All fit Chipmunk `train-recipe` names.
+
+| Recipe | Signal | When |
+|--------|--------|------|
+| `expand-sft` / behavior clone | Cross-entropy on `y*` | Cold start `π_b` |
+| `expand-delta-reg` | L2/Huber on `V_Δ → δ*` | Calibrate marginal gain |
+| `expand-dpo` | Prefer trajectories whose expand masks match high-δ* prefixes | Preference path |
+| `expand-grpo` | Group of completions with **different expand masks** / λ; advantage on `Q − λC` | Main on-policy loop |
+| `expand-vine-ppo` | VinePPO advantages at prefixes where `π_b` acted; compare expand vs commit vines | Dense credit |
+| `hierarchical-grpo` | If critic/merger roles exist — don’t mix with `π_b` traces | Multi-agent stack |
+
+**Recommended default architecture for Brain Spa:**
+
+1. Freeze `π_g`.
+2. `expand-sft` on oracle labels until `π_b` beats entropy gate on held-out
+   quality@budget.
+3. `expand-grpo` with fixed `λ` (or budget reject) using Unsloth/MLX + vLLM or
+   mlx-lm rollouts.
+4. Add `expand-vine-ppo` only if credit to early expand decisions is too noisy.
+
+Do **not** jointly RL the full generator until the controller Pareto curve is
+stable — otherwise `π_g` learns to fish for reward by rambling.
+
+#### Hierarchical budget (optional outer loop)
+
+Two timescales:
+
+```text
+π_budget(prompt) → B_total          # contextual bandit / small classifier
+π_b(s_t | B_remaining) → a_t        # sequential placer
+```
+
+Matches “not all turns/chunks are equally hard”: allocate a thinking budget to
+the prompt, then place expands along the decode. Outer loop can imitate oracle
+`b*(x;λ)` from constrained allocation papers; inner loop is this section’s
+`π_b`.
+
+#### Inference algorithm
+
+```text
+e_used ← 0
+while not done:
+  if at_decision_point(s_t):
+    a ← π_b(φ(s_t), E_max - e_used)
+    if a == collapse or e_used >= E_max:
+      finish with select/aggregate on live paths
+    elif a == commit:
+      append one chunk from π_g
+    elif a == chunk_B:
+      sample B diverse chunks; score; keep top W; e_used += B
+    elif a == local_k:
+      short token beam k; collapse to 1; e_used += k
+  else:
+    append next token from π_g   # inside a committed chunk
+```
+
+Optional: only expand when `V_Δ(s_t) > λ` (threshold = shadow price of compute).
+
+#### Efficiency falsifiers
+
+| Metric | Meaning |
+|--------|---------|
+| Quality @ fixed `E_max` | Primary — controller must beat entropy gate and uniform expand |
+| Expands @ fixed quality | Secondary — same Q with fewer expands |
+| Precision of expand | Fraction of expands with oracle `y*=1` |
+| Recall of expand | Fraction of beneficial forks that got expands |
+| Calibration of `V_Δ` | Correlation with realized `δ*` |
+| Waste rate | Expands on paraphrase-only siblings |
+
+If precision is low, raise `λ` / κ or improve features. If recall is low on
+planted traps, add trap Evidence and upweight those prefixes in `expand-sft`.
+
+#### Construction map (controller-specific)
+
+| Step | Skill / recipe | Doc |
+|------|----------------|-----|
+| Collect commit vs expand rollouts | `fork-routes` + forced commit/expand | token-level-credit |
+| Write oracle rows | `rows-from-forks` (`oracle_expand`) | datasets-cleaning QC |
+| Clone controller | `train-recipe: expand-sft` | oss-tune-backends |
+| On-policy | `train-recipe: expand-grpo` / `expand-vine-ppo` | rl-post-training |
+| Eval Pareto | `eval-harness` quality vs expands | Test harness metrics |
+
 ### B. Path memory (what to keep)
 
 Each live path node:
@@ -527,7 +790,7 @@ Failure modes to log:
 | Frankenstein prose | Glue fails grammar / tense | Longer glue window; reject |
 | Fact clash | Entities disagree across slots | Critic constraint; prefer select |
 | Judge sycophancy | Longer splice always wins | Length-normalized scores; blind judge |
-| Budget blowup | Expand count ≫ BoN | Hard `E_max`; entropy gate |
+| Budget blowup | Expand count ≫ BoN | Hard `E_max`; learned `π_b` / higher λ |
 
 ### D. Optional multi-agent scoring layer
 
@@ -551,11 +814,13 @@ rule says so.
 | Tier | Option | Enter when | Exit metric |
 |------|--------|------------|-------------|
 | 0 | Decode-only ToT/GoT/EGB | Always start here | Baselines logged |
-| 1 | Preference / PRM head (LoRA) | Splice or select needs better ranking | Judge agreement ↑ |
-| 2 | Diversity group reward (GAPO-like) | Sibling paraphrase rate high | Distinct-useful ↑ |
-| 3 | Medusa/MTP diversity draft tree | Expand cost dominates | Same quality, lower latency |
-| 4 | Path-summary encoder / cross-attn over siblings | Prompted GoT aggregate plateaus | Splice gain ↑ at fixed expands |
-| 5 | Train-time multi-future objectives | Inference search works but unstable | Recovery ↑ with less Test search |
+| 1 | Heuristic entropy/margin gate | Phase 1 | Beats fixed width @ `E_max` |
+| 2 | **Learned expand controller `π_b` (+ optional `V_Δ`)** | Phase 1c | Beats heuristic on quality@budget |
+| 3 | Preference / PRM head (LoRA) | Splice or select needs better ranking | Judge agreement ↑ |
+| 4 | Diversity group reward (GAPO-like) | Sibling paraphrase rate high | Distinct-useful ↑ |
+| 5 | Medusa/MTP diversity draft tree | Expand cost dominates | Same quality, lower latency |
+| 6 | Path-summary encoder / cross-attn over siblings | Prompted GoT aggregate plateaus | Splice gain ↑ at fixed expands |
+| 7 | Train-time multi-future objectives | Inference search works but unstable | Recovery ↑ with less Test search |
 
 Path-summary encoder (user’s “different encoder” idea): a thin stack embeds
 sibling chunk summaries; the decoder cross-attends when merging. It represents
@@ -576,7 +841,8 @@ stats — see learned preferences).
 | Distinct-n / self-BLEU | Lexical diversity among siblings | Not sufficient alone |
 | Splice gain | `score(assembly) − max score(path)` | **Primary creative falsifier** |
 | Budget curve | Quality vs expands / latency / Joules | Log expand count always |
-| Controllable branch | Adaptive vs fixed width at equal expands | Entropy gate value |
+| Controllable branch | Adaptive / learned `π_b` vs fixed width at equal expands | Entropy gate + expand controller value |
+| Expand precision / recall | Beneficial forks expanded; waste expands avoided | From oracle `y*` or planted traps |
 | Homogenization | Drop in diversity when critics see peer drafts | Blind vs open critique A/B |
 | Judge robustness | Agreement under length-normalization / swap tests | Avoid length bias |
 
@@ -612,6 +878,8 @@ Extend the token fork JSONL from
   "entropy": 2.4,
   "margin": 0.15,
   "action": "chunk_branch",
+  "controller": {"policy": "pi_b|entropy_gate", "v_delta": 0.12, "budget_left": 8},
+  "oracle_expand": {"y_star": 1, "delta_q": 0.18, "delta_c": 3},
   "candidates": [
     {"id": "c1", "role": "ideate", "text": "...", "score": 0.62, "novelty": 0.8},
     {"id": "c2", "role": "wild", "text": "...", "score": 0.41, "novelty": 0.9}
@@ -653,7 +921,7 @@ Reuse the training-methods loop map:
 |------------|-------------------|--------------------------|
 | Evidence | Recovery cases; chunk fork dumps; judge Traces | token-level-credit · agentic-judge |
 | Datasets | Path pairs; splice accept/reject; vine rows; role-split Episode rows; cleaned shards | datasets-cleaning · `rows-from-forks` · `rows-from-episode` |
-| Tune | Unsloth/MLX LoRA; `token-dpo` / `vine-ppo` / `grpo` / `hierarchical-grpo` | oss-tune-backends · rl-post-training |
+| Tune | Unsloth/MLX LoRA; `expand-sft` / `expand-grpo` / `token-dpo` / `vine-ppo` / `hierarchical-grpo` | oss-tune-backends · rl-post-training · expand controller |
 | Test | Creative harness; multi-agent Env optional; shared RLVR scorers | catalog eval · multi-agent section |
 
 Chipmunk / resident workers stay loop operators. Multi-path is a **generation
@@ -667,12 +935,15 @@ Public shell: no persona demo; no committed weights, rollouts, or screenshots.
 1. Right branch unit: token vs sentence vs learned chunk? (Start with ToT thoughts.)
 2. Does GoT aggregate beat ToT/BoN/Self-Refine on creative metrics at equal expands?
 3. Does entropy gating transfer from math to high-entropy creative text?
-4. Blind critic vs open debate: which preserves diversity without killing quality?
-5. Path-summary encoder vs better prompted merge vs small preference head?
-6. How to stop paraphrase mode collapse (filters vs GAPO vs role priors)?
-7. How much creativity is Test-time search vs training that rewards recovery?
-8. Practical KV trie limits for live width 2–5 on local Unsloth/MLX boxes?
-9. When does Hierarchical GRPO beat flat GRPO for ideator/merger roles?
+4. Can learned `π_b` beat a well-tuned entropy/margin gate on quality@budget?
+5. Is `V_Δ` worth a separate head, or is discrete `π_b` enough?
+6. Blind critic vs open debate: which preserves diversity without killing quality?
+7. Path-summary encoder vs better prompted merge vs small preference head?
+8. How to stop paraphrase mode collapse (filters vs GAPO vs role priors)?
+9. How much creativity is Test-time search vs training that rewards recovery?
+10. Practical KV trie limits for live width 2–5 on local Unsloth/MLX boxes?
+11. When does Hierarchical GRPO beat flat GRPO for ideator/merger roles?
+12. Should `π_g` stay frozen forever, or jointly adapt after `π_b` stabilizes?
 
 ## Non-Goals For This Note
 
@@ -687,20 +958,22 @@ Public shell: no persona demo; no committed weights, rollouts, or screenshots.
 
 ## Suggested First Experiment (When Implementation Starts)
 
-Align with **Phase 0 → Phase 1** (then 1b) and
+Align with **Phase 0 → Phase 1 → Phase 1c** (1b optional) and
 [training-methods.md](training-methods.md):
 
 1. Prompt set with early-greed traps (creative writing + constrained plan).
-2. Baselines: greedy · nucleus · BoN · ToT-select · GoT-aggregate · Self-Refine.
-3. Treatment: entropy-gated chunk branch + select **and** aggregate under fixed
+2. Baselines: greedy · nucleus · BoN · ToT-select · GoT-aggregate · Self-Refine ·
+   entropy-gated expand.
+3. Treatment A: entropy-gated chunk branch + select **and** aggregate under fixed
    `E_max`; diversity filter on siblings.
-4. Optional 1b: frozen critic Agent scores chunks blind; merger aggregates.
-5. Emit extended fork/splice JSONL; log expand count, latency, splice gain,
-   diversity under `~/.brain-spa`.
-6. Decision rule → only then LoRA via `rows-from-forks` + Unsloth/MLX recipes
-   (and Hierarchical GRPO only if Episodes exist).
+4. Treatment B (Phase 1c): freeze `π_g`; train `π_b` via oracle commit-vs-expand
+   labels (`expand-sft`) then `expand-grpo` with `R = Q − λC`; compare Pareto to
+   entropy gate.
+5. Optional 1b: frozen critic Agent scores chunks blind; merger aggregates.
+6. Emit extended fork/splice JSONL including `action`, `oracle_expand`,
+   `expand_count`; log splice gain and diversity under `~/.brain-spa`.
+7. Decision rule → only then splice LoRA / Hierarchical GRPO / path encoder.
 
-That answers: does keeping multiple **chunk** options open, then choosing or
-stitching later — optionally with role-aware judging from the PR #6 multi-agent
-patterns — produce better creative answers than local argmax, and can we
-**construct** that behavior with the stacked OSS training catalog?
+That answers: can we keep multiple **chunk** options open only where it helps,
+stitch or select later, and **learn** the expand policy with the stacked OSS
+training catalog — instead of paying exponential compute everywhere?

@@ -111,6 +111,11 @@ Prime Intellect **Hierarchical GRPO** and **RAE** for multi-agent roles —
 For Brain Spa Test, start simpler: top-k + forced-token fork + K random vines.
 Add MCTS only if operators need deep search UIs.
 
+Creative multi-path decode adds a **learned expand policy** (when to spend
+vines / chunk branches under budget) —
+[research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md#learned-expand-controller-model--rl-architecture)
+and `expand-grpo` in [rl-post-training.md](rl-post-training.md).
+
 ## Artifact shape
 
 One JSONL record per fork point (Evidence / Datasets):
