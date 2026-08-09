@@ -8,7 +8,7 @@ Language-model work uses evidence-backed text rows, preference pairs, dry-runs, 
 
 The public shell does not seed a language model. Add one only when the target behavior, evidence source, dataset route, tune route, and test harness are all explicit.
 
-Research / plan (language-model lane): [research](research-multi-path-creative-decoding.md) · [plan](plan-multi-path-creative-model.md) — multi-path decode, Path Env, expand controller, multi-teacher distill. Construction borrows [training-methods.md](training-methods.md).
+Research / plan (language-model lane): [research](research-multi-path-creative-decoding.md) · [plan](plan-multi-path-creative-model.md) · [RL architecture](plan-path-rl-architecture.md) — multi-path decode, Path Env, expand controller, multi-teacher distill. Construction borrows [training-methods.md](training-methods.md).
 
 ## Policy Models
 

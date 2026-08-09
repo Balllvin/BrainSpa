@@ -2,7 +2,9 @@
 
 Status: **research reference only**. Execution phases, Path Env modes, and
 borrow→warp checklists live in
-[plan-multi-path-creative-model.md](plan-multi-path-creative-model.md).
+[plan-multi-path-creative-model.md](plan-multi-path-creative-model.md).  
+**Precise RL architecture, mermaid graphs, losses, per-repo manipulation:**
+[plan-path-rl-architecture.md](plan-path-rl-architecture.md).
 
 OSS construction catalog: [training-methods.md](training-methods.md).
 
@@ -283,6 +285,7 @@ Manipulation rules (borrow → ours):
 ## Related
 
 - [plan-multi-path-creative-model.md](plan-multi-path-creative-model.md) — **build plan**
+- [plan-path-rl-architecture.md](plan-path-rl-architecture.md) — **RL/training architecture + repo warps**
 - [training-methods.md](training-methods.md) · [rl-post-training.md](rl-post-training.md)
 - [token-level-credit.md](token-level-credit.md) · [datasets-cleaning.md](datasets-cleaning.md)
 - [ml-model-types.md](ml-model-types.md) · [environment-harness-spec.md](environment-harness-spec.md)

@@ -3,12 +3,17 @@
 Status: **planning only** — no implementation in this PR.  
 Research reference (prior art, why, open questions):
 [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md).  
+**Precise RL / module / repo-manipulation architecture (graphs + losses):**
+[plan-path-rl-architecture.md](plan-path-rl-architecture.md).  
 Construction catalog (OSS recipes/backends):
 [training-methods.md](training-methods.md).
 
 This document is the **Brain Spa build plan**: what we assemble, in which
 phase, which OSS pieces we borrow, and **how we warp them** so they serve the
 Evidence → Datasets → Tune → Test loop — not a generic LLM lab.
+
+For **exact** MDPs, mermaid graphs, loss sketches, and per-repo “take / change /
+wire / don’t” tables, use [plan-path-rl-architecture.md](plan-path-rl-architecture.md).
 
 ## Product target (specific to us)
 
@@ -28,7 +33,8 @@ Snake Policy and Studio stay the policy/tabular references. This plan is the
 
 | Doc | Job |
 |-----|-----|
-| **This plan** | Phases, Brain Spa Env, recipes, borrow→adapt, exit criteria |
+| **This plan** | Phases, Brain Spa Env overview, borrow→adapt, exit criteria |
+| [plan-path-rl-architecture.md](plan-path-rl-architecture.md) | **Precise** modules, MDPs, training graphs, losses, repo warps |
 | [research-…](research-multi-path-creative-decoding.md) | Prior art, bets, open questions, architecture rationale |
 | [training-methods.md](training-methods.md) + deep dives | Generic OSS methods, backends, cleaning, RL catalog |
 
@@ -107,6 +113,20 @@ P4 Multi-path decode + learned expand controller
 P5 Path-aware post-train (distill, edit-SFT, expand-GRPO, splice prefs)
 P6 Close the loop (Chipmunk skills, shared scorers, Pareto dashboards)
 ```
+
+```mermaid
+flowchart LR
+  P0[P0 Foundations] --> P1[P1 Pretrain/synth/clean]
+  P1 --> P2[P2 Single-path SFT/DPO]
+  P2 --> P3[P3 Path Env corpora]
+  P3 --> P4[P4 Expand π_b]
+  P3 --> P5[P5 Path post-train]
+  P4 --> P5
+  P5 --> P6[P6 Chipmunk loop]
+```
+
+Training graphs with losses and repo warps:
+[plan-path-rl-architecture.md §4–6](plan-path-rl-architecture.md#4-training-graphs-by-phase).
 
 Each phase has: **goal**, **borrow**, **warp**, **build**, **artifacts**,
 **exit**. Do not start P4/P5 until P1–P3 exits are green unless doing a
@@ -244,6 +264,9 @@ then select or splice.
 precision/recall vs oracle acceptable; median splice gain recorded (may be ≤0 —
 then ship select-only).
 
+Architecture detail (controller MDP, expand-grpo loss, sequence diagram):
+[plan-path-rl-architecture.md §3–4](plan-path-rl-architecture.md#3-module-architecture-precise).
+
 ---
 
 ## P5 — Path-aware post-train
@@ -349,6 +372,7 @@ More rationale: [research-multi-path-creative-decoding.md](research-multi-path-c
 
 ## Related
 
+- [plan-path-rl-architecture.md](plan-path-rl-architecture.md) — **RL/training architecture graphs + repo warps**
 - [research-multi-path-creative-decoding.md](research-multi-path-creative-decoding.md) — research
 - [training-methods.md](training-methods.md) — OSS index
 - [token-level-credit.md](token-level-credit.md) · [rl-post-training.md](rl-post-training.md)
